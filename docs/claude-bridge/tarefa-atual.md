@@ -1,6 +1,6 @@
 # Tarefa 07 — Ajuste de diagramação mobile: navbar e seção de preço
 
-**Status: AGUARDANDO EXECUÇÃO**
+**Status: CONCLUÍDA**
 
 - Tipo: código (CSS apenas, sem mudança de estrutura HTML nem de lógica)
 - Data: 23/09/2026
@@ -58,4 +58,34 @@ Validar cada item contra o código real, porque os seletores abaixo são ilustra
 
 ## Relatório do executor
 
-_(preencher aqui)_
+- **Status:** CONCLUÍDA
+- **Feito:**
+  - `public/index.html`: estilo do link de garantia (`.btn-note a`, cor `var(--peach)`, `text-underline-offset:3px`, `:visited` igual) valendo em todas as larguras; nova `@media(max-width:480px)` com ajustes de navbar (`.logo-product{display:none}`, `.header-cta` menor com altura de toque ≥44px), selo de prazo (`border-radius:16px`, `letter-spacing:.08em`, `font-size:11px`, `padding:10px 16px`, ponto indicador alinhado com `align-items:flex-start` + `margin-top`), preço (`clamp(56px,19vw,88px)`, `letter-spacing:-.03em`, "R$" em `.35em`), card da oferta (`padding:28px 20px`) e CTA final (`white-space:nowrap`, `font-size:17px`, ícone 40px).
+  - `docs/t4p-00-estado.md`: linha no Registro rápido sobre o ajuste mobile.
+  - `docs/claude-bridge/evidencias/tarefa-07-mobile/`: prints antes/depois em 360/390/430px (navbar e oferta) + desktop depois (1280px), gerados com Playwright contra o servidor local.
+- **Validação:**
+  - ✅ Prints da landing em 360/390/430px (navbar e oferta), antes e depois — anexados em `docs/claude-bridge/evidencias/tarefa-07-mobile/` (12 arquivos) e linkados abaixo.
+  - ✅ Preço sem corte em 360px — no "antes", "49,90" chegava a encostar na borda direita do card; no "depois", sobra folga visível dos dois lados (ver `depois-oferta-360.png`).
+  - ✅ CTA "Quero começar agora" em 1 linha em 360/390/430px, sem precisar cair para 16px.
+  - ✅ Link da garantia na cor de destaque (`var(--peach)`, sublinhado com offset) e abrindo o WhatsApp correto — confirmado pelo passo do e2e "landing tem pelo menos 3 links wa.me/5519974139426 e nenhum {{whatsapp sobra".
+  - ✅ Desktop (1280px) visualmente igual ao atual, exceto a cor do link — selo continua pílula 999px, navbar mostra "IA para Negócios" por inteiro, preço mantém 76px fixo (ver `depois-desktop-oferta-1280.png`).
+  - ✅ `npm run e2e` — 11/11 passos verdes.
+  - ✅ Nenhum arquivo fora de CSS/templates da landing alterado: só `public/index.html` (CSS) e `docs/t4p-00-estado.md` (1 linha de doc) mudaram no código; o PNG de evidência de outra tarefa que o e2e reescreve como efeito colateral foi revertido antes do commit.
+- **Divergências:**
+  - Item 3 (hierarquia do selo — "PREÇO DE LANÇAMENTO" em caixa alta e "até sexta, 25/09, às 14h" em peso normal): **não implementado**. `{{selo_texto}}` chega do servidor como uma string única (`seloVendas()` em `src/server.js`), sem `<br>`/`<span>` existente separando as duas partes, e o `.hero-tag` já força `text-transform:uppercase` no texto inteiro. Diferenciar peso/caixa por trecho exigiria envolver uma parte em `<span>` no HTML gerado pelo servidor — mudança de estrutura/lógica, fora do escopo "CSS apenas" desta tarefa. Reportando em vez de improvisar, como pedido no mecanismo proposto.
+  - O ponto indicador do selo foi alinhado com `align-items:flex-start` + `margin-top:6px` no `i`, uma aproximação visual (não há como calcular o alinhamento exato com o cap-height da primeira linha sem envolver o texto num `<span>` próprio). Ficou visualmente alinhado nos três breakpoints testados.
+- **Achados (fora do escopo, não corrigidos):**
+  - `footer a{color:var(--peach)}` já tem cor, mas não tem `text-underline-offset` nem `:visited` explícito (herda a cor do link normal, então não chega a ficar diferente na prática, mas é inconsistente com o padrão pedido para o link da garantia).
+  - O link da FAQ de equipe (`#faq-equipe-whats`, injetado via JS em `public/index.html` linha ~1048) usa `style="color:var(--peach)"` inline em vez de uma classe/CSS — funciona, mas foge do padrão do resto do arquivo.
+  - Nenhum outro `<a>` sem estilo foi encontrado na landing.
+- **Commit/branch:** branch `fix/mobile-preco-navbar`, a partir da `main` atualizada (commit `5c35d63`, com o PR #6 já mergeado). PR ainda não aberto neste relatório — ver seção Entrega.
+
+### Evidências (antes/depois)
+
+360px: [antes navbar](../evidencias/tarefa-07-mobile/antes-navbar-360.png) · [depois navbar](../evidencias/tarefa-07-mobile/depois-navbar-360.png) · [antes oferta](../evidencias/tarefa-07-mobile/antes-oferta-360.png) · [depois oferta](../evidencias/tarefa-07-mobile/depois-oferta-360.png)
+
+390px: [antes navbar](../evidencias/tarefa-07-mobile/antes-navbar-390.png) · [depois navbar](../evidencias/tarefa-07-mobile/depois-navbar-390.png) · [antes oferta](../evidencias/tarefa-07-mobile/antes-oferta-390.png) · [depois oferta](../evidencias/tarefa-07-mobile/depois-oferta-390.png)
+
+430px: [antes navbar](../evidencias/tarefa-07-mobile/antes-navbar-430.png) · [depois navbar](../evidencias/tarefa-07-mobile/depois-navbar-430.png) · [antes oferta](../evidencias/tarefa-07-mobile/antes-oferta-430.png) · [depois oferta](../evidencias/tarefa-07-mobile/depois-oferta-430.png)
+
+Desktop (depois, 1280px): [oferta](../evidencias/tarefa-07-mobile/depois-desktop-oferta-1280.png)
