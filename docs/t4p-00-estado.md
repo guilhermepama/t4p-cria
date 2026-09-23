@@ -2,7 +2,7 @@
 
 Fonte da verdade para **fatos do produto**. Sobre "o que fazer agora", quem manda é `claude-bridge/`.
 
-Atualizado em 22/09/2026.
+Atualizado em 23/09/2026.
 
 ## Contexto
 
@@ -62,4 +62,6 @@ Atualizado em 22/09/2026.
 ### Registro rápido (micro-correções, sem tarefa)
 
 - favicon e og-image inexistentes (achado da tarefa 01) — criar antes da divulgação (Guilherme: arte)
-- Ajuste de diagramação mobile (navbar, selo de prazo, preço e link da garantia) na landing, feito na tarefa 07 — aguardando merge
+- Ajuste de diagramação mobile (navbar, selo de prazo, preço e link da garantia) na landing, feito na tarefa 07, mergeado (PR #7)
+- Selo de prazo: hierarquia "PREÇO DE LANÇAMENTO" / "até sexta…" não feita na 07 (exige `<span>` no `seloVendas()`); baixa prioridade
+- Login de quem já comprou ("Entrar" na landing, "Esqueci minha senha" via WhatsApp) — tarefa 08
