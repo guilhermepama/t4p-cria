@@ -47,6 +47,7 @@ Atualizado em 23/09/2026.
 
 | 23/09 | Aulas com o visual da landing (tema escuro fixo); "Aula 1 grátis" removido | Consistência visual com a landing; alinhado à decisão de 23/09 de que não há aula grátis |
 | 23/09 | Progresso do aluno no servidor (aulas + downloads), sem retomar passo | Aluno vê o próprio avanço em `/aluno`; Guilherme vê o uso real no `/admin` para o pitch de impacto e o balanço do Empretec. Sem "continuar de onde parou" porque as travas e o exercício final das aulas dependem do estado da própria página |
+| 23/09 | Boas-vindas no topo do `/aluno` (`<details>` aberto até iniciar a 1ª aula), sem estado novo no banco | Quem chega pela primeira vez não sabe por onde começar nem o que precisa; o estado aberto/fechado vem do progresso que já existe (`progressoDoAluno`), sem tabela ou coluna nova |
 
 ## Pendências de produto (do Guilherme, não do executor)
 
@@ -62,7 +63,8 @@ Atualizado em 23/09/2026.
 5. (fundido no item 4) — feito nas tarefas 03 e 04, aguardando merge
 6. ~~Preço de lançamento R$ 49,90 numa fonte só, garantia, prazo de acesso e limpeza dos avisos âmbar~~ — feito na tarefa 05, aguardando merge
 7. Teste real com R$ 1 e go-live (preço de lançamento até 25/09, depois decidir o preço cheio) + favicon/og-image
-8. ~~Progresso do aluno no servidor (aulas + downloads) em `/aluno`, bloco "Uso do conteúdo" no `/admin`~~ — feito na tarefa 10, aguardando merge
+8. ~~Progresso do aluno no servidor (aulas + downloads) em `/aluno`, bloco "Uso do conteúdo" no `/admin`~~ — feito na tarefa 10, mergeado (PR #10)
+9. ~~Boas-vindas e "como fazer as aulas" no topo do `/aluno`~~ — feito na tarefa 11, aguardando merge
 
 ### Registro rápido (micro-correções, sem tarefa)
 

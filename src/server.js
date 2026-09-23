@@ -66,9 +66,25 @@ app.get("/health", (req, res) => {
 const CONTEUDO_DIR = path.join(__dirname, "..", "conteudo");
 
 const AULAS = [
-  { arquivo: "Aula1_O_Pedido_que_Funciona.html", titulo: "Aula 1 — O pedido que funciona" },
-  { arquivo: "Aula2_Conserte_a_Resposta.html", titulo: "Aula 2 — Conserte a resposta" },
-  { arquivo: "Aula3_Monte_sua_Equipe.html", titulo: "Aula 3 — Monte sua equipe" },
+  {
+    arquivo: "Aula1_O_Pedido_que_Funciona.html",
+    titulo: "Aula 1 — O pedido que funciona",
+    duracaoMin: 15,
+    descricaoCaminho: "Por que a IA responde genérico e como montar um pedido que funciona.",
+  },
+  {
+    arquivo: "Aula2_Conserte_a_Resposta.html",
+    titulo: "Aula 2 — Conserte a resposta",
+    duracaoMin: 15,
+    descricaoCaminho: "O que fazer quando a resposta vem ruim, sem começar do zero.",
+  },
+  {
+    arquivo: "Aula3_Monte_sua_Equipe.html",
+    titulo: "Aula 3 — Monte sua equipe",
+    duracaoMin: 20,
+    descricaoCaminho: "Seu primeiro assistente fixo.",
+    destacarManual: true,
+  },
 ];
 
 const DOWNLOADS = [
@@ -86,6 +102,22 @@ AULAS.forEach((a) => ARQUIVOS_PERMITIDOS.set(a.arquivo, "html"));
 DOWNLOADS.forEach((d) => ARQUIVOS_PERMITIDOS.set(d.arquivo, "download"));
 
 const AULAS_ARQUIVOS = new Set(AULAS.map((a) => a.arquivo));
+
+// título do manual-modelo nas boas-vindas: derivado de DOWNLOADS (sem o "(.docx)") para nunca destoar
+const MANUAL_MODELO_TITULO = DOWNLOADS.find(
+  (d) => d.arquivo === "Manual_de_Integracao_da_IA_Template.docx"
+).titulo.replace(/\s*\(\.\w+\)$/, "");
+
+function passoCaminhoHtml(a) {
+  const nota = a.destacarManual
+    ? ` Deixe o <em>${escapeHtml(MANUAL_MODELO_TITULO)}</em> aberto ao lado.`
+    : "";
+  return `      <li><strong>${escapeHtml(a.titulo)}</strong> · uns ${a.duracaoMin} min. ${escapeHtml(
+    a.descricaoCaminho
+  )}${nota}</li>`;
+}
+
+const CAMINHO_AULAS_HTML = AULAS.map(passoCaminhoHtml).join("\n");
 
 // ---------- helpers de formatação ----------
 
@@ -623,6 +655,7 @@ function linhaDownloadHtml(d, baixado) {
 
 app.get("/aluno", auth.requireAluno, (req, res) => {
   const progresso = progressoDoAlunoJson(req.aluno.id);
+  const iniciouAlguma = Object.keys(progresso.aulas).length > 0;
 
   const aulasHtml = AULAS.map((a) => cartaoAulaHtml(a, progresso.aulas[a.arquivo])).join("\n");
   const downloadsHtml = DOWNLOADS.map((d) => linhaDownloadHtml(d, Boolean(progresso.downloads[d.arquivo]))).join(
@@ -634,6 +667,10 @@ app.get("/aluno", auth.requireAluno, (req, res) => {
       nome: req.aluno.nome,
       aulasHtml,
       downloadsHtml,
+      caminhoAulasHtml: CAMINHO_AULAS_HTML,
+      boasVindasAberto: iniciouAlguma ? "" : "open",
+      resumoBoasVindas: iniciouAlguma ? "Como funciona o curso" : "Comece por aqui",
+      linkWhatsappAulas: linkWhatsapp("Oi! Travei numa aula do kit IA para Negócios."),
       whatsappFmt: whatsappContatoFormatado(),
       linkWhatsapp: linkWhatsapp("Oi! Tenho uma dúvida sobre o kit IA para Negócios."),
     })

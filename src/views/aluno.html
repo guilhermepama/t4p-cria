@@ -60,6 +60,26 @@
   .download a.ja-baixado{color:var(--muted); font-weight:500}
   footer{margin-top:32px; text-align:center; font-size:12.5px; color:var(--muted)}
   footer a{color:var(--orange)}
+  .boas-vindas{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:18px 20px; margin-bottom:28px;
+  }
+  .boas-vindas summary{
+    font-family:'Inter Tight',sans-serif; font-weight:600; font-size:16px;
+    cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px;
+  }
+  .boas-vindas summary::-webkit-details-marker{display:none}
+  .boas-vindas summary::before{content:"▸"; color:var(--orange); font-size:13px}
+  .boas-vindas[open] summary::before{content:"▾"}
+  .boas-vindas .conteudo-bv{margin-top:16px; display:flex; flex-direction:column; gap:14px}
+  .boas-vindas .conteudo-bv p{font-size:14.5px}
+  .boas-vindas h4{font-family:'Inter Tight',sans-serif; font-weight:600; font-size:15px}
+  .boas-vindas ul, .boas-vindas ol{padding-left:20px; display:flex; flex-direction:column; gap:6px; font-size:14.5px}
+  .boas-vindas li{line-height:1.55}
+  .boas-vindas ol{margin-top:6px}
+  .boas-vindas ol li::marker{color:var(--orange); font-weight:700}
+  .boas-vindas ul{margin-top:6px}
+  .boas-vindas a{color:var(--orange)}
 </style>
 </head>
 <body>
@@ -70,6 +90,43 @@
         <button class="sair" type="submit">Sair</button>
       </form>
     </header>
+
+    <details class="boas-vindas" {{boasVindasAberto}}>
+      <summary>{{resumoBoasVindas}}</summary>
+      <div class="conteudo-bv">
+        <p><strong>Boas-vindas ao IA para Negócios.</strong> São 3 aulas curtas, uns 50 minutos no total. Você sai com pedidos prontos para o seu negócio e com o seu primeiro assistente de IA configurado.</p>
+
+        <div>
+          <h4>Do que você precisa</h4>
+          <ul>
+            <li>Celular ou computador com internet.</li>
+            <li>Uma conta em uma IA de conversa: ChatGPT, Gemini ou Claude. A versão gratuita serve para começar.</li>
+            <li>As informações básicas do seu negócio à mão: o que você vende, para quem, preços e horários.</li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>O caminho</h4>
+          <ol>
+{{{caminhoAulasHtml}}}
+          </ol>
+        </div>
+
+        <p>Depois, os arquivos abaixo são para o dia a dia: assistentes prontos para colar na sua IA e o kit completo para consulta.</p>
+
+        <div>
+          <h4>Como as aulas funcionam</h4>
+          <ul>
+            <li>Cada aula abre em uma nova aba e vai passo a passo. Alguns passos pedem que você toque ou responda algo antes de liberar o "Continuar".</li>
+            <li>Faça cada aula de uma vez. Seu avanço aparece aqui, mas a aula sempre recomeça do início quando você a abre de novo.</li>
+            <li>Deixe a sua IA aberta em outra aba e teste o que aprender na hora. É assim que fica.</li>
+            <li>Não cole dados pessoais de clientes (CPF, telefone, endereço) na IA.</li>
+          </ul>
+        </div>
+
+        <p>Seu acesso vale até 24/12/2026. Travou em algum passo? <a href="{{linkWhatsappAulas}}" target="_blank" rel="noopener">Chame no WhatsApp</a></p>
+      </div>
+    </details>
 
     <h2>Suas aulas</h2>
     <div class="grid">
