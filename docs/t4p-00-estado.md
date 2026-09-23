@@ -46,8 +46,6 @@ Atualizado em 22/09/2026.
 
 ## Pendências de produto (do Guilherme, não do executor)
 
-- Garantia de 7 dias: sim ou não? (a landing tem um aviso âmbar)
-- Prazo de acesso à área do aluno depois do encerramento (a landing tem um aviso âmbar)
 - Preço para equipes (sugestão: R$ 79/acesso a partir de 3, sem anunciar)
 - Número de WhatsApp real para a landing/FAQ
 
@@ -58,14 +56,9 @@ Atualizado em 22/09/2026.
 3. (fundido no item 2)
 4. ~~Checkout PIX + tela de QR + polling + webhook + /privacidade~~ — feito nas tarefas 03 e 04, aguardando merge
 5. (fundido no item 4) — feito nas tarefas 03 e 04, aguardando merge
-6. Teste real com R$ 1 e go-live com R$ 97
-7. Remoção dos avisos âmbar (depende das decisões de garantia/prazo) + favicon/og-image
+6. ~~Preço de lançamento R$ 49,90 numa fonte só, garantia, prazo de acesso e limpeza dos avisos âmbar~~ — feito na tarefa 05, aguardando merge
+7. Teste real com R$ 1 e go-live (preço de lançamento até 25/09, depois decidir o preço cheio) + favicon/og-image
 
 ### Registro rápido (micro-correções, sem tarefa)
 
-- /admin: e-mail longo invade a coluna do WhatsApp e a tabela ganha rolagem horizontal (registrado 23/09)
-- /pagamento/:token/novo rejeitado não mostra aviso ao aluno (achado da tarefa 04, registrado 23/09)
-- App não avisa quando /app/data não é volume persistente (em 23/09 o banco sumiu num redeploy até criar o Volume Mount no Coolify) — logar aviso na inicialização (registrado 23/09)
-- /comprar mostra o preço como "R$ 97.00" (ponto); formatar como R$ 97,00 (registrado 23/09)
-- eventos: reconsulta do polling grava mp_ignorado "pending" a cada 5 s (poluiu 12 das 50 linhas no teste); eventos não dizem a origem (webhook × polling) — gravar origem e não logar pending repetido (registrado 23/09)
 - favicon e og-image inexistentes (achado da tarefa 01) — criar antes da divulgação (Guilherme: arte)
