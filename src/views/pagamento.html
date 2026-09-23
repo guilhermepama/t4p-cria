@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pagamento PIX | IA para Negócios — T4P</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b0d; --card:#141419; --border:#232329; --text:#f2ede4;
+    --muted:#9b9aa3; --orange:#ee8148; --red:#e07b6a; --green:#4ade80;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--text); min-height:100vh;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+    font-family:'Inter',system-ui,-apple-system,sans-serif; line-height:1.6;
+  }
+  h1{font-family:'Inter Tight',sans-serif; font-weight:800; font-size:24px; margin-bottom:4px; text-align:center}
+  .card{
+    width:100%; max-width:380px; background:var(--card); border:1px solid var(--border);
+    border-radius:18px; padding:32px 28px; text-align:center;
+  }
+  p.sub{color:var(--muted); font-size:14px; margin-bottom:20px}
+  .valor{font-family:'Inter Tight',sans-serif; font-weight:800; font-size:22px; color:var(--orange); margin-bottom:18px}
+  .qr{width:220px; height:220px; border-radius:12px; background:#fff; padding:8px; margin:0 auto 18px}
+  label{display:block; font-size:13px; font-weight:600; margin-bottom:6px; text-align:left}
+  textarea{
+    width:100%; height:70px; resize:none; padding:10px 12px; border-radius:10px; border:1px solid var(--border);
+    background:#0f0f12; color:var(--text); font-size:12.5px; font-family:monospace;
+  }
+  .btn{
+    display:inline-flex; width:100%; align-items:center; justify-content:center;
+    border-radius:999px; padding:12px 26px; margin-top:14px; border:none; cursor:pointer;
+    background:linear-gradient(96deg,#f6c49a 10%,var(--orange) 90%); color:#1a1006;
+    font-family:'Inter Tight',sans-serif; font-weight:700; font-size:15px;
+  }
+  .contador{margin-top:18px; font-size:14px; color:var(--muted)}
+  .contador span{color:var(--text); font-weight:700}
+  .aviso{margin-top:10px; font-size:13px; color:var(--muted)}
+  .erro{
+    background:rgba(224,123,106,.12); border:1px solid var(--red); color:var(--red);
+    border-radius:10px; padding:10px 14px; font-size:14px; margin-top:16px;
+  }
+  .copiado{color:var(--green); font-size:13px; margin-top:8px; display:none}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Pague com PIX</h1>
+    <p class="sub">Escaneie o QR Code ou copie o código no app do seu banco.</p>
+    <div class="valor">{{valorFormatado}}</div>
+    <img class="qr" src="data:image/png;base64,{{qrBase64}}" alt="QR Code do PIX">
+    <label for="copiaCola">Copia e cola</label>
+    <textarea id="copiaCola" readonly>{{copiaCola}}</textarea>
+    <button class="btn" id="btnCopiar" type="button">Copiar código</button>
+    <p class="copiado" id="copiado">Copiado!</p>
+    <p class="contador" id="areaContador">Expira em <span id="contador">--:--</span></p>
+    <p class="aviso">Assim que o pagamento cair, você entra automaticamente.</p>
+    {{{erroHtml}}}
+    <div id="expirado" style="display:none">
+      <p class="erro">Este PIX expirou.</p>
+      <form method="POST" action="/pagamento/{{token}}/novo">
+        <button class="btn" type="submit">Gerar novo PIX</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const TOKEN = {{{tokenJson}}};
+      const EXPIRA_EM = new Date({{{expiraEmJson}}}).getTime();
+
+      const btnCopiar = document.getElementById("btnCopiar");
+      const copiado = document.getElementById("copiado");
+      btnCopiar.addEventListener("click", function () {
+        const campo = document.getElementById("copiaCola");
+        campo.select();
+        navigator.clipboard.writeText(campo.value).then(function () {
+          copiado.style.display = "block";
+          setTimeout(function () { copiado.style.display = "none"; }, 2000);
+        }).catch(function () {});
+      });
+
+      function mostrarExpirado() {
+        document.getElementById("areaContador").style.display = "none";
+        document.getElementById("expirado").style.display = "block";
+      }
+
+      function atualizarContador() {
+        const restanteMs = EXPIRA_EM - Date.now();
+        if (restanteMs <= 0) {
+          document.getElementById("contador").textContent = "00:00";
+          mostrarExpirado();
+          return false;
+        }
+        const totalSeg = Math.floor(restanteMs / 1000);
+        const min = String(Math.floor(totalSeg / 60)).padStart(2, "0");
+        const seg = String(totalSeg % 60).padStart(2, "0");
+        document.getElementById("contador").textContent = min + ":" + seg;
+        return true;
+      }
+
+      let ativo = atualizarContador();
+      const intervaloContador = setInterval(function () {
+        ativo = atualizarContador();
+        if (!ativo) clearInterval(intervaloContador);
+      }, 1000);
+
+      async function consultarStatus() {
+        if (!ativo) return;
+        try {
+          const resp = await fetch("/api/pedido/" + encodeURIComponent(TOKEN));
+          if (!resp.ok) return;
+          const dados = await resp.json();
+          if (dados.status === "pago") {
+            clearInterval(intervaloPolling);
+            window.location.href = "/pagamento/" + encodeURIComponent(TOKEN) + "/acesso";
+          } else if (dados.status === "expirado") {
+            ativo = false;
+            mostrarExpirado();
+            clearInterval(intervaloPolling);
+          }
+        } catch {}
+      }
+
+      const intervaloPolling = setInterval(consultarStatus, 3000);
+    })();
+  </script>
+</body>
+</html>
