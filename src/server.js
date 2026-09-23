@@ -92,6 +92,10 @@ function limparWhatsapp(valor) {
   return String(valor || "").replace(/\D/g, "");
 }
 
+function normalizarValor(valor) {
+  return Number(String(valor ?? "").trim().replace(",", "."));
+}
+
 function protegerCsv(valor) {
   const texto = String(valor ?? "");
   return /^[=+\-@\t\r]/.test(texto) ? "'" + texto : texto;
@@ -238,7 +242,15 @@ const limiteComprar = rateLimit({
   legacyHeaders: false,
 });
 
+function checkoutDisponivel() {
+  return Boolean(process.env.MP_ACCESS_TOKEN);
+}
+
 app.get("/comprar", (req, res) => {
+  if (!checkoutDisponivel()) {
+    return res.status(503).send(render("comprar-indisponivel.html", {}));
+  }
+
   res.send(
     render("comprar.html", {
       preco: precoAtual().toFixed(2),
@@ -251,6 +263,10 @@ app.get("/comprar", (req, res) => {
 });
 
 app.post("/comprar", limiteComprar, auth.checarOrigem, async (req, res) => {
+  if (!checkoutDisponivel()) {
+    return res.status(503).send(render("comprar-indisponivel.html", {}));
+  }
+
   const dadosForm = {
     nome: String(req.body.nome || "").trim(),
     email: String(req.body.email || "").trim(),
@@ -351,6 +367,14 @@ app.get("/pagamento/:token", (req, res) => {
 app.post("/pagamento/:token/novo", auth.checarOrigem, async (req, res) => {
   const pedidoAntigo = db.buscarPedidoPorToken(req.params.token);
   if (!pedidoAntigo) return res.status(404).send("Não encontrado.");
+
+  const expirou =
+    pedidoAntigo.expira_em && new Date(paraIsoUtc(pedidoAntigo.expira_em)).getTime() < Date.now();
+  const podeGerarNovo = pedidoAntigo.status === "expirado" || (pedidoAntigo.status === "pendente" && expirou);
+
+  if (!podeGerarNovo) {
+    return res.redirect(303, `/pagamento/${pedidoAntigo.token}`);
+  }
 
   db.marcarPedidoExpirado(pedidoAntigo.id);
 
@@ -546,7 +570,7 @@ app.post("/admin/alunos", auth.requireAdmin, auth.checarOrigem, (req, res) => {
   const email = String(req.body.email || "").trim();
   const whatsapp = String(req.body.whatsapp || "").trim() || null;
   const senha = String(req.body.senha || "");
-  const valor = Number(req.body.valor || process.env.PRECO || 0);
+  const valor = normalizarValor(req.body.valor || process.env.PRECO || 0);
 
   if (!nome || !email || senha.length < 8 || !Number.isFinite(valor) || valor <= 0) {
     return renderAdmin(res, { statusCode: 400, mensagemErro: "Dados inválidos para cadastro." });
