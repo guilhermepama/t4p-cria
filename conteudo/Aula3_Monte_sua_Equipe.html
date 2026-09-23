@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IA para Negócios · Aula 3: monte sua equipe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F6F0E6; --card: #FFFCF7; --ink: #1E1B18; --muted: #6B635A; --line: #E2D6C3;
+  --hero: #0E3B3A; --on-hero: #F6F0E6; --on-hero-muted: #A9C4BE;
+  --teal: #0E3B3A; --coral: #C9472B; --coral-deco: #E0543A; --on-coral: #FFFFFF; --coral-soft: #F6DDD3;
+  --prompt: #E3ECE8; --ph: #B23E25; --ok: #1F6B4A;
+  --serif: "DM Serif Display", Georgia, "Times New Roman", serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  box-sizing: border-box;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0B2827; --card: #113634; --ink: #F2EADD; --muted: #A7BEB9; --line: #25524E;
+    --hero: #08201F; --teal: #7FB3A8; --coral: #EE6A4C; --on-coral: #0B2827; --coral-soft: #4A2A20;
+    --prompt: #0E302E; --ph: #F4927A; --ok: #7ED3A6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0B2827; --card: #113634; --ink: #F2EADD; --muted: #A7BEB9; --line: #25524E;
+  --hero: #08201F; --teal: #7FB3A8; --coral: #EE6A4C; --on-coral: #0B2827; --coral-soft: #4A2A20;
+  --prompt: #0E302E; --ph: #F4927A; --ok: #7ED3A6;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { height: 100%; -webkit-text-size-adjust: 100%; }
+body { min-height: 100%; margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.55 var(--sans); -webkit-font-smoothing: antialiased; transition: background-color .4s ease; }
+body.is-hero { background: var(--hero); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--coral-deco); outline-offset: 3px; border-radius: 6px; }
+
+.app { max-width: 560px; margin: 0 auto; }
+.step { display: none; padding: 32px 22px 140px; }
+.step.is-active { display: block; animation: entra .35s ease both; }
+.hero.is-active { display: flex; }
+@keyframes entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+h1, h2 { font-family: var(--serif); font-weight: 400; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.75rem, 6.4vw, 2.2rem); line-height: 1.12; color: var(--teal); }
+h2:focus { outline: none; }
+p { margin: 0 0 1em; }
+.lead { font-size: 1.1rem; }
+.muted { color: var(--muted); }
+.small { font-size: .88rem; }
+.oculto { display: none !important; }
+
+.btn { appearance: none; border: 0; border-radius: 999px; min-height: 50px; padding: 0 24px; background: var(--coral); color: var(--on-coral); font-weight: 600; font-size: 1rem; cursor: pointer; transition: transform .12s ease, opacity .2s ease; }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .32; cursor: not-allowed; transform: none; }
+.btn-linha { appearance: none; background: transparent; border: 1.5px solid var(--line); border-radius: 999px; min-height: 48px; padding: 0 18px; font-weight: 600; font-size: .95rem; cursor: pointer; color: var(--ink); }
+.btn-texto { appearance: none; background: none; border: 0; padding: 12px 6px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.btn-texto:disabled { visibility: hidden; }
+
+/* abertura */
+.hero { color: var(--on-hero); padding-top: 44px; flex-direction: column; min-height: 100vh; min-height: 100dvh; padding-bottom: 0; overflow: hidden; }
+.hero .marca { font-weight: 600; font-size: .95rem; color: var(--on-hero-muted); margin-bottom: 28px; }
+.hero h1 { font-size: clamp(2.7rem, 12vw, 4.2rem); line-height: .98; color: var(--on-hero); margin-bottom: 22px; }
+.hero .lead { color: var(--on-hero); opacity: .9; max-width: 32ch; margin-bottom: 28px; }
+.hero .btn { background: var(--coral-deco); color: #fff; align-self: flex-start; font-size: 1.05rem; padding: 0 30px; min-height: 56px; }
+.hero .nota { margin-top: 14px; font-size: .88rem; color: var(--on-hero-muted); }
+.xicara-hero { margin-top: auto; align-self: flex-end; width: min(86vw, 400px); margin-right: -26%; margin-bottom: -22%; }
+.xicara-hero .brilho { transform-origin: 148px 152px; animation: brilha 1.1s .35s cubic-bezier(.2,.9,.3,1.3) both; }
+@keyframes brilha { from { transform: scale(0) rotate(-45deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.pense { background: var(--hero); color: var(--on-hero); border-radius: 18px; padding: 18px 20px; margin: 22px 0; border: 1px solid color-mix(in srgb, var(--on-hero) 16%, transparent); }
+.pense .rotulo-pense { display: block; font-size: .82rem; font-weight: 600; color: var(--on-hero-muted); margin-bottom: 6px; }
+.pense p { margin: 0; font-size: 1.05rem; line-height: 1.5; }
+
+.duas-colunas { display: grid; gap: 14px; margin: 18px 0 4px; }
+.coluna { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; }
+.coluna h3 { font-family: var(--serif); font-weight: 400; font-size: 1.35rem; margin: 0 0 8px; color: var(--teal); }
+.coluna p { margin: 0; font-size: .97rem; }
+
+.rotulo { display: block; font-size: .84rem; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+.pedido { font-family: var(--mono); font-size: .94rem; line-height: 1.6; white-space: pre-wrap; background: var(--prompt); border-left: 3px solid var(--teal); border-radius: 4px 14px 14px 4px; padding: 14px 16px; margin: 0 0 14px; }
+.resposta { background: var(--card); border: 1px solid var(--line); border-radius: 20px 20px 20px 6px; padding: 16px 18px; white-space: pre-wrap; min-height: 3.2em; margin-bottom: 14px; }
+.resposta.digitando::after { content: "▍"; color: var(--coral-deco); animation: pisca .8s steps(1) infinite; }
+@keyframes pisca { 50% { opacity: 0; } }
+.conclusao { border-left: 3px solid var(--coral-deco); padding-left: 14px; font-weight: 500; }
+
+/* consultório */
+.contador-caso { font-size: .82rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--coral); margin: 0 0 10px; }
+.diag-letras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+.diag-letras .letra { appearance: none; min-height: 64px; border-radius: 18px; border: 2px solid var(--line); background: var(--card); color: var(--coral-deco); font-family: var(--serif); font-size: 2rem; line-height: 1; cursor: pointer; transition: background-color .2s ease, border-color .2s ease, opacity .2s ease; }
+.diag-letras .letra small { display: block; font-family: var(--sans); font-size: .62rem; font-weight: 600; letter-spacing: .04em; color: var(--muted); margin-top: 2px; }
+.diag-letras .letra.errou { opacity: .4; }
+.diag-letras .letra.acertou { background: var(--ok); border-color: var(--ok); color: var(--paper); }
+.diag-letras .letra.acertou small { color: var(--paper); }
+.dica-erro { min-height: 1.4em; font-size: .92rem; color: var(--ph); font-weight: 500; }
+.conserto { background: var(--card); border: 1.5px solid var(--coral-deco); border-radius: 16px; padding: 14px 16px; }
+.conserto .rotulo { color: var(--coral); }
+.conserto .fala { font-family: var(--mono); font-size: .93rem; }
+
+/* lista de toque */
+.lista-toque { display: grid; gap: 10px; margin: 20px 0; }
+.item { appearance: none; width: 100%; text-align: left; background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 16px 18px; cursor: pointer; font-weight: 600; font-size: 1rem; display: grid; gap: 6px; transition: border-color .2s ease; }
+.item .consequencia { display: none; font-weight: 400; color: var(--muted); font-size: .95rem; }
+.item[aria-expanded="true"] { border-color: var(--coral-deco); }
+.item[aria-expanded="true"] .consequencia { display: block; animation: entra .25s ease both; }
+.item .toque { font-weight: 400; font-size: .82rem; color: var(--muted); }
+.item[aria-expanded="true"] .toque { display: none; }
+
+/* comandos */
+.chips { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+.chip { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 14px; font-family: var(--mono); font-size: .88rem; line-height: 1.45; }
+.chip.forte { border-color: var(--coral-deco); }
+
+/* cartão final */
+.cartao { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.cartao pre { margin: 0; white-space: pre-wrap; font-family: var(--mono); font-size: .84rem; line-height: 1.55; }
+.acoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+.final-topo { display: flex; gap: 18px; align-items: flex-end; margin-bottom: 22px; }
+.xicara-final { width: 112px; flex: none; }
+.cafe-nivel { transition: transform .7s cubic-bezier(.3,.8,.3,1); }
+.cafe-brilho { opacity: 0; transition: opacity .4s ease .5s; transform-origin: center; }
+.cheia .cafe-brilho { opacity: 1; }
+.oferta { background: var(--hero); color: var(--on-hero); border-radius: 22px; padding: 24px 22px; margin-top: 28px; }
+.oferta h3 { font-family: var(--serif); font-weight: 400; font-size: 1.7rem; line-height: 1.1; margin: 0 0 10px; }
+.oferta p { color: var(--on-hero-muted); }
+
+.barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+body.is-hero .barra { display: none; }
+.barra-in { max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
+.progresso { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: .84rem; color: var(--muted); }
+.progresso svg { width: 34px; height: 34px; flex: none; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body><style>
+/* extras da aula 3 */
+.mesas { display: grid; gap: 10px; margin: 18px 0; }
+.mesa { appearance: none; width: 100%; text-align: left; background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 16px 18px; cursor: pointer; display: grid; gap: 6px; transition: border-color .2s ease; }
+.mesa .mtitulo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; }
+.mesa .cracha-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--coral-deco); flex: none; }
+.mesa .mdesc { display: none; font-weight: 400; color: var(--muted); font-size: .95rem; }
+.mesa[aria-expanded="true"] { border-color: var(--coral-deco); }
+.mesa[aria-expanded="true"] .mdesc { display: block; animation: entra .25s ease both; }
+.mesa .toque { font-weight: 400; font-size: .82rem; color: var(--muted); }
+.mesa[aria-expanded="true"] .toque { display: none; }
+.passolista { counter-reset: pp; list-style: none; margin: 18px 0; padding: 0; display: grid; gap: 10px; }
+.passolista li { counter-increment: pp; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px 14px 52px; position: relative; font-size: .97rem; }
+.passolista li::before { content: counter(pp); position: absolute; left: 16px; top: 12px; font-family: var(--serif); font-size: 1.5rem; color: var(--coral-deco); }
+.passolista b { display: block; margin-bottom: 2px; }
+.check { display: grid; gap: 10px; margin: 16px 0; }
+.check .item-check { display: flex; gap: 12px; align-items: flex-start; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 14px 16px; cursor: pointer; }
+.check .item-check input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--coral-deco); flex: none; }
+</style>
+
+<main class="app">
+
+  <!-- 0 · abertura -->
+  <section class="step hero is-active" data-step="0" id="s-hero" aria-labelledby="t0">
+    <p class="marca">IA para Negócios · Aula 3</p>
+    <h1 id="t0" tabindex="-1">Monte sua equipe de IA</h1>
+    <p class="lead">Pare de explicar seu negócio do zero. Em uns 20 minutos você deixa configurado o primeiro funcionário de IA com mesa fixa na sua empresa.</p>
+    <button class="btn" id="comecar">Começar a aula</button>
+    <p class="nota">Aula 3 do kit. Tenha por perto o Manual de Integração da área de aluno.</p>
+    <svg class="xicara-hero" viewBox="0 0 340 340" aria-hidden="true">
+      <circle cx="170" cy="170" r="165" fill="#E0543A"/>
+      <circle cx="170" cy="170" r="128" fill="#C94A32"/>
+      <circle cx="170" cy="170" r="116" fill="#EAD8BA"/>
+      <circle cx="170" cy="170" r="99" fill="#4A2C1E"/>
+      <path class="brilho" fill="#F6F0E6" d="M148 110 C152 142 158 148 190 152 C158 156 152 162 148 194 C144 162 138 156 106 152 C138 148 144 142 148 110 Z"/>
+    </svg>
+  </section>
+
+  <!-- i1 · o primeiro dia eterno -->
+  <section class="step" data-step="i1" id="s-problema" data-trava aria-labelledby="ti1">
+    <h2 id="ti1" tabindex="-1">O primeiro dia que nunca acaba</h2>
+    <p style="margin-top:14px">Seu funcionário experiente tem um defeito estranho: toda noite ele esquece tudo. Cada conversa nova é o primeiro dia dele na empresa — de novo. Reconhece algum destes sintomas? Toque neles:</p>
+    <div class="lista-toque" id="lista-sintomas">
+      <button class="item" aria-expanded="false">
+        "Toda conversa eu explico tudo de novo"
+        <span class="toque">Toque para ver a causa</span>
+        <span class="consequencia">Conversa nova = memória zerada. Ele não tem crachá nem mesa fixa: chega como visitante, sem saber nem o nome da sua loja.</span>
+      </button>
+      <button class="item" aria-expanded="false">
+        "Ontem a resposta veio ótima. Hoje, genérica"
+        <span class="toque">Toque para ver a causa</span>
+        <span class="consequencia">Ontem você tinha contado o contexto na conversa; hoje começou outra e não contou. A qualidade não mudou — o contexto sumiu.</span>
+      </button>
+      <button class="item" aria-expanded="false">
+        "Combinei o tom com ela e ela 'desaprendeu'"
+        <span class="toque">Toque para ver a causa</span>
+        <span class="consequencia">O combinado morava na conversa antiga. Por padrão, ela não aprende com você entre conversas — só "lembra" do que você deixar escrito num lugar permanente.</span>
+      </button>
+    </div>
+    <p class="conclusao oculto" id="conc-sintomas">Os três sintomas têm a mesma causa — e a mesma cura: dar a ele uma mesa fixa.</p>
+  </section>
+
+  <!-- i2 · a mesa fixa -->
+  <section class="step" data-step="i2" id="s-mesa" data-trava aria-labelledby="ti2">
+    <h2 id="ti2" tabindex="-1">Projeto: a mesa fixa com crachá</h2>
+    <p style="margin-top:14px">As ferramentas de IA têm um recurso feito exatamente para isso. No ChatGPT e no Claude chama <b>Projeto</b>; no Gemini, <b>Gem</b>. É um espaço permanente onde você escreve as instruções uma vez — e toda conversa aberta ali já começa sabendo do seu negócio.</p>
+    <p>A regra da casa: <b>um setor por mesa.</b> Toque nas três:</p>
+    <div class="mesas" id="lista-mesas">
+      <button class="mesa" aria-expanded="false">
+        <span class="mtitulo"><span class="cracha-dot"></span>Mesa 1 · Marketing</span>
+        <span class="toque">Toque para conhecer</span>
+        <span class="mdesc">Posts da semana, promoções com a conta aberta, respostas a avaliações. Sempre 3 opções, sempre no seu tom.</span>
+      </button>
+      <button class="mesa" aria-expanded="false">
+        <span class="mtitulo"><span class="cracha-dot"></span>Mesa 2 · Vendas e Atendimento</span>
+        <span class="toque">Toque para conhecer</span>
+        <span class="mdesc">Respostas rápidas de WhatsApp, orçamentos completos, cobrança cordial, resposta pro "tá caro" — sem prometer o que sua política não permite.</span>
+      </button>
+      <button class="mesa" aria-expanded="false">
+        <span class="mtitulo"><span class="cracha-dot"></span>Mesa 3 · Gestão</span>
+        <span class="toque">Toque para conhecer</span>
+        <span class="mdesc">Controles simples, decisões com a conta na mesa e uma regra rara: apontar as falhas do seu plano antes de concordar.</span>
+      </button>
+    </div>
+    <p class="conclusao oculto" id="conc-mesas">Misturar setores numa conversa só é dar três cargos pro mesmo funcionário no primeiro dia. Separe as mesas.</p>
+  </section>
+
+  <!-- 1 · demo com/sem manual -->
+  <section class="step" data-step="1" id="s-demo" data-trava aria-labelledby="td">
+    <h2 id="td" tabindex="-1">A prova: com e sem manual</h2>
+    <p style="margin-top:14px">Mesmo pedido, duas situações. Primeiro, numa conversa solta, sem projeto:</p>
+    <span class="rotulo">O pedido</span>
+    <div class="pedido">Faz um post pro sábado.</div>
+    <button class="btn-linha" id="ver-sem">Ver a resposta sem projeto</button>
+    <div id="bloco-sem" class="oculto">
+      <span class="rotulo" style="margin-top:14px">Sem projeto (conversa solta)</span>
+      <div class="resposta" id="resp-sem"></div>
+      <button class="btn oculto" id="ver-com" style="margin-top:6px">Agora com o manual na gaveta</button>
+    </div>
+    <div id="bloco-com" class="oculto">
+      <span class="rotulo" style="margin-top:14px">No Projeto, com o Manual de Integração anexado</span>
+      <div class="resposta" id="resp-com"></div>
+      <p class="conclusao oculto" id="conc-demo">Mesmo pedido de quatro palavras. A diferença inteira estava no manual — preços, tom, horário, política. É por isso que documentar não é burocracia: é o que transforma resposta genérica em resposta sua.</p>
+    </div>
+  </section>
+
+  <!-- 2 · o manual -->
+  <section class="step" data-step="2" id="s-manual" data-trava aria-labelledby="tm">
+    <h2 id="tm" tabindex="-1">O Manual de Integração</h2>
+    <p style="margin-top:14px">É o documento que você daria a qualquer contratado no primeiro dia — escrito para a IA. Quatro blocos, uma ou duas páginas, linha certeira em vez de parágrafo. Toque em cada bloco:</p>
+    <div class="lista-toque" id="lista-manual">
+      <button class="item" aria-expanded="false">
+        1 · Quem somos
+        <span class="toque">Toque para ver o que entra</span>
+        <span class="consequencia">O que vende, para quem, onde, diferencial — e o que você NUNCA promete. Ex.: "Não prometemos entrega em menos de 40 min no fim de semana."</span>
+      </button>
+      <button class="item" aria-expanded="false">
+        2 · Como falamos
+        <span class="toque">Toque para ver o que entra</span>
+        <span class="consequencia">Tom em 3 palavras, três textos seus aprovados (o E de Exemplo institucionalizado) e as palavras proibidas. Ex.: "caloroso, direto, de vizinho — sem 'corra!', sem emoji de fogo."</span>
+      </button>
+      <button class="item" aria-expanded="false">
+        3 · Números e regras
+        <span class="toque">Toque para ver o que entra</span>
+        <span class="consequencia">Preços, horários, pagamento, políticas. Com a instrução fixa: "use exatamente estes dados; se faltar, pergunte em vez de inventar." É o antídoto pro chute confiante.</span>
+      </button>
+      <button class="item" aria-expanded="false">
+        4 · Processos por setor
+        <span class="toque">Toque para ver o que entra</span>
+        <span class="consequencia">Como você responde orçamento, como cobra, como divulga — o passo a passo que hoje só existe na sua cabeça. Ex.: "orçamento de evento: perguntar data, pessoas e bairro; responder em 2h."</span>
+      </button>
+    </div>
+    <p class="conclusao oculto" id="conc-manual">Na sua área de aluno tem o template em branco e um exemplo preenchido (a Lanchonete do Pernil). Preencher leva menos de meia hora — e você faz uma vez só.</p>
+  </section>
+
+  <!-- 3 · mãos à obra -->
+  <section class="step" data-step="3" id="s-obra" data-trava aria-labelledby="to">
+    <h2 id="to" tabindex="-1">Mãos à obra: contrate o primeiro</h2>
+    <p style="margin-top:14px">Não monte as três mesas hoje. Escolha o setor que mais dói no seu dia e contrate esse primeiro:</p>
+    <ol class="passolista">
+      <li><b>Crie o Projeto</b>Com o nome do setor. ChatGPT e Claude: Projeto. Gemini: Gem. Não achou? Procure "instruções" ou "conhecimento" na configuração.</li>
+      <li><b>Cole as instruções do assistente</b>Os três textos prontos (marketing, vendas, gestão) estão na sua área de aluno. Cole no campo de instruções.</li>
+      <li><b>Anexe seu Manual preenchido</b>É ele que faz o assistente ser seu, e não da internet.</li>
+      <li><b>Teste e ajuste</b>Mande a primeira mensagem sugerida. Soou estranho? Ajuste o manual, não repita instrução na conversa.</li>
+    </ol>
+    <p>Marque conforme for fazendo — pode ser agora ou hoje à noite:</p>
+    <div class="check" id="checklist">
+      <label class="item-check"><input type="checkbox" id="ck1"> Criei o Projeto do setor que mais dói</label>
+      <label class="item-check"><input type="checkbox" id="ck2"> Colei as instruções do assistente</label>
+      <label class="item-check"><input type="checkbox" id="ck3"> Anexei meu Manual de Integração</label>
+      <label class="item-check"><input type="checkbox" id="ck4"> Testei com a primeira mensagem</label>
+    </div>
+    <p class="conclusao oculto" id="conc-obra">Contratado. A partir de agora, o CAFÉ das suas conversas nesse setor encurta: o C e o E moram no projeto — sobra só dizer o que você quer.</p>
+    <p class="small muted">A aula continua mesmo sem marcar tudo — mas ela só "vale" de verdade quando o projeto existir. <button class="btn-texto" id="depois" style="padding:0;color:var(--coral)">Vou montar hoje à noite →</button></p>
+  </section>
+
+  <!-- 4 · limites honestos -->
+  <section class="step" data-step="4" id="s-limites" data-trava aria-labelledby="tl">
+    <h2 id="tl" tabindex="-1">Três verdades sobre a mesa fixa</h2>
+    <p style="margin-top:14px">Para não criar expectativa errada — toque nas três:</p>
+    <div class="lista-toque" id="lista-verdades">
+      <button class="item" aria-expanded="false">
+        Manual desatualizado é funcionário desinformado
+        <span class="toque">Toque para ver</span>
+        <span class="consequencia">Mudou preço, horário, política? O assistente continua respondendo o antigo até você atualizar o manual. Marque no calendário: revisar todo dia 1º.</span>
+      </button>
+      <button class="item" aria-expanded="false">
+        Dados de clientes não entram na mesa
+        <span class="toque">Toque para ver</span>
+        <span class="consequencia">CPF, endereço, prontuário, contrato com nome de terceiro: nada disso vai para o manual nem para as conversas. Contexto rico nunca justifica dado sensível.</span>
+      </button>
+      <button class="item" aria-expanded="false">
+        Cada ferramenta tem seus limites de plano
+        <span class="toque">Toque para ver</span>
+        <span class="consequencia">Projetos existem nas principais ferramentas, mas nome, limite de arquivos e o que entra no plano grátis variam — e mudam rápido. O conceito é o mesmo em todas: instruções permanentes + documentos anexados.</span>
+      </button>
+    </div>
+    <p class="conclusao oculto" id="conc-verdades">Regra de sempre: a última palavra é sua. O assistente prepara; quem assina é você.</p>
+  </section>
+
+  <!-- 5 · final -->
+  <section class="step" data-step="5" id="s-final" aria-labelledby="tf">
+    <div class="final-topo">
+      <svg class="xicara-final" id="xicara-final" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><clipPath id="clip-final3"><path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z"/></clipPath></defs>
+        <g clip-path="url(#clip-final3)"><rect class="cafe-nivel" x="8" y="17" width="40" height="38" fill="#C9472B" style="transform: translateY(38px)"/></g>
+        <path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+        <path d="M45 23 H49 A7.5 7.5 0 0 1 49 38 H44" fill="none" stroke="currentColor" stroke-width="3"/>
+        <path class="cafe-brilho" fill="#F6F0E6" d="M26 21 C26.8 27 27.8 28 33 29 C27.8 30 26.8 31 26 37 C25.2 31 24.2 30 19 29 C24.2 28 25.2 27 26 21 Z"/>
+        <path d="M6 57 H50" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      <h2 id="tf" tabindex="-1">Equipe contratada</h2>
+    </div>
+    <p>Você fechou as 3 aulas do kit. O caminho que você subiu: <b>pedir bem</b> (Aula 1), <b>revisar e consertar</b> (Aula 2) e agora <b>integrar</b> — funcionário com mesa, crachá e manual. Isso já é mais do que a imensa maioria dos concorrentes faz.</p>
+    <div class="oferta">
+      <h3>Para onde você cresce: a chave da sala</h3>
+      <p>Existe um degrau acima da mesa fixa: dar à IA a chave da sala. Ferramentas como o modo de trabalho em pasta (Cowork, do Claude, e similares) deixam a IA trabalhar direto nos seus arquivos — organizar a pasta de clientes, montar o relatório do mês, executar tarefas agendadas sozinha.</p>
+      <p>Honestidade de sempre: isso é recurso de plano pago. Plano pago não compra inteligência — aqui, ele compra braço. Quando sua mesa fixa estiver rodando redonda, esse é o próximo passo natural.</p>
+      <p style="margin:0;color:var(--on-hero)">A T4P acompanha você nessa subida. Fale com a gente pela área de aluno.</p>
+    </div>
+    <p style="margin-top:22px"><button class="btn-texto" id="refazer" style="padding-left:0">Refazer a aula</button></p>
+  </section>
+</main>
+
+<nav class="barra" aria-label="Navegação da aula">
+  <div class="barra-in">
+    <button class="btn-texto" id="voltar">Voltar</button>
+    <div class="progresso">
+      <svg viewBox="0 0 64 64" aria-hidden="true" id="xicara-barra">
+        <defs><clipPath id="clip-barra3"><path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z"/></clipPath></defs>
+        <g clip-path="url(#clip-barra3)"><rect class="cafe-nivel" x="8" y="17" width="40" height="38" fill="#C9472B" style="transform: translateY(38px)"/></g>
+        <path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+        <path d="M45 23 H49 A7.5 7.5 0 0 1 49 38 H44" fill="none" stroke="currentColor" stroke-width="3"/>
+        <path class="cafe-brilho" fill="#F6F0E6" d="M26 21 C26.8 27 27.8 28 33 29 C27.8 30 26.8 31 26 37 C25.2 31 24.2 30 19 29 C24.2 28 25.2 27 26 21 Z"/>
+      </svg>
+      <span id="passo"></span>
+    </div>
+    <button class="btn" id="continuar">Continuar</button>
+  </div>
+</nav>
+
+<script>
+(function () {
+  "use strict";
+  var reduzido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var $ = function (id) { return document.getElementById(id); };
+  var steps = Array.prototype.slice.call(document.querySelectorAll(".step"));
+  var total = steps.length - 1, atual = 0;
+  var pronto = steps.map(function (st) { return !st.hasAttribute("data-trava"); });
+  var btnContinuar = $("continuar"), btnVoltar = $("voltar");
+
+  function nivel(svg, fracao) {
+    svg.querySelector(".cafe-nivel").style.transform = "translateY(" + (38 * (1 - fracao)).toFixed(1) + "px)";
+    svg.classList.toggle("cheia", fracao >= 1);
+  }
+  function atualizarBarra() {
+    document.body.classList.toggle("is-hero", atual === 0);
+    btnVoltar.disabled = atual <= 1;
+    btnContinuar.disabled = !pronto[atual];
+    btnContinuar.classList.toggle("oculto", atual === total);
+    $("passo").textContent = "Passo " + atual + " de " + total;
+    nivel($("xicara-barra"), atual / total);
+  }
+  function ir(i) {
+    steps[atual].classList.remove("is-active");
+    atual = Math.max(0, Math.min(total, i));
+    steps[atual].classList.add("is-active");
+    window.scrollTo(0, 0);
+    var t = steps[atual].querySelector("h1, h2"); if (t) t.focus({ preventScroll: true });
+    atualizarBarra();
+    if (steps[atual].id === "s-final") setTimeout(function () { nivel($("xicara-final"), 1); }, reduzido ? 0 : 250);
+  }
+  function liberar(id) { var i = steps.indexOf($(id)); pronto[i] = true; if (atual === i) atualizarBarra(); }
+
+  $("comecar").addEventListener("click", function () { ir(1); });
+  btnContinuar.addEventListener("click", function () { if (pronto[atual]) ir(atual + 1); });
+  btnVoltar.addEventListener("click", function () { ir(atual - 1); });
+  $("refazer").addEventListener("click", function () {
+    steps.forEach(function (st, i) { pronto[i] = !st.hasAttribute("data-trava"); });
+    ir(0);
+  });
+
+  function digitar(el, texto, fim) {
+    if (reduzido) { el.textContent = texto; fim && fim(); return; }
+    var i = 0, passo = Math.max(1, Math.round(texto.length / 160)), acabou = false;
+    var atraso = Math.max(8, Math.min(22, 2600 / texto.length * passo));
+    el.textContent = ""; el.classList.add("digitando");
+    function terminar() { if (acabou) return; acabou = true; el.textContent = texto; el.classList.remove("digitando"); el.removeEventListener("click", terminar); fim && fim(); }
+    el.addEventListener("click", terminar);
+    (function tique() { if (acabou) return; i = Math.min(texto.length, i + passo); el.textContent = texto.slice(0, i); if (i >= texto.length) terminar(); else setTimeout(tique, atraso); })();
+  }
+
+  function listaToque(idLista, idConc, idStep) {
+    var itens = Array.prototype.slice.call(document.querySelectorAll("#" + idLista + " .item, #" + idLista + " .mesa"));
+    itens.forEach(function (b) {
+      b.addEventListener("click", function () {
+        b.setAttribute("aria-expanded", "true");
+        if (itens.every(function (x) { return x.getAttribute("aria-expanded") === "true"; })) {
+          $(idConc).classList.remove("oculto");
+          liberar(idStep);
+        }
+      });
+    });
+  }
+  listaToque("lista-sintomas", "conc-sintomas", "s-problema");
+  listaToque("lista-mesas", "conc-mesas", "s-mesa");
+  listaToque("lista-manual", "conc-manual", "s-manual");
+  listaToque("lista-verdades", "conc-verdades", "s-limites");
+
+  // demo
+  var SEM = "🎉 Sábado é dia de aproveitar! Venha conferir nossas delícias e promoções especiais. Esperamos por você! #sabado #promocao";
+  var COM = "Sábado o pernil sai do forno às 18h. Combo família por R$ 89 — 4 lanches e refri 2L pra resolver o jantar de todo mundo. Chama no WhatsApp que a gente separa o seu.";
+  $("ver-sem").addEventListener("click", function () {
+    this.classList.add("oculto");
+    $("bloco-sem").classList.remove("oculto");
+    digitar($("resp-sem"), SEM, function () { $("ver-com").classList.remove("oculto"); });
+  });
+  $("ver-com").addEventListener("click", function () {
+    this.classList.add("oculto");
+    $("bloco-com").classList.remove("oculto");
+    digitar($("resp-com"), COM, function () {
+      $("conc-demo").classList.remove("oculto");
+      liberar("s-demo");
+    });
+  });
+
+  // checklist
+  var cks = ["ck1", "ck2", "ck3", "ck4"].map($);
+  function checou() {
+    if (cks.every(function (c) { return c.checked; })) $("conc-obra").classList.remove("oculto");
+    if (cks.some(function (c) { return c.checked; })) liberar("s-obra");
+  }
+  cks.forEach(function (c) { c.addEventListener("change", checou); });
+  $("depois").addEventListener("click", function () { liberar("s-obra"); this.textContent = "Combinado — o checklist te espera aqui. ✓"; this.disabled = true; });
+
+  atualizarBarra();
+})();
+</script>
+
+</body>
+</html>

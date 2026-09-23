@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IA para Negócios · Aula 2: conserte a resposta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F6F0E6; --card: #FFFCF7; --ink: #1E1B18; --muted: #6B635A; --line: #E2D6C3;
+  --hero: #0E3B3A; --on-hero: #F6F0E6; --on-hero-muted: #A9C4BE;
+  --teal: #0E3B3A; --coral: #C9472B; --coral-deco: #E0543A; --on-coral: #FFFFFF; --coral-soft: #F6DDD3;
+  --prompt: #E3ECE8; --ph: #B23E25; --ok: #1F6B4A;
+  --serif: "DM Serif Display", Georgia, "Times New Roman", serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  box-sizing: border-box;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0B2827; --card: #113634; --ink: #F2EADD; --muted: #A7BEB9; --line: #25524E;
+    --hero: #08201F; --teal: #7FB3A8; --coral: #EE6A4C; --on-coral: #0B2827; --coral-soft: #4A2A20;
+    --prompt: #0E302E; --ph: #F4927A; --ok: #7ED3A6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0B2827; --card: #113634; --ink: #F2EADD; --muted: #A7BEB9; --line: #25524E;
+  --hero: #08201F; --teal: #7FB3A8; --coral: #EE6A4C; --on-coral: #0B2827; --coral-soft: #4A2A20;
+  --prompt: #0E302E; --ph: #F4927A; --ok: #7ED3A6;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { height: 100%; -webkit-text-size-adjust: 100%; }
+body { min-height: 100%; margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.55 var(--sans); -webkit-font-smoothing: antialiased; transition: background-color .4s ease; }
+body.is-hero { background: var(--hero); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--coral-deco); outline-offset: 3px; border-radius: 6px; }
+
+.app { max-width: 560px; margin: 0 auto; }
+.step { display: none; padding: 32px 22px 140px; }
+.step.is-active { display: block; animation: entra .35s ease both; }
+.hero.is-active { display: flex; }
+@keyframes entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+h1, h2 { font-family: var(--serif); font-weight: 400; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.75rem, 6.4vw, 2.2rem); line-height: 1.12; color: var(--teal); }
+h2:focus { outline: none; }
+p { margin: 0 0 1em; }
+.lead { font-size: 1.1rem; }
+.muted { color: var(--muted); }
+.small { font-size: .88rem; }
+.oculto { display: none !important; }
+
+.btn { appearance: none; border: 0; border-radius: 999px; min-height: 50px; padding: 0 24px; background: var(--coral); color: var(--on-coral); font-weight: 600; font-size: 1rem; cursor: pointer; transition: transform .12s ease, opacity .2s ease; }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .32; cursor: not-allowed; transform: none; }
+.btn-linha { appearance: none; background: transparent; border: 1.5px solid var(--line); border-radius: 999px; min-height: 48px; padding: 0 18px; font-weight: 600; font-size: .95rem; cursor: pointer; color: var(--ink); }
+.btn-texto { appearance: none; background: none; border: 0; padding: 12px 6px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.btn-texto:disabled { visibility: hidden; }
+
+/* abertura */
+.hero { color: var(--on-hero); padding-top: 44px; flex-direction: column; min-height: 100vh; min-height: 100dvh; padding-bottom: 0; overflow: hidden; }
+.hero .marca { font-weight: 600; font-size: .95rem; color: var(--on-hero-muted); margin-bottom: 28px; }
+.hero h1 { font-size: clamp(2.7rem, 12vw, 4.2rem); line-height: .98; color: var(--on-hero); margin-bottom: 22px; }
+.hero .lead { color: var(--on-hero); opacity: .9; max-width: 32ch; margin-bottom: 28px; }
+.hero .btn { background: var(--coral-deco); color: #fff; align-self: flex-start; font-size: 1.05rem; padding: 0 30px; min-height: 56px; }
+.hero .nota { margin-top: 14px; font-size: .88rem; color: var(--on-hero-muted); }
+.xicara-hero { margin-top: auto; align-self: flex-end; width: min(86vw, 400px); margin-right: -26%; margin-bottom: -22%; }
+.xicara-hero .brilho { transform-origin: 148px 152px; animation: brilha 1.1s .35s cubic-bezier(.2,.9,.3,1.3) both; }
+@keyframes brilha { from { transform: scale(0) rotate(-45deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.pense { background: var(--hero); color: var(--on-hero); border-radius: 18px; padding: 18px 20px; margin: 22px 0; border: 1px solid color-mix(in srgb, var(--on-hero) 16%, transparent); }
+.pense .rotulo-pense { display: block; font-size: .82rem; font-weight: 600; color: var(--on-hero-muted); margin-bottom: 6px; }
+.pense p { margin: 0; font-size: 1.05rem; line-height: 1.5; }
+
+.duas-colunas { display: grid; gap: 14px; margin: 18px 0 4px; }
+.coluna { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; }
+.coluna h3 { font-family: var(--serif); font-weight: 400; font-size: 1.35rem; margin: 0 0 8px; color: var(--teal); }
+.coluna p { margin: 0; font-size: .97rem; }
+
+.rotulo { display: block; font-size: .84rem; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+.pedido { font-family: var(--mono); font-size: .94rem; line-height: 1.6; white-space: pre-wrap; background: var(--prompt); border-left: 3px solid var(--teal); border-radius: 4px 14px 14px 4px; padding: 14px 16px; margin: 0 0 14px; }
+.resposta { background: var(--card); border: 1px solid var(--line); border-radius: 20px 20px 20px 6px; padding: 16px 18px; white-space: pre-wrap; min-height: 3.2em; margin-bottom: 14px; }
+.resposta.digitando::after { content: "▍"; color: var(--coral-deco); animation: pisca .8s steps(1) infinite; }
+@keyframes pisca { 50% { opacity: 0; } }
+.conclusao { border-left: 3px solid var(--coral-deco); padding-left: 14px; font-weight: 500; }
+
+/* consultório */
+.contador-caso { font-size: .82rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--coral); margin: 0 0 10px; }
+.diag-letras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+.diag-letras .letra { appearance: none; min-height: 64px; border-radius: 18px; border: 2px solid var(--line); background: var(--card); color: var(--coral-deco); font-family: var(--serif); font-size: 2rem; line-height: 1; cursor: pointer; transition: background-color .2s ease, border-color .2s ease, opacity .2s ease; }
+.diag-letras .letra small { display: block; font-family: var(--sans); font-size: .62rem; font-weight: 600; letter-spacing: .04em; color: var(--muted); margin-top: 2px; }
+.diag-letras .letra.errou { opacity: .4; }
+.diag-letras .letra.acertou { background: var(--ok); border-color: var(--ok); color: var(--paper); }
+.diag-letras .letra.acertou small { color: var(--paper); }
+.dica-erro { min-height: 1.4em; font-size: .92rem; color: var(--ph); font-weight: 500; }
+.conserto { background: var(--card); border: 1.5px solid var(--coral-deco); border-radius: 16px; padding: 14px 16px; }
+.conserto .rotulo { color: var(--coral); }
+.conserto .fala { font-family: var(--mono); font-size: .93rem; }
+
+/* lista de toque */
+.lista-toque { display: grid; gap: 10px; margin: 20px 0; }
+.item { appearance: none; width: 100%; text-align: left; background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 16px 18px; cursor: pointer; font-weight: 600; font-size: 1rem; display: grid; gap: 6px; transition: border-color .2s ease; }
+.item .consequencia { display: none; font-weight: 400; color: var(--muted); font-size: .95rem; }
+.item[aria-expanded="true"] { border-color: var(--coral-deco); }
+.item[aria-expanded="true"] .consequencia { display: block; animation: entra .25s ease both; }
+.item .toque { font-weight: 400; font-size: .82rem; color: var(--muted); }
+.item[aria-expanded="true"] .toque { display: none; }
+
+/* comandos */
+.chips { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+.chip { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 14px; font-family: var(--mono); font-size: .88rem; line-height: 1.45; }
+.chip.forte { border-color: var(--coral-deco); }
+
+/* cartão final */
+.cartao { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.cartao pre { margin: 0; white-space: pre-wrap; font-family: var(--mono); font-size: .84rem; line-height: 1.55; }
+.acoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+.final-topo { display: flex; gap: 18px; align-items: flex-end; margin-bottom: 22px; }
+.xicara-final { width: 112px; flex: none; }
+.cafe-nivel { transition: transform .7s cubic-bezier(.3,.8,.3,1); }
+.cafe-brilho { opacity: 0; transition: opacity .4s ease .5s; transform-origin: center; }
+.cheia .cafe-brilho { opacity: 1; }
+.oferta { background: var(--hero); color: var(--on-hero); border-radius: 22px; padding: 24px 22px; margin-top: 28px; }
+.oferta h3 { font-family: var(--serif); font-weight: 400; font-size: 1.7rem; line-height: 1.1; margin: 0 0 10px; }
+.oferta p { color: var(--on-hero-muted); }
+
+.barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+body.is-hero .barra { display: none; }
+.barra-in { max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
+.progresso { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: .84rem; color: var(--muted); }
+.progresso svg { width: 34px; height: 34px; flex: none; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<main class="app">
+
+  <!-- 0 · abertura -->
+  <section class="step hero is-active" data-step="0" id="s-hero" aria-labelledby="t0">
+    <p class="marca">IA para Negócios · Aula 2</p>
+    <h1 id="t0" tabindex="-1">Conserte a resposta</h1>
+    <p class="lead">A resposta veio ruim? Em uns 15 minutos você aprende a descobrir o que faltou e a consertar com uma mensagem curta — sem começar do zero.</p>
+    <button class="btn" id="comecar">Começar a aula</button>
+    <p class="nota">Aula 2 do kit. Funciona melhor depois da Aula 1.</p>
+    <svg class="xicara-hero" viewBox="0 0 340 340" aria-hidden="true">
+      <circle cx="170" cy="170" r="165" fill="#E0543A"/>
+      <circle cx="170" cy="170" r="128" fill="#C94A32"/>
+      <circle cx="170" cy="170" r="116" fill="#EAD8BA"/>
+      <circle cx="170" cy="170" r="99" fill="#4A2C1E"/>
+      <path class="brilho" fill="#F6F0E6" d="M148 110 C152 142 158 148 190 152 C158 156 152 162 148 194 C144 162 138 156 106 152 C138 148 144 142 148 110 Z"/>
+    </svg>
+  </section>
+
+  <!-- i1 · rascunho, não veredito -->
+  <section class="step" data-step="i1" id="s-rascunho" aria-labelledby="ti1">
+    <h2 id="ti1" tabindex="-1">A primeira resposta é rascunho, não veredito</h2>
+    <p style="margin-top:14px">A maior diferença entre quem usa bem e quem desiste não é o primeiro pedido. É o que acontece <b>depois</b> dele. Seu funcionário experiente entrega a primeira versão — e você é o gestor que olha e devolve com ajuste.</p>
+    <p>Dois erros opostos, igualmente caros:</p>
+    <div class="duas-colunas">
+      <div class="coluna"><h3>Desistir na primeira</h3><p>Ler a resposta meia-boca e concluir que "essa IA não presta". É demitir o funcionário no primeiro rascunho.</p></div>
+      <div class="coluna"><h3>Aceitar a primeira</h3><p>Aprovar porque veio bem escrita. Texto bom não é texto certo — ela é ótima em soar certa.</p></div>
+    </div>
+    <div class="pense">
+      <span class="rotulo-pense">A frase da aula</span>
+      <p>Com o funcionário, você não pede uma vez e some. Você olha o que ele fez e devolve. A diferença: esse não fica de cara feia.</p>
+    </div>
+  </section>
+
+  <!-- i2 · a segunda mensagem é curta -->
+  <section class="step" data-step="i2" id="s-segunda" data-trava aria-labelledby="ti2">
+    <h2 id="ti2" tabindex="-1">O ajuste é curto — o contexto já está lá</h2>
+    <p style="margin-top:14px">Na mesma conversa, a IA já sabe tudo o que você contou. Então a segunda mensagem não repete nada — só corrige o rumo. Veja:</p>
+    <span class="rotulo">A resposta que veio (boa, mas comprida e formal)</span>
+    <div class="resposta">Prezados clientes, é com imensa satisfação que anunciamos que nesta sexta-feira teremos nosso tradicional lanche de pernil. Convidamos todos a nos visitar e aproveitar essa deliciosa oportunidade gastronômica no centro de Olímpia.</div>
+    <button class="btn-linha" id="devolver">Devolver com ajuste: "Corta pela metade. Tom de conversa."</button>
+    <div id="bloco-ajuste" class="oculto">
+      <span class="rotulo" style="margin-top:14px">O que volta, segundos depois</span>
+      <div class="resposta" id="resp-ajustada"></div>
+      <p class="conclusao oculto" id="conc-ajuste">Sete palavras de ajuste. Nenhuma repetição de contexto. É assim que quem usa bem trabalha: rascunho → ajuste → pronto.</p>
+    </div>
+  </section>
+
+  <!-- 1..4 · consultório -->
+  <section class="step" data-step="1" id="s-caso1" data-trava aria-labelledby="tc1">
+    <p class="contador-caso">Consultório · Caso 1 de 4</p>
+    <h2 id="tc1" tabindex="-1">O que faltou aqui?</h2>
+    <p style="margin-top:10px" class="muted">Alguém pediu: <b>"Faz um post pra minha loja."</b> E recebeu isto:</p>
+    <div class="resposta">🔥 Chegou novidade! Corra para a nossa loja e aproveite ofertas imperdíveis! Qualidade e preço baixo é aqui. Esperamos você! 🔥</div>
+    <p class="small muted">Serve para qualquer loja de qualquer cidade do país. Qual letra faltou no pedido?</p>
+    <div class="diag-letras" data-caso="1" data-certa="C">
+      <button class="letra" data-l="C">C<small>Contexto</small></button>
+      <button class="letra" data-l="A">A<small>Ação</small></button>
+      <button class="letra" data-l="F">F<small>Formato</small></button>
+      <button class="letra" data-l="E">E<small>Exemplo</small></button>
+    </div>
+    <p class="dica-erro" id="erro-1"></p>
+    <div class="conserto oculto" id="conserto-1">
+      <span class="rotulo">Diagnóstico: faltou Contexto</span>
+      <p style="margin:0 0 10px">Resposta genérica é quase sempre sintoma de pedido genérico. Ela não sabe que loja é, para quem, nem o que está acontecendo — então respondeu o caso médio da internet.</p>
+      <p class="fala" style="margin:0">Conserto: "É uma loja de roupa feminina em Olímpia, clientela de 30 a 50 anos que compra por confiança. Refaz."</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="2" id="s-caso2" data-trava aria-labelledby="tc2">
+    <p class="contador-caso">Consultório · Caso 2 de 4</p>
+    <h2 id="tc2" tabindex="-1">E aqui?</h2>
+    <p style="margin-top:10px" class="muted">O pedido foi: <b>"Analisa esse contrato, me explica os riscos, escreve um e-mail pro advogado e faz um resumo pra minha sócia."</b> Voltaram quatro coisas — todas pela metade.</p>
+    <div class="resposta">Segue uma análise breve do contrato, os principais riscos em linhas gerais, um rascunho inicial de e-mail e um resumo resumido para sua sócia... [quatro entregas rasas]</div>
+    <div class="diag-letras" data-caso="2" data-certa="A">
+      <button class="letra" data-l="C">C<small>Contexto</small></button>
+      <button class="letra" data-l="A">A<small>Ação</small></button>
+      <button class="letra" data-l="F">F<small>Formato</small></button>
+      <button class="letra" data-l="E">E<small>Exemplo</small></button>
+    </div>
+    <p class="dica-erro" id="erro-2"></p>
+    <div class="conserto oculto" id="conserto-2">
+      <span class="rotulo">Diagnóstico: Ação empilhada</span>
+      <p style="margin:0 0 10px">Quatro pedidos numa mensagem = quatro entregas medianas. Um verbo, um pedido. Depois que o primeiro sair bom, os próximos são rápidos — o contexto já está carregado.</p>
+      <p class="fala" style="margin:0">Conserto: "Esquece o resto por enquanto. Só os riscos, do mais grave pro menos grave."</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="3" id="s-caso3" data-trava aria-labelledby="tc3">
+    <p class="contador-caso">Consultório · Caso 3 de 4</p>
+    <h2 id="tc3" tabindex="-1">Este veio certo… e errado</h2>
+    <p style="margin-top:10px" class="muted">O pedido: <b>"Escreve um e-mail cobrando um cliente que não pagou."</b> O conteúdo está correto. Mas veio assim:</p>
+    <div class="resposta">Prezado Senhor, venho por meio desta notificá-lo do inadimplemento da parcela vencida, nos termos do instrumento contratual firmado entre as partes... [seis parágrafos nesse tom]</div>
+    <p class="small muted">O cliente tem 4 anos de casa e sempre pagou em dia. Qual letra faltou?</p>
+    <div class="diag-letras" data-caso="3" data-certa="F">
+      <button class="letra" data-l="C">C<small>Contexto</small></button>
+      <button class="letra" data-l="A">A<small>Ação</small></button>
+      <button class="letra" data-l="F">F<small>Formato</small></button>
+      <button class="letra" data-l="E">E<small>Exemplo</small></button>
+    </div>
+    <p class="dica-erro" id="erro-3"></p>
+    <div class="conserto oculto" id="conserto-3">
+      <span class="rotulo">Diagnóstico: faltou Formato</span>
+      <p style="margin:0 0 10px">Conteúdo certo, embalagem errada: tamanho, tom e canal. Você recebeu trabalho em vez de resultado — e um e-mail desses queima um cliente que você queria manter.</p>
+      <p class="fala" style="margin:0">Conserto: "Curto, 3 parágrafos, cordial, sem termo jurídico. Ofereça parcelar se ele estiver apertado."</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="4" id="s-caso4" data-trava aria-labelledby="tc4">
+    <p class="contador-caso">Consultório · Caso 4 de 4</p>
+    <h2 id="tc4" tabindex="-1">Tecnicamente perfeito. E não é você.</h2>
+    <p style="margin-top:10px" class="muted">Pedido completo, com contexto e formato. A legenda voltou correta, simpática, do tamanho certo. Mas a dona da loja leu e disse: <b>"não é assim que a gente fala aqui."</b></p>
+    <div class="resposta">Nova coleção disponível na loja! Peças selecionadas com carinho para você. Venha conferir, será um prazer receber sua visita.</div>
+    <div class="diag-letras" data-caso="4" data-certa="E">
+      <button class="letra" data-l="C">C<small>Contexto</small></button>
+      <button class="letra" data-l="A">A<small>Ação</small></button>
+      <button class="letra" data-l="F">F<small>Formato</small></button>
+      <button class="letra" data-l="E">E<small>Exemplo</small></button>
+    </div>
+    <p class="dica-erro" id="erro-4"></p>
+    <div class="conserto oculto" id="conserto-4">
+      <span class="rotulo">Diagnóstico: faltou Exemplo</span>
+      <p style="margin:0 0 10px">Descrever estilo é difícil; mostrar é instantâneo. Um texto seu que funcionou vale mais que três parágrafos explicando o tom — e é a única forma de ela escrever parecido com você, não com a internet.</p>
+      <p class="fala" style="margin:0">Conserto: "Reescreve no estilo desta que bombou: 'Chegaram as blusas de linho que vocês pediram tanto. Separei no seu tamanho, é só chamar.'"</p>
+    </div>
+  </section>
+
+  <!-- 5 · casos que não são CAFÉ -->
+  <section class="step" data-step="5" id="s-limites" data-trava aria-labelledby="t5">
+    <h2 id="t5" tabindex="-1">Dois casos que não são culpa do pedido</h2>
+    <p style="margin-top:14px">Nem toda resposta ruim se conserta com CAFÉ. Estes dois são limite da ferramenta — toque para ver o que fazer:</p>
+    <div class="lista-toque" id="lista-limites">
+      <button class="item" aria-expanded="false">
+        Ela inventou número, lei ou fonte — com confiança total
+        <span class="toque">Toque para ver o que fazer</span>
+        <span class="consequencia">Não é falha do seu pedido: é o limite dela. Funcionário experiente que não admite que não sabe — chuta bonito. Dado verificável com consequência: <b>confira na fonte, sempre.</b> E adote a instrução que mais economiza dor de cabeça: "não invente número — se faltar dado, me pergunte".</span>
+      </button>
+      <button class="item" aria-expanded="false">
+        Ela concordou com tudo o que eu disse
+        <span class="toque">Toque para ver o que fazer</span>
+        <span class="consequencia">Ela tende a te dar razão — sinalizou o que quer ouvir, ela entrega. Em decisão importante, peça o contrário: <b>"aponte as falhas desse meu raciocínio."</b> É o comando mais valioso desta aula.</span>
+      </button>
+    </div>
+    <p class="conclusao oculto" id="conc-limites">Regra de bolso: quanto mais verificável é o dado e maior a consequência do erro, mais você confere.</p>
+  </section>
+
+  <!-- 6 · comandos de bolso -->
+  <section class="step" data-step="6" id="s-comandos" aria-labelledby="t6">
+    <h2 id="t6" tabindex="-1">Os comandos de bolso</h2>
+    <p style="margin-top:14px">Ajustes que resolvem 90% das segundas mensagens. Curtos assim mesmo — o contexto já está na conversa:</p>
+    <div class="chips">
+      <div class="chip">"Ficou formal demais. Mais solto."</div>
+      <div class="chip">"Corta pela metade."</div>
+      <div class="chip">"A segunda opção está boa. Faz mais 3 nessa linha."</div>
+      <div class="chip">"Tira a última frase, ficou apelativa."</div>
+      <div class="chip">"Sem enrolação, direto ao ponto, sem introdução."</div>
+      <div class="chip forte">"Aponte as falhas desse meu raciocínio."</div>
+    </div>
+    <div class="pense">
+      <span class="rotulo-pense">Regra de proporção</span>
+      <p>Quanto maior a consequência do resultado, mais completo o pedido — e mais rodadas de ajuste valem a pena. E-mail de agradecimento? Uma rodada. Proposta pro seu maior cliente? Quantas precisar.</p>
+    </div>
+  </section>
+
+  <!-- 7 · final + ativo -->
+  <section class="step" data-step="7" id="s-final" aria-labelledby="t7">
+    <div class="final-topo">
+      <svg class="xicara-final" id="xicara-final" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><clipPath id="clip-final2"><path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z"/></clipPath></defs>
+        <g clip-path="url(#clip-final2)"><rect class="cafe-nivel" x="8" y="17" width="40" height="38" fill="#C9472B" style="transform: translateY(38px)"/></g>
+        <path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+        <path d="M45 23 H49 A7.5 7.5 0 0 1 49 38 H44" fill="none" stroke="currentColor" stroke-width="3"/>
+        <path class="cafe-brilho" fill="#F6F0E6" d="M26 21 C26.8 27 27.8 28 33 29 C27.8 30 26.8 31 26 37 C25.2 31 24.2 30 19 29 C24.2 28 25.2 27 26 21 Z"/>
+        <path d="M6 57 H50" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      <h2 id="t7" tabindex="-1">Você virou o gestor</h2>
+    </div>
+    <p>Antes de sair, leve o ativo desta aula: o cartão de diagnóstico. Copie e cole no bloco de notas do celular — é sua consulta rápida quando a resposta vier torta.</p>
+    <div class="cartao">
+      <pre id="cartao-texto">CARTÃO DE DIAGNÓSTICO — IA para Negócios
+
+Resposta genérica? → faltou CONTEXTO. Conte a situação.
+Fez outra coisa / tudo pela metade? → AÇÃO empilhada. Um verbo, um pedido.
+Certo, mas tamanho/tom errado? → faltou FORMATO. Diga tamanho e tom.
+Certo, mas "não parece a gente"? → faltou EXEMPLO. Cole um texto seu.
+Bonito e vazio? → "Sem enrolação, direto ao ponto."
+Inventou número/lei/fonte? → limite dela. Confira na fonte, sempre.
+Concordou com tudo? → "Aponte as falhas desse meu raciocínio."
+
+A primeira resposta é rascunho, não veredito.</pre>
+      <div class="acoes">
+        <button class="btn" id="copiar">Copiar cartão</button>
+        <span class="small muted" id="copiado" style="align-self:center"></span>
+      </div>
+    </div>
+    <div class="oferta">
+      <h3>Próxima aula: monte sua equipe de IA</h3>
+      <p>Hoje você aprendeu a revisar o trabalho do seu funcionário. Na Aula 3, ele ganha crachá, mesa fixa e o manual da sua empresa — e você para de explicar tudo do zero a cada conversa.</p>
+      <p style="margin:0;color:var(--on-hero)">A Aula 3 está na sua área de aluno.</p>
+    </div>
+    <p style="margin-top:22px"><button class="btn-texto" id="refazer" style="padding-left:0">Refazer a aula</button></p>
+  </section>
+</main>
+
+<nav class="barra" aria-label="Navegação da aula">
+  <div class="barra-in">
+    <button class="btn-texto" id="voltar">Voltar</button>
+    <div class="progresso">
+      <svg viewBox="0 0 64 64" aria-hidden="true" id="xicara-barra">
+        <defs><clipPath id="clip-barra2"><path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z"/></clipPath></defs>
+        <g clip-path="url(#clip-barra2)"><rect class="cafe-nivel" x="8" y="17" width="40" height="38" fill="#C9472B" style="transform: translateY(38px)"/></g>
+        <path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+        <path d="M45 23 H49 A7.5 7.5 0 0 1 49 38 H44" fill="none" stroke="currentColor" stroke-width="3"/>
+        <path class="cafe-brilho" fill="#F6F0E6" d="M26 21 C26.8 27 27.8 28 33 29 C27.8 30 26.8 31 26 37 C25.2 31 24.2 30 19 29 C24.2 28 25.2 27 26 21 Z"/>
+      </svg>
+      <span id="passo"></span>
+    </div>
+    <button class="btn" id="continuar">Continuar</button>
+  </div>
+</nav>
+
+<script>
+(function () {
+  "use strict";
+  var reduzido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var $ = function (id) { return document.getElementById(id); };
+  var steps = Array.prototype.slice.call(document.querySelectorAll(".step"));
+  var total = steps.length - 1, atual = 0;
+  var pronto = steps.map(function (st) { return !st.hasAttribute("data-trava"); });
+  var btnContinuar = $("continuar"), btnVoltar = $("voltar");
+
+  function nivel(svg, fracao) {
+    svg.querySelector(".cafe-nivel").style.transform = "translateY(" + (38 * (1 - fracao)).toFixed(1) + "px)";
+    svg.classList.toggle("cheia", fracao >= 1);
+  }
+  function atualizarBarra() {
+    document.body.classList.toggle("is-hero", atual === 0);
+    btnVoltar.disabled = atual <= 1;
+    btnContinuar.disabled = !pronto[atual];
+    btnContinuar.classList.toggle("oculto", atual === total);
+    $("passo").textContent = "Passo " + atual + " de " + total;
+    nivel($("xicara-barra"), atual / total);
+  }
+  function ir(i) {
+    steps[atual].classList.remove("is-active");
+    atual = Math.max(0, Math.min(total, i));
+    steps[atual].classList.add("is-active");
+    window.scrollTo(0, 0);
+    var t = steps[atual].querySelector("h1, h2"); if (t) t.focus({ preventScroll: true });
+    atualizarBarra();
+    if (steps[atual].id === "s-final") setTimeout(function () { nivel($("xicara-final"), 1); }, reduzido ? 0 : 250);
+  }
+  function liberar(id) {
+    var i = steps.indexOf($(id)); pronto[i] = true; if (atual === i) atualizarBarra();
+  }
+  $("comecar").addEventListener("click", function () { ir(1); });
+  btnContinuar.addEventListener("click", function () { if (pronto[atual]) ir(atual + 1); });
+  btnVoltar.addEventListener("click", function () { ir(atual - 1); });
+  $("refazer").addEventListener("click", function () {
+    steps.forEach(function (st, i) { pronto[i] = !st.hasAttribute("data-trava"); });
+    ir(0);
+  });
+
+  function digitar(el, texto, fim) {
+    if (reduzido) { el.textContent = texto; fim && fim(); return; }
+    var i = 0, passo = Math.max(1, Math.round(texto.length / 160)), acabou = false;
+    var atraso = Math.max(8, Math.min(22, 2600 / texto.length * passo));
+    el.textContent = ""; el.classList.add("digitando");
+    function terminar() { if (acabou) return; acabou = true; el.textContent = texto; el.classList.remove("digitando"); el.removeEventListener("click", terminar); fim && fim(); }
+    el.addEventListener("click", terminar);
+    (function tique() { if (acabou) return; i = Math.min(texto.length, i + passo); el.textContent = texto.slice(0, i); if (i >= texto.length) terminar(); else setTimeout(tique, atraso); })();
+  }
+
+  // i2 · devolver com ajuste
+  $("devolver").addEventListener("click", function () {
+    this.classList.add("oculto");
+    $("bloco-ajuste").classList.remove("oculto");
+    digitar($("resp-ajustada"), "Sexta tem pernil saindo do forno. Passa aqui no centro ou chama no WhatsApp que a gente separa o seu.", function () {
+      $("conc-ajuste").classList.remove("oculto");
+      liberar("s-segunda");
+    });
+  });
+
+  // consultório
+  var DICAS = {
+    C: "O contexto até caberia — mas olhe de novo: o problema deste caso é outro.",
+    A: "A ação até está clara. O problema está em outra letra.",
+    F: "Formato ajudaria, mas não é a raiz deste caso.",
+    E: "Exemplo sempre ajuda, mas aqui a raiz é outra."
+  };
+  Array.prototype.slice.call(document.querySelectorAll(".diag-letras")).forEach(function (grupo) {
+    var caso = grupo.dataset.caso, certa = grupo.dataset.certa, resolvido = false;
+    Array.prototype.slice.call(grupo.querySelectorAll(".letra")).forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (resolvido) return;
+        if (b.dataset.l === certa) {
+          resolvido = true;
+          b.classList.add("acertou");
+          $("erro-" + caso).textContent = "";
+          $("conserto-" + caso).classList.remove("oculto");
+          liberar("s-caso" + caso);
+        } else {
+          b.classList.add("errou"); b.disabled = true;
+          $("erro-" + caso).textContent = DICAS[b.dataset.l];
+        }
+      });
+    });
+  });
+
+  // limites
+  var itens = Array.prototype.slice.call(document.querySelectorAll("#lista-limites .item"));
+  itens.forEach(function (b) {
+    b.addEventListener("click", function () {
+      b.setAttribute("aria-expanded", "true");
+      if (itens.every(function (x) { return x.getAttribute("aria-expanded") === "true"; })) {
+        $("conc-limites").classList.remove("oculto");
+        liberar("s-limites");
+      }
+    });
+  });
+
+  // copiar cartão
+  $("copiar").addEventListener("click", function () {
+    var texto = $("cartao-texto").textContent;
+    function ok() { $("copiado").textContent = "Copiado! Cola no seu bloco de notas."; }
+    function falhou() {
+      var sel = window.getSelection(), range = document.createRange();
+      range.selectNodeContents($("cartao-texto")); sel.removeAllRanges(); sel.addRange(range);
+      $("copiado").textContent = "Selecionei o texto — copie com o menu do celular.";
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(texto).then(ok, falhou); } else { falhou(); }
+  });
+
+  atualizarBarra();
+})();
+</script>
+
+</body>
+</html>
