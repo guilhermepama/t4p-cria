@@ -1,112 +1,57 @@
-# Tarefa 11 — Boas-vindas e "como fazer as aulas" na área do aluno
+# Tarefa 12 — Partes da landing somem no celular (render)
 
-**Status: CONCLUÍDA**
+**Status: AGUARDANDO EXECUÇÃO**
 
-- Tipo: código (template `/aluno` + render no `server.js` + e2e). Sem dependência nova, **sem migração**.
+- Tipo: CSS da landing (`public/index.html`). Sem JS, sem dependência, sem migração.
 - Data: 23/09/2026
-- Base: tarefas 01–10 concluídas e mergeadas (`origin/main` em `d3e008e`, PR #10).
-- Antes de criar a branch: a working tree está na `tarefa/10-progresso-aluno` com esta tarefa e `concluidas/10-progresso-aluno.md` não versionadas. Faça `git checkout main && git pull`, leve os dois arquivos, crie `tarefa/11-boas-vindas` e faça primeiro o commit `docs: planejador — tarefa 11`.
-- ⚠️ Produção vendendo até sexta 25/09 às 14h. Não tocar checkout, webhook, /pagamento, VENDAS_ATE, /admin, conteúdo das aulas.
+- Base: tarefas 01–11 concluídas e mergeadas (`origin/main` em `ee46000`, PR #11).
+- Antes de criar a branch: a working tree está na `tarefa/11-boas-vindas` com esta tarefa e `concluidas/11-boas-vindas.md` não versionadas. Faça `git checkout main && git pull`, leve os dois arquivos, crie `tarefa/12-render-mobile` e faça primeiro o commit `docs: planejador — tarefa 12`.
+- ⚠️ Produção vendendo até sexta 25/09 às 14h. Mudança só de CSS dentro de media query; não tocar checkout, webhook, /pagamento, VENDAS_ATE, /admin, `conteudo/`.
 
-## Objetivo
+## Problema (relato de usuária, prints de celular Android — aparentemente Samsung Internet)
 
-Quem entra no `/aluno` pela primeira vez hoje vê só 3 cartões e 7 arquivos, sem saber por onde começar, do que precisa, nem que a aula recomeça do início (decisão da tarefa 10). Um bloco de boas-vindas resolve isso na própria página, sem tela extra.
+Em https://iadojeitocerto.com, seções aparecem com o kicker e a primeira parte do `<h2>`, e o resto fica preto: o `<span class="serif">` do título, os parágrafos e o card "Pedido comum". Num print, a linha "Pense na IA como um" está cortada ao meio na horizontal; noutro, há uma faixa marrom logo abaixo do header.
 
-## Decisões de produto que não mudam
+O HTML está íntegro e essas seções não têm animação nem JS. O padrão (blocos retangulares sem pintar, corte de glifo em linha reta, resíduo sob o header) é falha de rasterização/composição da GPU do aparelho, não bug de conteúdo.
 
-- **Bloco no topo do `/aluno`**, não modal, não tour, não página separada. Modal irrita e exige JS; página separada é um clique que o aluno pula.
-- **`<details>` nativo** (sem JS novo): aberto (`open`) enquanto o aluno não iniciou nenhuma aula; fechado depois, com o resumo "Como funciona o curso" para quem quiser reler. O estado vem do progresso que já existe (`progressoDoAluno`): **nenhuma tabela ou coluna nova**, nenhum "já vi as boas-vindas" guardado.
-- Texto abaixo é o aprovado. Ajustes de quebra/pontuação para caber no layout, sim; mudar promessa, prazo ou ordem, não.
+## Causa provável (em ordem)
 
-## Texto do bloco
-
-Resumo do `<details>` (sempre visível):
-- Estado aberto: **"Comece por aqui"**
-- Estado fechado: **"Como funciona o curso"**
-
-Conteúdo:
-
-> **Boas-vindas ao IA para Negócios.** São 3 aulas curtas, uns 50 minutos no total. Você sai com pedidos prontos para o seu negócio e com o seu primeiro assistente de IA configurado.
->
-> **Do que você precisa**
-> - Celular ou computador com internet.
-> - Uma conta em uma IA de conversa: ChatGPT, Gemini ou Claude. A versão gratuita serve para começar.
-> - As informações básicas do seu negócio à mão: o que você vende, para quem, preços e horários.
->
-> **O caminho**
-> 1. **Aula 1 — O pedido que funciona** · uns 15 min. Por que a IA responde genérico e como montar um pedido que funciona.
-> 2. **Aula 2 — Conserte a resposta** · uns 15 min. O que fazer quando a resposta vem ruim, sem começar do zero.
-> 3. **Aula 3 — Monte sua equipe** · uns 20 min. Seu primeiro assistente fixo. Deixe o *Manual de integração — modelo* aberto ao lado.
->
-> Depois, os arquivos abaixo são para o dia a dia: assistentes prontos para colar na sua IA e o kit completo para consulta.
->
-> **Como as aulas funcionam**
-> - Cada aula abre em uma nova aba e vai passo a passo. Alguns passos pedem que você toque ou responda algo antes de liberar o "Continuar".
-> - Faça cada aula de uma vez. Seu avanço aparece aqui, mas a aula sempre recomeça do início quando você a abre de novo.
-> - Deixe a sua IA aberta em outra aba e teste o que aprender na hora. É assim que fica.
-> - Não cole dados pessoais de clientes (CPF, telefone, endereço) na IA.
->
-> Seu acesso vale até 24/12/2026. Travou em algum passo? [Chame no WhatsApp] ← link
-
-- Os títulos das aulas no passo a passo vêm de `AULAS` (mesma fonte dos cartões), não digitados de novo. Os tempos e as descrições ficam no template ou num campo novo em `AULAS` — escolha e justifique.
-- "Manual de integração — modelo" deve bater com o título em `DOWNLOADS`.
-- Link do WhatsApp: `linkWhatsapp("Oi! Travei numa aula do kit IA para Negócios.")`, `target="_blank" rel="noopener"`, igual ao do rodapé.
-- A data 24/12/2026 é texto fixo (o prazo não é aplicado no código hoje; não criar regra de expiração nesta tarefa).
+1. `body::before` (≈ linha 54): camada `position:fixed` de tela inteira com SVG `feTurbulence` gerado em tempo real — recomposta a cada quadro de rolagem.
+2. `header` (≈ linha 116): `backdrop-filter: blur(14px)` sobre conteúdo que rola.
+3. `.hero::after`, `.offer::before`, `.final::before`: `filter: blur(28–30px / 10px)` sobre `radial-gradient` (que já é suave).
 
 ## Mecanismo proposto
 
 Validar contra o código real. Se divergir, reporte.
 
-1. **`src/server.js`** (render do `/aluno`, perto da linha ~627): calcular `iniciouAlguma = Object.keys(progresso.aulas).length > 0` e passar ao template `boasVindasAberto` (`"open"` ou `""`), `resumoBoasVindas` ("Comece por aqui" / "Como funciona o curso") e `linkWhatsappAulas`. Escapar como os outros campos (o render já trata `{{}}` vs `{{{}}}`).
-2. **`src/views/aluno.html`**: o `<details class="boas-vindas" {{boasVindasAberto}}>` entre o `<header>` e o `<h2>Suas aulas</h2>`.
-   - Visual com os tokens atuais: fundo `--card`, borda `--border`, raio 14px, padding 18–20px. `summary` em Inter Tight 600, com um marcador próprio (▸/▾ ou chevron em CSS) e cursor pointer; esconder o marcador padrão (`summary::-webkit-details-marker{display:none}` + `list-style:none`).
-   - Subtítulos internos ("Do que você precisa" etc.) em Inter Tight 15px; listas com 14.5px, `line-height` confortável; número do passo do caminho em destaque com o laranja (`--orange`).
-   - Largura e espaçamentos do `.wrap` atual; sem layout novo fora do bloco. Em 360px nada estoura na horizontal.
-   - **Nenhum `<script>` novo.** O script do `visibilitychange` da 10 não mexe no bloco (ao voltar da aula ele continua como estava; só no próximo carregamento fecha — aceitável).
-3. Nada muda em `/aluno/progresso.json`, rotas, banco ou aulas.
+Adicionar **no fim do `<style>`** de `public/index.html` (desktop com mouse continua idêntico):
+
+```css
+@media (max-width: 768px), (hover: none) {
+  body::before { display: none; }
+  header {
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    background: rgba(11,11,13,.96);
+  }
+  .hero::after, .offer::before, .final::before { filter: none; }
+}
+```
+
+- Se o executor achar outros `filter`/`backdrop-filter` grandes ou camadas `position:fixed` de tela cheia na landing, **registrar em Achados**, não mexer.
+- Não alterar `04_Site/` (é fonte). As views em `src/views/` não usam `feTurbulence` nem `backdrop-filter` (conferido pelo planejador); não mexer nelas.
 
 ## Fora de escopo
 
-- Vídeo de boas-vindas, tour guiado, modal, e-mail/WhatsApp automático de boas-vindas após a compra.
-- Marcar "próxima aula" nos cartões, retomar passo, certificado.
-- Expiração real do acesso em 24/12.
-- Qualquer coisa em checkout, webhook, /pagamento, VENDAS_ATE, /admin, CSV, `conteudo/`.
+- Trocar o granulado por PNG, redesenhar brilhos, qualquer mudança de texto, layout ou cores no desktop.
 
 ## Validação
 
-- [ ] Aluno novo (sem progresso): `/aluno` mostra o bloco **aberto**, resumo "Comece por aqui", com os 3 títulos vindos de `AULAS` na ordem.
-- [ ] Aluno com qualquer aula iniciada (`POST /aluno/progresso` com passo ≥ 1): após reload, bloco **fechado**, resumo "Como funciona o curso"; clicar no resumo abre e mostra o mesmo conteúdo.
-- [ ] Apenas downloads (sem aula iniciada) → bloco continua aberto.
-- [ ] Link do WhatsApp do bloco abre `wa.me` com a mensagem certa (conferir o `href`).
-- [ ] Sem erro no console e sem violação de CSP em `/aluno` (desktop e mobile).
-- [ ] Sem rolagem horizontal em 360px e 390px.
-- [ ] Prints em `docs/claude-bridge/evidencias/tarefa-11-boas-vindas/`: 1280px e 390px, aberto e fechado.
-- [ ] `npm run e2e` completo verde (29 passos da 10 + os novos). Reaproveitar os alunos e percursos existentes; se precisar de aluno novo, usar o `entrarComRetentativa()` da 10.
-
-## Entrega
-
-- Branch `tarefa/11-boas-vindas` a partir da `main` atualizada.
-- PR com base em `main`, **sem merge**. Prints e resultado do e2e na descrição.
-- `docs/t4p-00-estado.md`: decisão "23/09 · Boas-vindas no topo do /aluno (`<details>` aberto até iniciar a 1ª aula), sem estado novo no banco"; item 9 no backlog; corrigir o item 8 para "mergeado (PR #10)".
-- Preencher o relatório e mudar o Status.
+- [ ] Diff restrito ao bloco `@media` novo em `public/index.html`.
+- [ ] Playwright em 360, 390 e 430 px de largura (emulação mobile, `hasTouch`): screenshot de página inteira em `docs/claude-bridge/evidencias/tarefa-12-render-mobile/`; conferir que `body::before` tem `display:none` e que `getComputedStyle(header).backdropFilter` é `none`.
+- [ ] Em 1280 px (sem touch): `backdropFilter` do header continua `blur(14px)` e o granulado continua visível — screenshot `depois-desktop-1280.png`.
+- [ ] Nenhuma rolagem horizontal em 360 px.
+- [ ] Observação no relatório: o defeito original depende do aparelho e **não se reproduz no Chromium headless**; a validação real é o Guilherme pedir à usuária para abrir de novo depois do deploy.
 
 ## Relatório do executor
 
-- **Status:** CONCLUÍDA
-- **Feito:**
-  - `src/server.js`: `AULAS` ganhou os campos `duracaoMin`, `descricaoCaminho` e (só na Aula 3) `destacarManual`; constante `MANUAL_MODELO_TITULO` derivada de `DOWNLOADS` (título menos o sufixo `(.docx)`); `passoCaminhoHtml`/`CAMINHO_AULAS_HTML` montam a lista "O caminho" uma vez, no boot. Rota `/aluno` calcula `iniciouAlguma` a partir de `progresso.aulas` e passa `boasVindasAberto`, `resumoBoasVindas`, `caminhoAulasHtml` e `linkWhatsappAulas` ao template.
-  - `src/views/aluno.html`: `<details class="boas-vindas">` entre o `<header>` e `<h2>Suas aulas</h2>`, com o texto aprovado (boas-vindas, "Do que você precisa", "O caminho", "Como as aulas funcionam", prazo + WhatsApp). CSS novo para o bloco (marcador ▸/▾ em CSS, número do caminho em laranja via `::marker`), sem `<script>` novo.
-  - `docs/t4p-00-estado.md`: decisão de 23/09 sobre o bloco; item 8 do backlog corrigido para "mergeado (PR #10)"; item 9 adicionado.
-- **Validação:**
-  - ✅ Aluno novo → bloco aberto, "Comece por aqui", 3 títulos de `AULAS` na ordem — checado por script Playwright próprio (ver abaixo) nos dois viewports.
-  - ✅ Aluno com aula iniciada (`POST /aluno/progresso`, passo 1) → após reload, bloco fechado, "Como funciona o curso"; clique no resumo reabre e mostra as 3 aulas em "O caminho".
-  - ✅ Só download (sem aula iniciada) → bloco continua aberto (`GET /aluno/conteudo/assistente_vendas.txt` seguido de reload de `/aluno`).
-  - ✅ Link do WhatsApp do bloco: `href` em `https://wa.me/...` com a mensagem "Travei numa aula...", `target="_blank"` + `rel="noopener"` confirmados via `getAttribute`.
-  - ✅ Sem erro no console / sem violação de CSP em `/aluno`, 1280px e 390px (listener de `console`/`pageerror` durante toda a navegação).
-  - ✅ Sem rolagem horizontal em 360/390px (`document.documentElement.scrollWidth <= clientWidth`, checado aberto e fechado).
-  - ✅ Prints em `docs/claude-bridge/evidencias/tarefa-11-boas-vindas/`: `aberto-1280.png`, `aberto-390.png`, `fechado-1280.png`, `fechado-390.png`.
-  - ✅ `npm run e2e` completo: **29/29 passos OK** (suíte das tarefas 01–10, sem regressão; log completo no PR).
-  - Evidência das 6 primeiras checagens veio de um script Playwright à parte (não commitado — vive só no scratchpad da sessão), que sobe uma instância isolada do app (porta e SQLite próprios) e cadastra alunos via `/admin`, no mesmo padrão do `scripts/e2e.js`. Não editei `scripts/e2e.js` porque a tarefa não pediu novo cenário na suíte oficial, só a validação; o `npm run e2e` continua sendo a prova formal exigida.
-- **Divergências:** nenhuma — segui o mecanismo proposto como estava escrito.
-- **Achados:** nenhum fora do escopo.
-- **Commit/branch:** branch `tarefa/11-boas-vindas` (a partir de `main` em `d3e008e`, PR #10 já mergeado); commits `9dd96b8` (docs: planejador — tarefa 11) e `d01c83b` (feat: bloco de boas-vindas no topo do /aluno). PR: https://github.com/guilhermepama/t4p-cria/pull/11
+(preencher)
