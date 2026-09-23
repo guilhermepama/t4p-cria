@@ -462,6 +462,8 @@
     display:flex;align-items:center;justify-content:center;
   }
   .offer-list strong{color:var(--text);font-weight:600}
+  .btn-note a{color:var(--peach);text-underline-offset:3px}
+  .btn-note a:visited{color:var(--peach)}
 
   /* ---------- FAQ ---------- */
   details{border-bottom:1px solid var(--border-soft)}
@@ -514,6 +516,28 @@
     .chat-proj-name{white-space:normal}
     .chat-top .status{margin-left:43px}
     .chat-body{min-height:560px}
+  }
+
+  @media(max-width:480px){
+    .logo-product{display:none}
+    .header-cta{padding:10px 18px;font-size:15px;min-height:44px;display:inline-flex;align-items:center}
+
+    .selo-lancamento{
+      border-radius:16px;
+      letter-spacing:.08em;
+      font-size:11px;
+      padding:10px 16px;
+      align-items:flex-start;
+    }
+    .selo-lancamento i{margin-top:6px}
+
+    .price{font-size:clamp(56px,19vw,88px);letter-spacing:-.03em}
+    .price sup{font-size:.35em}
+
+    .offer{padding:28px 20px}
+
+    .offer .btn-ico{width:40px;height:40px;flex:0 0 40px}
+    .offer .btn-solid{white-space:nowrap;font-size:17px}
   }
 </style>
 </head>

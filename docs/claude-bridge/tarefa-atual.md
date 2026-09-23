@@ -1,97 +1,91 @@
-# Tarefa 06 · WhatsApp de contato em todo o site
+# Tarefa 07 — Ajuste de diagramação mobile: navbar e seção de preço
 
 **Status: CONCLUÍDA**
 
-- **Tipo:** código pequeno (texto + configuração).
-- **Data:** 23/09/2026
-- **Base:** `concluidas/05-preco-lancamento.md` (padrão `{{preco_brl}}` injetado pelo servidor)
+- Tipo: código (CSS apenas, sem mudança de estrutura HTML nem de lógica)
+- Data: 23/09/2026
+- Base: tarefas 01–06 concluídas e mergeadas; produção em https://iadojeitocerto.com conferida em 23/09 (print mobile ≈390px enviado pelo Guilherme)
+- ⚠️ Produção está vendendo até sexta 25/09 às 14h. A mudança precisa ser de baixo risco, reversível e não pode tocar checkout, /comprar, webhook ou VENDAS_ATE.
 
-## Decisão de produto
+## Objetivo
 
-WhatsApp oficial da T4P: **(19) 97413-9426**, que no formato do wa.me fica `5519974139426`. É o número pessoal do Guilherme, por decisão dele.
-
-## Antes de começar
-
-Crie `tarefa/06-whatsapp` a partir da `main` atualizada. O primeiro commit leva só a documentação pendente do planejador (o arquivamento da 05 e o deploy): `docs: planejador — tarefa 06`.
+Corrigir dois bugs visuais que prejudicam a conversão no mobile: o preço "49,90" encosta ou passa da borda do card, e o link de garantia para o WhatsApp aparece com o azul padrão do navegador. Aproveitar a mesma passada para ajustar a diagramação da navbar e da seção de preço em telas até 480px. O desktop não deve mudar, exceto a cor do link, que é um bug em qualquer largura.
 
 ## Mecanismo proposto
 
-1. **Uma fonte só**, com o mesmo padrão do preço:
-   - Variável `WHATSAPP` (só dígitos, com DDI). Se estiver vazia, o padrão no código é `5519974139426`.
-   - Adicione ao `.env.example`.
-   - O servidor injeta na landing `{{whatsapp}}` (os dígitos) e `{{whatsapp_fmt}}` (`(19) 97413-9426`).
-   - A `const WHATSAPP = ""` da landing passa a receber `{{whatsapp}}`.
-2. **Landing:**
-   - O link do FAQ de equipes volta a funcionar (o JS já existe, só depende da constante preenchida).
-   - Na garantia, "É só chamar a gente" vira link: "É só chamar a gente no WhatsApp".
-   - No rodapé, acrescente "WhatsApp (19) 97413-9426" com link.
-3. **Views:**
-   - `comprar-indisponivel.html`: "fale com a gente" vira link do WhatsApp com a mensagem pronta "Oi! Quero comprar o kit IA para Negócios por PIX direto."
-   - Mensagem de usuário inativo no `/entrar`: "fale com a gente" vira link com a mensagem "Oi! Já paguei o kit e meu acesso não foi liberado."
-   - `pagamento.html`: acrescente, abaixo do QR, uma linha discreta: "Pagou e não liberou? Fale com a gente no WhatsApp."
-   - `aluno.html`: no rodapé, "Dúvidas? WhatsApp (19) 97413-9426".
-   - `privacidade.html`: acrescente o WhatsApp ao contato, junto com o e-mail.
-4. Todos os links usam `https://wa.me/<digitos>?text=<encodeURIComponent(msg)>`, com `target="_blank" rel="noopener"`.
+Validar cada item contra o código real, porque os seletores abaixo são ilustrativos. Se algo divergir, reporte em vez de improvisar.
 
-## Acréscimo do planejador (23/09): imagem de compartilhamento
-
-5. Copie `../../04_Marketing/Criativos/og-image.jpg` (1200×630, 79 KB) para `public/og-image.jpg`. Na landing, acrescente:
-   `og:image` = `https://iadojeitocerto.com/og-image.jpg`, `og:image:width` 1200, `og:image:height` 630, `og:image:alt` "A IA não é fraca. Ela só não conhece o seu negócio. Kit IA para Negócios, R$ 49,90", `twitter:card` = `summary_large_image`.
-   Validação: `curl -I /og-image.jpg` → 200 `image/jpeg`. O e2e confere que a meta `og:image` existe e aponta para um arquivo que responde 200.
-
-6. **Favicon:** copie os 5 arquivos de `../../04_Marketing/Criativos/favicon/` para `public/` (`favicon.ico`, `favicon-32.png`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`). Acrescente no `<head>` da landing **e de todas as views** (comprar, pagamento, entrar, aluno, admin, privacidade, comprar-indisponivel): `<link rel="icon" href="/favicon.ico" sizes="any">`, `<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">`, `<link rel="apple-touch-icon" href="/apple-touch-icon.png">`. Validação: `curl -I /favicon.ico` → 200, e o e2e confere que o `link[rel=icon]` existe na landing e no `/aluno`.
-
-7. **Encerramento automático das vendas: sexta, 25/09, às 14h (horário de Brasília).** A empresa é liquidada às 14h, então venda depois disso não entra no balanço.
-   - Crie a variável `VENDAS_ATE` (ISO com offset). O padrão é `2026-09-25T14:00:00-03:00`. Acrescente no `.env.example`.
-   - Depois desse horário, `GET` e `POST /comprar` e `POST /pagamento/:token/novo` mostram uma página "Vendas encerradas" (status 410), com o link do WhatsApp e sem criar usuário nem pedido.
-   - Um PIX **gerado antes** das 14h e pago depois continua sendo liberado pelo webhook e pela reconsulta, porque é uma venda já feita. O `/api/pedido` e o `/pagamento/:token` continuam funcionando.
-   - Na landing, se as vendas estiverem encerradas, o servidor troca o selo de lançamento por "Vendas encerradas". Os botões de compra continuam levando ao `/comprar`, que mostra a página de encerramento.
-   - O login e a área do aluno **não mudam**. O acesso continua até 24/12.
-   - Validação: com `VENDAS_ATE` no passado, o `/comprar` responde 410 e nada é gravado no banco, e um pedido pendente criado antes ainda vira `pago` no `mp-fake`. Com `VENDAS_ATE` no futuro, tudo funciona como antes. Acrescente os dois casos ao e2e.
+1. **Link da garantia**, em todas as larguras: o `<a>` dentro do card de preço deve usar a cor de destaque do tema (a mesma dos acentos laranja), com `text-underline-offset: 3px`, e um estado `:visited` com a mesma cor. Conferir se existem outros `<a>` sem estilo na landing e reportar o que encontrar, sem corrigir o que estiver fora deste escopo.
+2. **Navbar**, com `@media (max-width: 480px)`:
+   - esconder o nome "IA para Negócios", deixando só "T4P." e o botão;
+   - botão "Quero o kit" menor, com padding em torno de 10px 18px, fonte de 15px e altura de toque de no mínimo 44px.
+3. **Selo de prazo**, no mesmo breakpoint:
+   - `border-radius: 16px`, no lugar da pílula de raio 999px;
+   - `letter-spacing` em torno de .08em, fonte de 11px e padding de 10px 16px;
+   - o ponto indicador deve ficar alinhado com a primeira linha do texto, e não solto à esquerda;
+   - se for possível só com CSS, ou com um `<br>`/`<span>` já existente, a hierarquia deve ser "PREÇO DE LANÇAMENTO" em caixa alta e "até sexta, 25/09, às 14h" em peso normal. Se isso exigir mudar a estrutura, não faça e reporte. O texto não pode ser alterado.
+4. **Preço**:
+   - valor com `font-size: clamp(56px, 19vw, 88px)` e `letter-spacing: -0.03em`;
+   - "R$" proporcional, em torno de .35em do valor;
+   - requisito: nenhum pixel do preço pode encostar no padding do card em 360px.
+5. **Card**: padding em torno de 28px 20px no mobile, para eliminar o padding duplo entre a seção e o card.
+6. **CTA "Quero começar agora"**: o texto deve caber em 1 linha em 360px. Para isso, reduzir o círculo do ícone para cerca de 40px, usar `white-space: nowrap` e fonte de 17px. Se mesmo assim estourar em 360px, descer a fonte para 16px. **Não trocar o texto do botão**, porque isso é decisão de produto.
+7. Não sobrescrever regras de desktop. Tudo o que for novo, exceto o item 1, fica dentro da media query.
 
 ## Fora de escopo
 
-Mudanças de preço, de texto de oferta ou em `conteudo/`.
+- Qualquer mudança de texto ou copy, preços, selos ou prazos.
+- Checkout, /comprar, /pagamento, /aluno, /admin, webhook, variáveis de ambiente, VENDAS_ATE.
+- Outras seções da landing, mesmo que também tenham problemas no mobile. Anote no relatório e não corrija.
+- Refatoração de CSS, troca de fontes, novas dependências.
 
 ## Validação
 
-1. `grep -rn "fale com a gente\|chamar a gente" src/views public` → todas as ocorrências viraram link.
-2. O `npm run e2e` passa. Acrescente um passo: a landing tem pelo menos 3 links `wa.me/5519974139426`, e nenhum `{{whatsapp` sobra no HTML.
-3. Com `WHATSAPP=5511900000000`, a landing e as views mostram o número novo. Isso prova que existe uma fonte só.
-4. `docker build` passa.
+- [ ] Prints da landing em 360px, 390px e 430px (navbar e seção de preço), antes e depois, anexados ao PR.
+- [ ] Preço sem corte em 360px.
+- [ ] CTA em 1 linha em 360px.
+- [ ] Link da garantia na cor de destaque e abrindo o WhatsApp correto (variável WHATSAPP).
+- [ ] Desktop (≥1024px) visualmente igual ao atual, exceto a cor do link.
+- [ ] e2e completo (11 passos) verde.
+- [ ] Nenhum arquivo fora de CSS/templates da landing alterado. Listar os arquivos no relatório.
 
 ## Entrega
 
-Branch `tarefa/06-whatsapp`. Push liberado para abrir o PR. Sem merge. Preencha o relatório e mude o Status.
+- Branch a partir de `main` atualizada: `fix/mobile-preco-navbar`.
+- PR com base em `main`, **sem mergear**. Prints e resultado do e2e na descrição.
+- Atualizar o doc de estado do projeto no mesmo PR, com uma linha sobre o ajuste mobile.
+- Preencher o relatório abaixo e mudar o Status para CONCLUÍDA, ou para BLOQUEADA com o motivo.
 
 ## Relatório do executor
 
 - **Status:** CONCLUÍDA
-
 - **Feito:**
-  - Fonte única do WhatsApp: `WHATSAPP` no `.env.example` (padrão `5519974139426`), helpers `whatsappContatoDigitos/Formatado`/`linkWhatsapp` em `src/server.js`, injetados na landing (`{{whatsapp}}`, `{{whatsapp_fmt}}`) e nas views via `render()`.
-  - `public/index.html`: FAQ de equipe voltou a funcionar (só preencheu a constante), garantia e rodapé viraram links de WhatsApp, `target="_blank" rel="noopener"` em todos os links (inclusive o da FAQ, que não tinha).
-  - `src/views/comprar-indisponivel.html`, `entrar` (mensagem de inativo em `server.js`), `pagamento.html`, `aluno.html`, `privacidade.html`: textos "fale/chame a gente" viraram links com a mensagem pronta pedida.
-  - Imagem de compartilhamento: copiado `public/og-image.jpg`; metas `og:image(:width/:height/:alt)` e `twitter:card` na landing.
-  - Favicon: copiados os 5 arquivos para `public/`; `<link rel="icon">`/`apple-touch-icon` em todas as views listadas (landing, comprar, pagamento, entrar, aluno, admin, privacidade, comprar-indisponivel).
-  - Encerramento automático das vendas: `VENDAS_ATE` no `.env.example` (padrão `2026-09-25T14:00:00-03:00`), helpers `vendasAte/vendasEncerradas/seloVendas` em `server.js`. `GET`/`POST /comprar` e `POST /pagamento/:token/novo` respondem 410 com a nova view `src/views/vendas-encerradas.html` (link de WhatsApp) sem gravar nada no banco. Selo da landing troca para "Vendas encerradas" via `{{selo_texto}}`. `/api/pedido/:token`, `/pagamento/:token` (GET) e `/webhooks/mp` não mudaram.
-  - `scripts/e2e.js`: 4 passos novos (links de WhatsApp na landing, meta `og:image` responde 200, favicon + `link[rel=icon]` na landing e no `/aluno`, e o cenário completo de `VENDAS_ATE` — reabre o mesmo banco com um servidor separado para simular passado/futuro).
-
+  - `public/index.html`: estilo do link de garantia (`.btn-note a`, cor `var(--peach)`, `text-underline-offset:3px`, `:visited` igual) valendo em todas as larguras; nova `@media(max-width:480px)` com ajustes de navbar (`.logo-product{display:none}`, `.header-cta` menor com altura de toque ≥44px), selo de prazo (`border-radius:16px`, `letter-spacing:.08em`, `font-size:11px`, `padding:10px 16px`, ponto indicador alinhado com `align-items:flex-start` + `margin-top`), preço (`clamp(56px,19vw,88px)`, `letter-spacing:-.03em`, "R$" em `.35em`), card da oferta (`padding:28px 20px`) e CTA final (`white-space:nowrap`, `font-size:17px`, ícone 40px).
+  - `docs/t4p-00-estado.md`: linha no Registro rápido sobre o ajuste mobile.
+  - `docs/claude-bridge/evidencias/tarefa-07-mobile/`: prints antes/depois em 360/390/430px (navbar e oferta) + desktop depois (1280px), gerados com Playwright contra o servidor local.
 - **Validação:**
-  1. ✅ `grep -rn "fale com a gente\|chamar a gente" src/views public` → as 3 ocorrências (comprar-indisponivel, vendas-encerradas, garantia da landing) são links.
-  2. ✅ `npm run e2e` → 11/11 passos OK, incluindo o passo novo dos links de WhatsApp (landing tem 2 links estáticos + o da FAQ via JS = 3, sem `{{whatsapp` sobrando).
-  3. ✅ Rodei o server duas vezes (script manual, descartado depois) com `WHATSAPP=5511900000000`: landing, `/comprar` indisponível, rodapé, `/privacidade` e `const WHATSAPP` do JS todos mostraram `(11) 90000-0000` / `wa.me/5511900000000` — uma fonte só.
-  4. ✅ `docker build` passa (rodei 3x, a cada rodada de mudanças); subi o container e confirmei `curl -I /og-image.jpg` → 200 `image/jpeg`, `curl -I /favicon.ico` → 200 `image/x-icon`.
-  5. ✅ (item 5 do planejador) `og:image` responde 200/`image/jpeg` — conferido no e2e e via curl no container.
-  6. ✅ (item 6) `favicon.ico` → 200; `link[rel=icon]` presente na landing e no `/aluno` (e2e).
-  7. ✅ (item 7) Com `VENDAS_ATE` no passado: `GET`/`POST /comprar` → 410, nada gravado (conferido no `/admin`), `POST /pagamento/:token/novo` → 410; o pedido criado antes do encerramento foi aprovado no mp-fake e virou `pago` via `/api/pedido`, e `/pagamento/:token` continuou respondendo 200. Com `VENDAS_ATE` no futuro (padrão), tudo funciona como antes (suite inteira depende disso).
-
+  - ✅ Prints da landing em 360/390/430px (navbar e oferta), antes e depois — anexados em `docs/claude-bridge/evidencias/tarefa-07-mobile/` (12 arquivos) e linkados abaixo.
+  - ✅ Preço sem corte em 360px — no "antes", "49,90" chegava a encostar na borda direita do card; no "depois", sobra folga visível dos dois lados (ver `depois-oferta-360.png`).
+  - ✅ CTA "Quero começar agora" em 1 linha em 360/390/430px, sem precisar cair para 16px.
+  - ✅ Link da garantia na cor de destaque (`var(--peach)`, sublinhado com offset) e abrindo o WhatsApp correto — confirmado pelo passo do e2e "landing tem pelo menos 3 links wa.me/5519974139426 e nenhum {{whatsapp sobra".
+  - ✅ Desktop (1280px) visualmente igual ao atual, exceto a cor do link — selo continua pílula 999px, navbar mostra "IA para Negócios" por inteiro, preço mantém 76px fixo (ver `depois-desktop-oferta-1280.png`).
+  - ✅ `npm run e2e` — 11/11 passos verdes.
+  - ✅ Nenhum arquivo fora de CSS/templates da landing alterado: só `public/index.html` (CSS) e `docs/t4p-00-estado.md` (1 linha de doc) mudaram no código; o PNG de evidência de outra tarefa que o e2e reescreve como efeito colateral foi revertido antes do commit.
 - **Divergências:**
-  - A mensagem do link de `pagamento.html` ("Oi! Fiz o PIX do kit IA para Negócios e o acesso não foi liberado.") e a do link de dúvidas em rodapé/privacidade/aluno ("Oi! Tenho uma dúvida sobre o kit IA para Negócios.") não estavam especificadas no texto da tarefa — o mecanismo só dava o texto do botão, não a mensagem do wa.me. Escrevi mensagens curtas no mesmo padrão das que já tinham texto pronto; não é preço/oferta, mas registro aqui por não estar explícito.
-  - Coloquei a linha do WhatsApp em `pagamento.html` logo abaixo da tag `<img class="qr">` (antes do "Copia e cola"), interpretando "abaixo do QR" ao pé da letra.
-  - `src/views/vendas-encerradas.html` é um arquivo novo (não existia quando o item 7 foi escrito); copiei o layout de `comprar-indisponivel.html` e já incluí o favicon nela também, por consistência com o item 6.
-  - A tarefa foi editada ao vivo pelo planejador durante a execução (itens 5, 6 e depois 7 apareceram em `tarefa-atual.md` depois que eu já tinha começado pelos itens 1–4). Segui em frente e implementei tudo, verificando que os assets de `04_Marketing/Criativos/` já existiam antes de copiá-los.
+  - Item 3 (hierarquia do selo — "PREÇO DE LANÇAMENTO" em caixa alta e "até sexta, 25/09, às 14h" em peso normal): **não implementado**. `{{selo_texto}}` chega do servidor como uma string única (`seloVendas()` em `src/server.js`), sem `<br>`/`<span>` existente separando as duas partes, e o `.hero-tag` já força `text-transform:uppercase` no texto inteiro. Diferenciar peso/caixa por trecho exigiria envolver uma parte em `<span>` no HTML gerado pelo servidor — mudança de estrutura/lógica, fora do escopo "CSS apenas" desta tarefa. Reportando em vez de improvisar, como pedido no mecanismo proposto.
+  - O ponto indicador do selo foi alinhado com `align-items:flex-start` + `margin-top:6px` no `i`, uma aproximação visual (não há como calcular o alinhamento exato com o cap-height da primeira linha sem envolver o texto num `<span>` próprio). Ficou visualmente alinhado nos três breakpoints testados.
+- **Achados (fora do escopo, não corrigidos):**
+  - `footer a{color:var(--peach)}` já tem cor, mas não tem `text-underline-offset` nem `:visited` explícito (herda a cor do link normal, então não chega a ficar diferente na prática, mas é inconsistente com o padrão pedido para o link da garantia).
+  - O link da FAQ de equipe (`#faq-equipe-whats`, injetado via JS em `public/index.html` linha ~1048) usa `style="color:var(--peach)"` inline em vez de uma classe/CSS — funciona, mas foge do padrão do resto do arquivo.
+  - Nenhum outro `<a>` sem estilo foi encontrado na landing.
+- **Commit/branch:** branch `fix/mobile-preco-navbar`, a partir da `main` atualizada (commit `5c35d63`, com o PR #6 já mergeado). PR ainda não aberto neste relatório — ver seção Entrega.
 
-- **Achados:** nenhum novo fora do escopo.
+### Evidências (antes/depois)
 
-- **Commit/branch:** branch `tarefa/06-whatsapp` (a partir da `main` em `a285077`). Commits: `docs: planejador — tarefa 06` (967a26b) e `feat: WhatsApp de contato, imagem de compartilhamento, favicon e encerramento automático das vendas` (376438a).
+360px: [antes navbar](../evidencias/tarefa-07-mobile/antes-navbar-360.png) · [depois navbar](../evidencias/tarefa-07-mobile/depois-navbar-360.png) · [antes oferta](../evidencias/tarefa-07-mobile/antes-oferta-360.png) · [depois oferta](../evidencias/tarefa-07-mobile/depois-oferta-360.png)
+
+390px: [antes navbar](../evidencias/tarefa-07-mobile/antes-navbar-390.png) · [depois navbar](../evidencias/tarefa-07-mobile/depois-navbar-390.png) · [antes oferta](../evidencias/tarefa-07-mobile/antes-oferta-390.png) · [depois oferta](../evidencias/tarefa-07-mobile/depois-oferta-390.png)
+
+430px: [antes navbar](../evidencias/tarefa-07-mobile/antes-navbar-430.png) · [depois navbar](../evidencias/tarefa-07-mobile/depois-navbar-430.png) · [antes oferta](../evidencias/tarefa-07-mobile/antes-oferta-430.png) · [depois oferta](../evidencias/tarefa-07-mobile/depois-oferta-430.png)
+
+Desktop (depois, 1280px): [oferta](../evidencias/tarefa-07-mobile/depois-desktop-oferta-1280.png)

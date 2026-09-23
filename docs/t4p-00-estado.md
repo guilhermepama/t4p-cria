@@ -62,3 +62,4 @@ Atualizado em 22/09/2026.
 ### Registro rápido (micro-correções, sem tarefa)
 
 - favicon e og-image inexistentes (achado da tarefa 01) — criar antes da divulgação (Guilherme: arte)
+- Ajuste de diagramação mobile (navbar, selo de prazo, preço e link da garantia) na landing, feito na tarefa 07 — aguardando merge
