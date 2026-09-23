@@ -37,8 +37,8 @@ Atualizado em 22/09/2026.
 
 ## Backlog
 
-1. ~~Esqueleto + Dockerfile + landing no ar~~ — feito na tarefa 01, aguardando merge
-2. Login, área do aluno, conteúdo protegido **+ /admin completo** (fallback operacional) — tarefa 02
+1. ~~Esqueleto + Dockerfile + landing no ar~~ — feito na tarefa 01, mergeado na main
+2. ~~Login, área do aluno, conteúdo protegido + /admin completo~~ — feito na tarefa 02, aguardando merge
 3. (fundido no item 2)
 4. Checkout PIX + tela de QR + polling
 5. Webhook com assinatura + reconsulta

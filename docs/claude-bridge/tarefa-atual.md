@@ -1,6 +1,6 @@
 # Tarefa 02 · Login, área do aluno, conteúdo protegido e /admin (backlog 2)
 
-**Status: AGUARDANDO EXECUÇÃO**
+**Status: CONCLUÍDA**
 
 - **Tipo:** código. ⚠️ Mexe em senhas e dados pessoais. ⚠️ Troca uma dependência (sai o bcrypt).
 - **Data:** 23/09/2026
@@ -75,4 +75,36 @@ Valide contra o código e a especificação. Se houver divergência, reporte.
 
 ## Relatório do executor
 
-_(preencher aqui)_
+- **Status:** CONCLUÍDA
+- **Feito:**
+  - `package.json`/`package-lock.json`: `bcrypt` removido, script `npm run criar-aluno` adicionado.
+  - `src/auth.js` (novo): `hashSenha`/`verificarSenha` (scrypt N=16384 r=8 p=1, formato `scrypt$salt$hash`, comparação com `timingSafeEqual`), `criarSessaoCookie`/`destruirSessaoCookie` (cookie `t4p_sess`, hash SHA-256 no banco), `caminhoRelativoSeguro`, `requireAluno`, `requireAdmin` (Basic Auth + `timingSafeEqual`, 503 se `ADMIN_USER`/`ADMIN_PASS` vazios), `checarOrigem` (CSRF por Origin/Referer vs `BASE_URL`).
+  - `src/db.js`: queries de usuário por e-mail/id/sessão, criação/destruição de sessão, `criarAlunoManual` e `ativarAluno` (transações), `trocarSenha`, `criarAlunoAtivo` (para o script), `registrarEvento`/`listarEventosRecentes`, `listarAlunosComPedidos`, `resumoVendas`, e limpeza de sessões expiradas na inicialização.
+  - `src/views/render.js` (helper mínimo `{{chave}}` escapado / `{{{chave}}}` raw) + `entrar.html`, `aluno.html`, `admin.html` no visual da landing (fundo escuro, Inter Tight, botões em pílula laranja), mobile-first.
+  - `src/server.js`: rotas `GET/POST /entrar`, `POST /sair` (rate-limit 10/min/IP no POST), `GET /aluno`, `GET /aluno/conteudo/:arquivo` (lista branca `Map` com os 10 nomes), `GET /admin`, `POST /admin/alunos`, `POST /admin/ativar/:userId`, `POST /admin/senha/:userId`, `GET /admin/vendas.csv` (BOM UTF-8, `;`).
+  - `conteudo/Aula1_O_Pedido_que_Funciona.html`: bloco de venda (`PRECO`, preço, JS que preenchia) trocado por cartão "Próxima: Aula 2" + link + "Voltar à área do aluno".
+  - `conteudo/Aula2_Conserte_a_Resposta.html`: cartão final ganhou link real para a Aula 3 e "Voltar à área do aluno".
+  - `conteudo/Aula3_Monte_sua_Equipe.html`: acrescentado só o "Voltar à área do aluno".
+  - `scripts/criar-aluno.js` (novo) + script `npm run criar-aluno`.
+  - `Dockerfile`: adicionado `COPY scripts ./scripts` (faltava; sem isso o script não existe na imagem).
+  - `docs/t4p-00-estado.md`: item 1 marcado como mergeado, item 2 marcado como feito/aguardando merge.
+- **Validação:**
+  1. ✅ `npm audit --omit=dev` → "found 0 vulnerabilities"; `grep bcrypt package-lock.json` → vazio.
+  2. ✅ `npm run criar-aluno -- "Fulano Teste" fulano@teste.com senha1234` → login em `/entrar` → 302; `/aluno` lista as 3 aulas (`AULAS.length===3`) e 7 downloads (`DOWNLOADS.length===7`).
+  3. ✅ `/aluno` sem cookie → `302` para `/entrar?volta=%2Faluno`; `GET /entrar?volta=https://evil.com` → campo oculto `volta` vem como `/aluno` (ignorado).
+  4. ✅ `/aluno/conteudo/../src/db.js` → `404`; `/aluno/conteudo/qualquer.txt` → `404`; arquivo válido (`Aula1...html`) sem sessão → `302`.
+  5. ✅ Usuário inativo com senha certa → `403` com a mensagem exata; nenhum cookie `t4p_sess` foi setado (confirmado lendo o jar de cookies do curl).
+  6. ✅ Em instância isolada (sem outras chamadas ao limiter antes), 10 tentativas seguidas devolveram `401` e a 11ª devolveu `429`.
+  7. ✅ Comparando o valor do cookie com a coluna `token` da tabela `sessions`: são diferentes; `sha256(cookie) === token_no_banco` confirmado.
+  8. ✅ `/admin` sem credencial → `401`. Com credencial: cadastro manual → `302` e o aluno criado loga (`302`); e-mail duplicado → `409`; `POST /admin/ativar/:id` em usuário inativo → `ativo=1` + nova linha em `orders` (status `manual`); `POST /admin/senha/:id` → nova senha verificável com `verificarSenha`. As 3 ações geraram linhas em `eventos` (`admin_cadastro_manual`, `admin_ativacao`, `admin_nova_senha`).
+  9. ✅ `POST /admin/alunos` com `Origin: https://evil.com` (e credencial válida) → `403`.
+  10. ✅ CSV: primeiros 3 bytes `EF BB BF`; nome com acento (`José Ção`) chega correto no arquivo quando enviado com bytes UTF-8 reais (ver Divergências sobre o teste com curl/shell).
+  11. ✅ Links "Próxima"/"Voltar" abrem as rotas certas (`/aluno/conteudo/AulaN...html`, `/aluno`); `grep "R\$ 97" conteudo/Aula1_O_Pedido_que_Funciona.html` → sem resultado.
+  12. ✅ `docker build` + `docker run` com bind mount → `npm`/script `criar-aluno` dentro do container → login `302` → `docker rm -f` + novo `docker run` no mesmo volume → login continua `302` (aluno persistiu). Precisei de `MSYS_NO_PATHCONV=1` e path Windows explícito no bind mount, mesma questão já registrada no relatório da tarefa 01.
+- **Divergências:**
+  - Dockerfile: acrescentei `COPY scripts ./scripts`, que não estava no mecanismo proposto mas é necessário para `npm run criar-aluno` funcionar dentro do container (o script é descrito como ferramenta de "testes e emergência", inclusive em produção).
+  - Tabela do `/admin`: é uma linha por par (usuário, pedido) via `LEFT JOIN`; um aluno com mais de um pedido aparece em mais de uma linha, cada uma com seus próprios botões "Ativar"/"Nova senha". Funciona, mas repete a ação por linha em vez de agrupar por aluno — não implementei agrupamento por ser decisão de UI não especificada e o volume esperado é pequeno (~17 alunos).
+  - Ao testar acentos no CSV (item 10) pelo terminal Git Bash/PowerShell deste ambiente Windows, o codepage do console (850, não UTF-8) corrompeu o argumento antes de chegar no `curl`. Confirmei que o problema era só do terminal de teste (não do app) reenviando a mesma requisição via um cliente HTTP em Node com bytes UTF-8 reais: o CSV saiu com os acentos corretos. Registro isso para quem for reproduzir os testes manualmente no Windows.
+- **Achados** (fora do escopo, não corrigidos):
+  - Nenhum novo além dos já registrados na tarefa 01 (favicon/og-image ausentes). O achado de `npm audit` da tarefa 01 (crítico/alto via `bcrypt`/`tar`/`node-pre-gyp`) está resolvido nesta tarefa como consequência de remover o `bcrypt`.
+- **Commit/branch:** branch `tarefa/02-aluno-admin`, criada a partir da `main` pós-merge da tarefa 01 (`beca235`). Commits: `bdaf959` (docs do planejador), `6578435` (troca de CTA nas aulas), `0cbd0e8` (remoção do bcrypt), `0e31232` (auth.js + db.js), `04a10a8` (script criar-aluno), `372e473` (rotas + views), `3862bc3` (fix Dockerfile). Sem push, sem merge.
