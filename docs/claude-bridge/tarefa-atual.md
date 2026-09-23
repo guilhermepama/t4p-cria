@@ -1,6 +1,6 @@
 # Tarefa 11 — Boas-vindas e "como fazer as aulas" na área do aluno
 
-**Status: AGUARDANDO EXECUÇÃO**
+**Status: CONCLUÍDA**
 
 - Tipo: código (template `/aluno` + render no `server.js` + e2e). Sem dependência nova, **sem migração**.
 - Data: 23/09/2026
@@ -92,4 +92,21 @@ Validar contra o código real. Se divergir, reporte.
 
 ## Relatório do executor
 
-(preencher)
+- **Status:** CONCLUÍDA
+- **Feito:**
+  - `src/server.js`: `AULAS` ganhou os campos `duracaoMin`, `descricaoCaminho` e (só na Aula 3) `destacarManual`; constante `MANUAL_MODELO_TITULO` derivada de `DOWNLOADS` (título menos o sufixo `(.docx)`); `passoCaminhoHtml`/`CAMINHO_AULAS_HTML` montam a lista "O caminho" uma vez, no boot. Rota `/aluno` calcula `iniciouAlguma` a partir de `progresso.aulas` e passa `boasVindasAberto`, `resumoBoasVindas`, `caminhoAulasHtml` e `linkWhatsappAulas` ao template.
+  - `src/views/aluno.html`: `<details class="boas-vindas">` entre o `<header>` e `<h2>Suas aulas</h2>`, com o texto aprovado (boas-vindas, "Do que você precisa", "O caminho", "Como as aulas funcionam", prazo + WhatsApp). CSS novo para o bloco (marcador ▸/▾ em CSS, número do caminho em laranja via `::marker`), sem `<script>` novo.
+  - `docs/t4p-00-estado.md`: decisão de 23/09 sobre o bloco; item 8 do backlog corrigido para "mergeado (PR #10)"; item 9 adicionado.
+- **Validação:**
+  - ✅ Aluno novo → bloco aberto, "Comece por aqui", 3 títulos de `AULAS` na ordem — checado por script Playwright próprio (ver abaixo) nos dois viewports.
+  - ✅ Aluno com aula iniciada (`POST /aluno/progresso`, passo 1) → após reload, bloco fechado, "Como funciona o curso"; clique no resumo reabre e mostra as 3 aulas em "O caminho".
+  - ✅ Só download (sem aula iniciada) → bloco continua aberto (`GET /aluno/conteudo/assistente_vendas.txt` seguido de reload de `/aluno`).
+  - ✅ Link do WhatsApp do bloco: `href` em `https://wa.me/...` com a mensagem "Travei numa aula...", `target="_blank"` + `rel="noopener"` confirmados via `getAttribute`.
+  - ✅ Sem erro no console / sem violação de CSP em `/aluno`, 1280px e 390px (listener de `console`/`pageerror` durante toda a navegação).
+  - ✅ Sem rolagem horizontal em 360/390px (`document.documentElement.scrollWidth <= clientWidth`, checado aberto e fechado).
+  - ✅ Prints em `docs/claude-bridge/evidencias/tarefa-11-boas-vindas/`: `aberto-1280.png`, `aberto-390.png`, `fechado-1280.png`, `fechado-390.png`.
+  - ✅ `npm run e2e` completo: **29/29 passos OK** (suíte das tarefas 01–10, sem regressão; log completo no PR).
+  - Evidência das 6 primeiras checagens veio de um script Playwright à parte (não commitado — vive só no scratchpad da sessão), que sobe uma instância isolada do app (porta e SQLite próprios) e cadastra alunos via `/admin`, no mesmo padrão do `scripts/e2e.js`. Não editei `scripts/e2e.js` porque a tarefa não pediu novo cenário na suíte oficial, só a validação; o `npm run e2e` continua sendo a prova formal exigida.
+- **Divergências:** nenhuma — segui o mecanismo proposto como estava escrito.
+- **Achados:** nenhum fora do escopo.
+- **Commit/branch:** branch `tarefa/11-boas-vindas` (a partir de `main` em `d3e008e`, PR #10 já mergeado); commits `9dd96b8` (docs: planejador — tarefa 11) e `d01c83b` (feat: bloco de boas-vindas no topo do /aluno). PR: https://github.com/guilhermepama/t4p-cria/pull/11
