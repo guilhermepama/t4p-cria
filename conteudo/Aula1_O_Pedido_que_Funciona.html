@@ -549,12 +549,10 @@ body.is-hero .barra { display: none; }
       <li>A última palavra é sua: revise e ajuste o texto ao seu jeito de falar.</li>
     </ol>
     <div class="oferta">
-      <h3>Isso foi a aula 1 do kit IA para Negócios.</h3>
-      <p>O seu novo contratado tem três diferenças de uma pessoa. Hoje você resolveu a primeira: ele não pergunta. Nas próximas aulas, as outras duas: ele não sabe quando erra, e esquece tudo a cada conversa nova.</p>
-      <p>No kit completo: 3 aulas interativas (o pedido que funciona, como refinar as respostas e como montar sua equipe de IA), 25 pedidos prontos em 5 segmentos e 3 assistentes prontos para configurar: marketing, vendas e gestão.</p>
-      <p class="preco" id="preco"></p>
-      <p style="margin:0">Pagamento por PIX. Acesso liberado na hora, na sua área de aluno.</p>
-      <a class="btn" id="cta-whats" href="/aluno">Voltar à área do aluno</a>
+      <h3>Próxima: Aula 2 — Conserte a resposta</h3>
+      <p>O seu novo contratado tem três diferenças de uma pessoa. Hoje você resolveu a primeira: ele não pergunta. Na próxima aula, a segunda: ele não sabe quando erra.</p>
+      <a class="btn" href="/aluno/conteudo/Aula2_Conserte_a_Resposta.html">Ir para a Aula 2</a>
+      <p style="margin:16px 0 0"><a href="/aluno">Voltar à área do aluno</a></p>
     </div>
     <p style="margin-top:22px"><button class="btn-texto" id="refazer" style="padding-left:0">Refazer a aula</button></p>
   </section>
@@ -581,8 +579,6 @@ body.is-hero .barra { display: none; }
 <script>
 (function () {
   "use strict";
-
-  var PRECO = "R$ 97";
 
   var reduzido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var steps = Array.prototype.slice.call(document.querySelectorAll(".step"));
@@ -958,7 +954,6 @@ body.is-hero .barra { display: none; }
   $("quiz-proxima").addEventListener("click", function () { qi++; montarQuiz(); $("quiz-pedido").focus && $("quiz-contador").scrollIntoView({ block: "start", behavior: reduzido ? "auto" : "smooth" }); });
 
   // ---------- passo 7 ----------
-  $("preco").textContent = PRECO;
   $("refazer").addEventListener("click", function () { window.location.reload(); });
 
   restaurar();
