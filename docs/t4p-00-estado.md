@@ -31,6 +31,10 @@ Atualizado em 22/09/2026.
 | 23/09 | Checkout e webhook numa tarefa só (03) | Um fluxo só; o teste de R$ 1 precisa dos dois |
 | 23/09 | Sem `notification_url` no pagamento; só o webhook do painel da aplicação T4P | Uma fonte assinada, sem notificações duplicadas |
 
+| 23/09 | Cloudflare na frente (proxied), mesma VPS e firewall do Orbinote; `TRUST_PROXY=2` | Firewall só aceita tráfego do Cloudflare |
+| 23/09 | Formulários sempre validados em navegador real (Playwright) | Bug de `Origin: null` passou por todos os testes com curl |
+| 23/09 | Tarefas 03 e 04 vão juntas num PR só | A 03 sozinha publicaria um checkout quebrado pelo mesmo bug |
+
 ## Pendências de produto (do Guilherme, não do executor)
 
 - Garantia de 7 dias: sim ou não? (a landing tem um aviso âmbar)

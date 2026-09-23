@@ -64,10 +64,11 @@ Datas em UTC. Na tela, converter para America/Sao_Paulo.
 |---|---|---|---|
 | GET | `/health` | público | `{ok:true}` + checagem do banco |
 | GET | `/` | público | landing (public/index.html) |
-| GET | `/comprar` | público | formulário: nome, e-mail, WhatsApp, senha (mín. 8), aceite de privacidade |
-| POST | `/api/checkout` | público, rate-limit | cria/reaproveita usuário inativo + pedido + PIX → `{pedidoId}` |
-| GET | `/pagamento/:id` | público* | QR + copia-e-cola + botão copiar + contador de expiração |
-| GET | `/api/pedido/:id` | público* | `{status}`; se pendente, reconsulta o MP (no máx. 1× a cada 5 s por pedido) |
+| GET/POST | `/comprar` | público, rate-limit no POST | formulário (nome, e-mail, WhatsApp, senha, aceite) → cria/reaproveita usuário inativo + pedido + PIX → 303 `/pagamento/:token`. Sem `MP_ACCESS_TOKEN` → página "compra indisponível" (503) |
+| GET | `/pagamento/:token` | público* | QR + copia-e-cola + botão copiar + contador + polling |
+| POST | `/pagamento/:token/novo` | público* | novo PIX para o mesmo usuário, só se o pedido estiver expirado |
+| GET | `/pagamento/:token/acesso` | público* | login automático único (`login_feito`, janela de 2 h) |
+| GET | `/api/pedido/:token` | público* | `{status}`; se pendente, reconsulta o MP (no máx. 1× a cada 5 s por pedido) |
 | POST | `/webhooks/mp` | MP | valida assinatura, reconsulta, ativa. Responde 200 rápido |
 | GET/POST | `/entrar`, `/sair` | público | login por e-mail + senha (rate-limit), logout |
 | GET | `/aluno` | aluno ativo | página com as 3 aulas + downloads |
@@ -124,7 +125,9 @@ Quando o pedido vira `pago`, a página de pagamento cria a sessão do aluno e re
 - helmet (a CSP precisa permitir as fontes do Google usadas pela landing e imagens `data:` para o QR).
 - Cookie de sessão: `httpOnly`, `secure` em produção, `sameSite=lax`, validade de 30 dias.
 - Senha: `crypto.scrypt` (N=16384, r=8, p=1, salt 16 bytes, chave 64 bytes), gravada como `scrypt$<salt hex>$<hash hex>`; comparação com `timingSafeEqual`. Rate-limit de 10 req/min por IP em `/entrar` e `/api/checkout`.
-- `app.set('trust proxy', 1)`, porque o app fica atrás do Traefik do Coolify.
+- `trust proxy` vem de `TRUST_PROXY` (padrão `2`): a requisição passa por Cloudflare → Traefik → app.
+- `Referrer-Policy: same-origin` (helmet `referrerPolicy`). Com o padrão `no-referrer`, o navegador manda `Origin: null` nos POSTs e a checagem CSRF bloqueia tudo.
+- Toda validação que envolva formulário precisa ser feita em **navegador real** (`npm run e2e`, com Playwright). Teste só com curl não conta.
 - Lista branca de arquivos em `/aluno/conteudo/:arquivo`, sem montar caminho a partir da entrada do usuário.
 - Nenhum segredo aparece em log. No log, o e-mail vai mascarado (`g***@gmail.com`).
 
