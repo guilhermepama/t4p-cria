@@ -1,96 +1,106 @@
-# Tarefa 04 · Correções de produção: Origin null, proxy, navegador real (URGENTE)
+# Tarefa 05 · Preço de lançamento R$ 49,90, garantia, prazo de acesso e limpeza (URGENTE)
 
 **Status: CONCLUÍDA**
 
-- **Tipo:** correção (hotfix) + testes. ⚠️ Bloqueia a venda: hoje, em produção, **todo POST de formulário** (`/entrar`, `/admin/*`) devolve "Origem inválida".
+- **Tipo:** código + texto da landing. ⚠️ Envolve dinheiro (preço exibido × preço cobrado). ⚠️ A landing no ar mostra ao cliente dois avisos de "pendência".
 - **Data:** 23/09/2026
-- **Base:** `concluidas/03-checkout-pix.md` (aprovada, ainda sem merge); `t4p-01-especificacao.md` §3 e §5 (revisadas); `t4p-02-deploy-coolify.md` §1 (Cloudflare)
+- **Base:** decisões do Guilherme em 23/09 (em `t4p-00-estado.md`); registro rápido do `t4p-00-estado.md`
+
+## Decisões de produto (já tomadas, não reabrir)
+
+- **Preço de lançamento: R$ 49,90, só até sexta, 25/09.** **Não** usar preço riscado ("de R$ 99,80"), porque ele nunca foi praticado e o CDC trata isso como propaganda enganosa. A urgência é real: a T4P encerra na sexta.
+- **Garantia: 7 dias, reembolso integral.** Texto: "Garantia de 7 dias: se não fizer sentido para você, devolvemos 100% do valor. É só chamar a gente."
+- **Acesso à área do aluno: 90 dias, até 24/12/2026.** Os arquivos em PDF e .docx são do aluno para sempre.
 
 ## Antes de começar
 
-1. Crie `tarefa/04-correcoes-producao` **a partir de `tarefa/03-checkout-pix`**, não da `main`. As tarefas 03 e 04 vão juntas num PR só: se a 03 fosse sozinha, publicaria um `/comprar` quebrado pelo mesmo bug.
-2. O primeiro commit leva só a documentação pendente do planejador (o arquivamento da 03, a especificação, o `.env.example`, os docs de deploy e o estado): `docs: planejador — tarefa 04`.
-
-## Diagnóstico (já confirmado pelo planejador)
-
-O helmet envia por padrão `Referrer-Policy: no-referrer`. Com essa política, o Chrome manda `Origin: null` nos POSTs de formulário e não manda `Referer`. O `checarOrigem` recebe "null", `new URL("null")` lança erro e a resposta é 403. Os testes das tarefas 02 e 03 não pegaram isso porque usaram curl com `Origin` montado à mão.
+Crie `tarefa/05-preco-lancamento` a partir da `main` atualizada. O primeiro commit leva só a documentação pendente do planejador: `docs: planejador — tarefa 05`.
 
 ## Mecanismo proposto
 
-Valide contra o código e a especificação. Se houver divergência, reporte.
+Valide contra o código. Se houver divergência, reporte.
 
-1. **Referrer-Policy:** no `helmet({...})`, `referrerPolicy: { policy: "same-origin" }`.
-2. **Proxy:** `app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 2))`. O caminho é Cloudflare → Traefik → app. Remova `SESSION_SECRET` de qualquer referência no código ou nos docs que ainda falem dela (o `.env.example` já foi ajustado).
-3. **Testes em navegador real:**
-   - Crie `scripts/e2e.js` com o Playwright como **devDependency**. Use o Chromium do sistema se houver, ou `npx playwright install chromium` localmente. Justifique a dependência no relatório. Ela não entra na imagem, porque o `npm ci --omit=dev` e o `.dockerignore` já a deixam de fora.
-   - O script sobe o app (com o `mp-fake`) num banco temporário e roda, **clicando nos formulários de verdade**, sem `page.request` e sem cabeçalhos montados à mão:
-     - a) `/admin` com `httpCredentials` → cadastra um aluno manual com valor `97,00` (vírgula) → aparece na tabela.
-     - b) `/entrar` com esse aluno → vê `/aluno` → abre a Aula 1 → clica "Próxima: Aula 2".
-     - c) `/comprar` → preenche e envia → `/pagamento/<token>` mostra o QR → aprova no `mp-fake` → a página navega sozinha até `/aluno`.
-     - d) `/sair` funciona.
-   - Script `npm run e2e`. Imprime ✅/❌ por passo e sai com código ≠ 0 em qualquer falha.
-4. **Valor com vírgula:** `/admin/alunos` aceita `97,00`, `97.00` e `97`. Normalize no servidor, trocando a vírgula por ponto antes do `Number`. No formulário, use `inputmode="decimal"`.
-5. **`/comprar` sem credencial:** se `MP_ACCESS_TOKEN` estiver vazio, o GET e o POST de `/comprar` mostram a página "A compra online abre em instantes. Se preferir, fale com a gente e pague por PIX direto." (status 503), sem criar usuário nem pedido. Isso permite fazer o deploy **antes** de ter as credenciais do MP, sem expor um checkout quebrado.
-6. **`POST /pagamento/:token/novo`:** só aceite se o pedido estiver `expirado`, ou `pendente` com `expira_em` já vencido. Nos outros casos, redirecione para `/pagamento/:token`.
-7. **HEALTHCHECK no Dockerfile**, sem curl: `HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"`.
-8. **Docs:** marque o item 2 do backlog como mergeado (achado da 03). Os itens 4 e 5 ficam como "feito nas tarefas 03 e 04, aguardando merge".
+1. **Uma fonte só para o preço.** Hoje o valor cobrado vem de `PRECO` e o valor exibido na landing está escrito à mão em 6 lugares. Isso não pode divergir.
+   - O servidor passa a atender `GET /` lendo `public/index.html` (com cache em memória) e trocando os marcadores `{{preco_brl}}` pelo preço formatado em pt-BR (`49,90`). Os assets continuam no `express.static`, e a rota `/` fica **antes** dele.
+   - Na landing, troque todas as ocorrências de preço (os botões "Quero o kit por R$ 97" nas linhas ~551 e ~876, o título "por R$ 97" na ~668, o bloco `.price` na ~801 e as meta descriptions, se tiverem preço) por `{{preco_brl}}`. Confira com `grep -n "97" public/index.html` e não deixe nenhuma sobrar.
+   - Mude o padrão de `precoAtual()` para `49.90`. **Nenhuma rota pode cobrar um valor diferente do que foi exibido.**
+2. **Formatação:** um único helper `formatarBRL` (ou `precoBRL`) usado em `/comprar`, `/pagamento`, `/admin` e na landing. "R$ 49.90" nunca mais deve aparecer.
+3. **Selo de lançamento:**
+   - Na oferta (`#oferta`), acima do preço: "Preço de lançamento — só até sexta, 25/09". No hero ou no primeiro CTA, um texto curto equivalente.
+   - Em `/comprar`, abaixo do preço: "Preço de lançamento, válido até 25/09".
+   - Use o estilo existente (chip/kicker laranja). Sem contador regressivo.
+4. **Garantia:** remova o `<span class="pendente">` e o comentário da linha ~811, e coloque no lugar o texto da garantia (decisão acima), no estilo de `.price-note` ou `.btn-note`.
+5. **Prazo de acesso:** na FAQ "Por quanto tempo tenho acesso?", troque o `<mark>[DEFINIR DATA…]</mark>` por "24 de dezembro de 2026 (90 dias)". Remova também a regra CSS `.pendente` se nada mais usar.
+6. **Aviso no /pagamento/novo** (registro rápido): se o POST for rejeitado porque o PIX ainda é válido, mostre na página "Seu PIX atual ainda está válido. Use o QR abaixo."
+7. **Eventos** (registro rápido):
+   - A reconsulta do polling **não** grava `mp_ignorado` quando o status é `pending`.
+   - Todo evento de `processarPagamento` passa a incluir `origem=webhook` ou `origem=polling` no detalhe.
+8. **Aviso de volume** (registro rápido): na inicialização, se o banco acabou de ser criado (arquivo inexistente antes de abrir) e `NODE_ENV=production`, grave `console.warn` bem visível: "Banco novo criado em <DB_PATH>. Se isto aconteceu depois de um redeploy, o volume /app/data NÃO está persistindo." Grave também um evento `db_criado`.
+9. **Tabela do /admin** (registro rápido): o e-mail não pode invadir a coluna do WhatsApp. Use `word-break: break-all` ou `overflow-wrap: anywhere` nas células.
 
 ## Fora de escopo
 
-- Mudanças visuais, de textos da landing ou de preço.
-- Separar `server.js` em `routes/` (divergência já aceita).
-- Qualquer chamada ao MP real.
+- Favicon e og-image (dependem da arte).
+- Preço para equipes e WhatsApp real (sem decisão ainda; o `WHATSAPP` continua vazio).
+- Mudanças em `conteudo/` e na amostra em PDF.
 
 ## Validação
 
-1. `npm run e2e` → todos os passos de a) a d) ✅. Cole a saída no relatório.
-2. O mesmo e2e **rodando na versão da `main` atual** (antes do fix): o passo a) ou b) falha com "Origem inválida". Isso prova que o teste reproduz o bug. Basta registrar a saída, sem commitar nada na `main`.
-3. `curl -X POST /entrar -H "Origin: https://evil.com"` → 403 (o CSRF continua ativo).
-4. Com `TRUST_PROXY=2`: uma requisição com `X-Forwarded-For: 1.1.1.1, 2.2.2.2` resulta em `req.ip === "1.1.1.1"` (log temporário ou teste unitário). Duas "origens" diferentes não compartilham o limite do rate-limit.
-5. Com `MP_ACCESS_TOKEN` vazio, `/comprar` → 503 com a mensagem e **nenhuma** linha nova em `users` ou `orders`.
-6. `POST /pagamento/<token>/novo` com o pedido ainda válido → redireciona e não cria pedido.
-7. `docker build` + `docker run` → o `docker inspect` mostra `Health: healthy` depois de ~30 s. A imagem não contém `playwright`.
+1. `grep -n "97" public/index.html` e `grep -rn "97" src/views/` → nenhum preço antigo.
+2. Com `PRECO=49.90`: `GET /` mostra "R$ 49,90" em todos os lugares, `/comprar` mostra "R$ 49,90", e o pedido criado grava `valor = 49.9`. Com `PRECO=12.34`, a landing mostra 12,34. Isso prova que existe uma fonte só.
+3. `npm run e2e` passa, com a compra no `mp-fake` aprovada com `transaction_amount = 49.9`. Acrescente ao e2e uma checagem de que o preço mostrado na landing é igual ao cobrado no `mp-fake`.
+4. A landing não contém mais "Pendência", "DEFINIR DATA" nem `class="pendente"`.
+5. Os eventos de um fluxo de compra com polling: nenhum `mp_ignorado pending`, e o `mp_aprovado` com `origem=`.
+6. Subir com um `DB_PATH` novo → o aviso aparece no log e o evento `db_criado` é gravado. Subir de novo com o mesmo arquivo → sem aviso.
+7. `/admin` com e-mail de 40 caracteres → sem sobreposição (valide no Playwright com um screenshot anexado ao relatório).
+8. `docker build` passa, e o health check fica `healthy`.
 
 ## Entrega
 
-- Branch `tarefa/04-correcoes-producao`. **Push liberado nesta tarefa** para abrir o PR `tarefa/04-correcoes-producao → main` (esse PR inclui os commits da 03). Sem merge.
-- No corpo do PR, liste: "inclui tarefa 03 (checkout PIX) + tarefa 04 (hotfix Origin null)".
+- Branch `tarefa/05-preco-lancamento`. **Push liberado para abrir o PR para a `main`.** Sem merge.
+- ⚠️ No corpo do PR, escreva em destaque: **"Antes do merge: mudar PRECO para 49.90 no Coolify"** (ou deixar a variável vazia, e aí vale o novo padrão de 49,90).
+- Atualize o backlog e o registro rápido em `docs/t4p-00-estado.md`.
 - Preencha o relatório e mude o Status.
 
 ## Relatório do executor
 
 - **Status:** CONCLUÍDA
 - **Feito:**
-  - `src/server.js`: `app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 2))`; `helmet({ ..., referrerPolicy: { policy: "same-origin" } })` (era o padrão `no-referrer` que fazia o Chrome mandar `Origin: null`); `normalizarValor()` troca vírgula por ponto antes do `Number()` em `POST /admin/alunos`; `checkoutDisponivel()` bloqueia `GET`/`POST /comprar` com 503 (view nova `comprar-indisponivel.html`) quando `MP_ACCESS_TOKEN` está vazio, antes de tocar no banco; `POST /pagamento/:token/novo` só aceita se o pedido estiver `expirado` ou `pendente` com `expira_em` vencido, senão redireciona sem criar nada (achado já registrado no relatório da tarefa 03).
-  - `src/views/admin.html`: campo `valor` virou `type="text" inputmode="decimal"` (o `type="number"` rejeitava a vírgula).
-  - `src/views/comprar-indisponivel.html` (novo): página da mensagem "A compra online abre em instantes...".
-  - `Dockerfile`: `HEALTHCHECK` com `node -e` + `fetch` nativo contra `/health` (sem `curl`, que não está na `node:20-slim`).
-  - `.dockerignore`: acrescenta `scripts/e2e.js` (mesmo tratamento do `mp-fake.js`).
-  - `scripts/e2e.js` (novo) + `package.json`/`package-lock.json`: `playwright` como devDependency e `npm run e2e`. Sobe o app e o `mp-fake` num banco temporário (`os.tmpdir()`) e clica nos formulários de verdade num Chromium real (tenta o canal `chrome` do sistema, depois `msedge`, depois o Chromium do próprio Playwright — não precisou baixar nada, o Chrome do Windows já estava instalado).
-  - `docs/t4p-00-estado.md`: item 2 do backlog marcado como mergeado (era um achado da tarefa 03); itens 4 e 5 como "feito nas tarefas 03 e 04, aguardando merge".
-  - `docs/claude-bridge/00-plano-lancamento.md`: removida a menção a `SESSION_SECRET` (nunca foi lida pelo código), trocada por `TRUST_PROXY`.
+  - `src/server.js`: `precoAtual()` default vira `49.90`; novo `precoBRL(valor)` (formata em pt-BR com vírgula, sem símbolo) e `formatarBRL(valor)` reescrito sobre ele (`"R$ " + precoBRL(valor)`) — uma fonte única para todo número exibido. `GET /` e `GET /index.html` passam a ler `public/index.html` uma vez no boot (cache em memória em `INDEX_TEMPLATE`) e trocar `{{preco_brl}}` por `precoBRL(precoAtual())`; a rota fica antes do `express.static`. `/comprar` (GET e os 3 pontos de reexibição do POST) usa `precoBRL(precoAtual())` em vez de `precoAtual().toFixed(2)` (corrige o achado "R$ 97.00" com ponto). `/admin` (form de cadastro manual), `/admin/alunos` e `/admin/ativar/:userId` trocam `process.env.PRECO` direto por `precoAtual()`. `POST /pagamento/:token/novo` rejeitado (PIX ainda válido) redireciona com `?aviso=valido`; `GET /pagamento/:token` monta `avisoHtml` para esse caso. `processarPagamento(paymentId, origem)` ganhou o parâmetro `origem` (`"webhook"` ou `"polling"`, gravado em todo `registrarEvento` da função) e passa a sair sem gravar evento quando o status reconsultado ainda é `"pending"` (mantém o registro quando `pending` mas já expirado, que ainda vira `mp_ignorado` com a transição para `expirado`).
+  - `public/index.html`: as 6 ocorrências de preço (2 meta tags, 2 CTAs, o título "por R$ 97" e o `.price`) viram `{{preco_brl}}`. Selo `<span class="hero-tag selo-lancamento">Preço de lançamento — só até sexta, 25/09</span>` no hero (`.hero-cta`) e na oferta (`#oferta`, acima do preço) — reaproveita o `.hero-tag` que já existia, só com uma classe modificadora (`.selo-lancamento{margin-bottom:18px}`) para o espaçamento nesses dois lugares. `<span class="pendente">` e o comentário de pendência da garantia saíram; no lugar, `<p class="btn-note">Garantia de 7 dias: se não fizer sentido para você, devolvemos 100% do valor. É só chamar a gente.</p>`. A regra CSS `.pendente` foi removida (nada mais a usa). FAQ "Por quanto tempo tenho acesso?": o `<mark>[DEFINIR DATA...]</mark>` virou `<strong>24 de dezembro de 2026 (90 dias)</strong>`.
+  - `src/views/comprar.html`: `<p class="selo">Preço de lançamento, válido até 25/09</p>` abaixo do preço (nova classe `.selo`, no mesmo laranja do `.preco`).
+  - `src/views/pagamento.html`: novo `{{{avisoHtml}}}` (reaproveita a classe `.aviso` já existente) para o caso do PIX ainda válido.
+  - `src/views/admin.html`: `overflow-wrap: anywhere` só em `td:nth-child(1), td:nth-child(2), td:nth-child(3)` (Nome, E-mail, WhatsApp) — não em `th,td` genérico, porque isso é herdado pelos botões da coluna Ações e quebra "Nova senha" letra a letra (peguei essa regressão no próprio teste, ver Achados).
+  - `src/db.js`: `dbJaExistia = fs.existsSync(DB_PATH)` antes de abrir a conexão. Se o banco acabou de ser criado: grava sempre o evento `db_criado` (com `DB_PATH` no detalhe); o `console.warn` só imprime com `NODE_ENV=production` (ver Divergências — a tarefa lia como se as duas coisas dependessem da produção, separei porque um evento em log de auditoria não tem por que ficar escondido em dev/teste).
+  - `.env.example`: `PRECO=49.90`, comentário atualizado para "preço de lançamento".
+  - `scripts/e2e.js`: `PRECO`/`PRECO_BRL`/`PRECO_NUM` viram constantes (`"49.90"` / `"49,90"` / `49.9`) usadas tanto no env do processo filho quanto nas asserções — é a mesma variável dos dois lados, não dois números coincidentes. Passo novo no início: `GET /` e `GET /comprar` mostram o preço e não sobra `{{preco_brl}}` nem "R$ 97". No fluxo de compra por PIX, depois de aprovar no `mp-fake`, confere `GET /v1/payments/1000` (pedido 1000 é o único criado no teste) e compara `transaction_amount` com `PRECO_NUM` — é a prova pedida na validação 3 de que o preço mostrado é o preço cobrado. Passo novo: cadastra um aluno com e-mail de 58 caracteres em `/admin`, confere `scrollWidth <= clientWidth` na célula do e-mail (mais confiável que comparar `boundingBox` — com `table-layout:fixed` a largura da célula não muda com o conteúdo, só o conteúdo transborda visualmente) e salva um screenshot em `docs/claude-bridge/evidencias/tarefa-05-admin-email-longo.png`. Passo novo depois da compra: `/admin` não tem `mp_ignorado ... status=pending` e tem `mp_aprovado ... origem=polling`.
+  - `docs/t4p-00-estado.md`: item 6 do backlog marcado como feito; removidos da "Pendências de produto" a garantia e o prazo de acesso (já decididos); removidos os 5 itens do registro rápido resolvidos nesta tarefa.
 - **Validação:**
-  1. ✅ `npm run e2e` → 4/4 passos ✅ (rodei duas vezes seguidas para descartar instabilidade). Saída:
+  1. ✅ `grep -n "97" public/index.html` e `grep -rn "97" src/views/` → sem nenhuma ocorrência (comandos rodados depois de cada edição, e de novo no fim).
+  2. ✅ Com `PRECO=49.90`: subi o servidor num banco temporário e conferi por `curl` — `GET /` mostra "R$ 49,90" nas 6 ocorrências (incluindo as meta tags), `/comprar` mostra "R$ 49,90" (antes do fix mostrava "R$ 97.00", com ponto), pedido criado no `/comprar → /pagamento` grava `valor = 49.9` no banco (conferido pelo `e2e`, que também aprova o pagamento e checa o `transaction_amount`). Repeti tudo com `PRECO=12.34`: a landing e o `/comprar` mostraram "R$ 12,34" nos mesmos lugares — prova que existe uma única fonte (screenshots não salvos, foi checagem por `curl`/`grep`, descartável).
+  3. ✅ `npm run e2e` → 7/7 passos (os 4 originais + os 3 novos desta tarefa). Saída:
      ```
-     ✅ /admin cadastra aluno manual com valor 97,00 (vírgula)
+     ✅ GET / e /comprar mostram o preço de lançamento (R$ 49,90)
+     ✅ /admin cadastra aluno manual com valor 49,90 (vírgula)
+     ✅ /admin: e-mail de 40+ caracteres não invade a coluna do WhatsApp
      ✅ /entrar com o aluno manual → /aluno → Aula 1 → Aula 2
      ✅ /comprar → /pagamento mostra QR → aprovado no mp-fake → cai em /aluno sozinho
      ✅ /sair encerra a sessão e volta para /entrar
-     4/4 passos OK
+     ✅ eventos: sem mp_ignorado pending repetido, e mp_aprovado registra origem=
+     7/7 passos OK
      ```
-  2. ✅ Reproduzido isoladamente: subi o `src/server.js` da própria `main` (`git worktree add`, commit `29aa005`) e submeti o formulário de `/admin` num Chromium real. `POST /admin/alunos` → **403 "Origem inválida."** — confirma que o bug já existe na `main` (não é algo introduzido pela tarefa 03) e que um teste em navegador real o pega. Depois de aplicar o fix desta tarefa, o mesmo fluxo (dentro do `npm run e2e`) passa. Não commitei nada na `main`; usei uma worktree temporária, removida ao final (`git worktree remove`).
-  3. ✅ `curl -X POST /entrar -H "Origin: https://evil.com" -d "..."` → `403`. O CSRF continua ativo (não ficou "aberto" ao consertar o Origin null).
-  4. ✅ Com `TRUST_PROXY=2` (também o padrão, sem a variável), uma requisição com `X-Forwarded-For: 1.1.1.1, 2.2.2.2` resulta em `req.ip === "1.1.1.1"` (`req.ips === ["1.1.1.1","2.2.2.2"]`), testado com uma instância mínima do Express isolada (mesma linha `app.set("trust proxy", ...)` do `server.js`). Como o rate-limit usa `req.ip` como chave, duas origens diferentes (duas cadeias de X-Forwarded-For distintas) caem em buckets diferentes — é consequência direta do `trust proxy` estar correto, não precisou de um teste à parte.
-  5. ✅ Com `MP_ACCESS_TOKEN` vazio: `GET /comprar` → 503 com a mensagem amigável; `POST /comprar` (com nome/e-mail/whatsapp/senha/aceite válidos) → 503, mesma mensagem. Consultei o SQLite depois: `users: 0`, `orders: 0` — nenhuma linha criada.
-  6. ✅ `POST /pagamento/<token>/novo` com o pedido ainda `pendente` e não vencido → `303` de volta para `/pagamento/<token>` (mesmo token); no banco, continua havendo só 1 pedido, `status = 'pendente'`. Nenhum pedido novo foi criado.
-  7. ✅ `docker build` + `docker run` (porta 3460, `ADMIN_USER`/`ADMIN_PASS` de teste) → depois de ~35s, `docker inspect` mostra `"Status":"healthy"`. Confirmado com `docker run ... ls /app/scripts` que a imagem só tem `criar-aluno.js` (nem `mp-fake.js` nem `e2e.js`), e que `node_modules` não tem `playwright` nem `curl` no sistema de arquivos da imagem.
+     A compra no `mp-fake` foi aprovada com `transaction_amount = 49.9` (o `e2e` falha se não bater com o preço mostrado na landing/comprar).
+  4. ✅ `grep -n "pendente\|DEFINIR DATA\|Pendência" public/index.html` → sem nenhuma ocorrência.
+  5. ✅ Verificado pelo passo novo do `e2e` (item 3 acima): depois de um fluxo de compra com polling (o `mp-fake` não manda webhook, só a reconsulta do `/api/pedido/:token` processa o pagamento), `/admin` não tem nenhum `mp_ignorado` com `status=pending`, e o `mp_aprovado` tem `origem=polling` no detalhe.
+  6. ✅ `DB_PATH` novo, `NODE_ENV=production`, via `node -e "require('./src/db')"`: imprime `Banco novo criado em <caminho>. Se isto aconteceu depois de um redeploy, o volume /app/data NÃO está persistindo.` Rodando de novo com o mesmo arquivo: nenhuma saída. Evento `db_criado` conferido direto no banco (`db.listarEventosRecentes`) — gravado mesmo sem `NODE_ENV=production` (ver Divergências).
+  7. ✅ Passo novo do `e2e` (item 3 acima) cadastra um aluno com e-mail de 58 caracteres, confere `scrollWidth <= clientWidth` na célula e salva `docs/claude-bridge/evidencias/tarefa-05-admin-email-longo.png` (anexado ao commit `test: scripts/e2e.js ...`). Antes do fix da coluna Ações (ver Achados), o mesmo teste tirou um screenshot com o botão "Nova senha" quebrando letra a letra — comparei os dois manualmente para confirmar que o fix resolveu as duas coisas.
+  8. ✅ `docker build -t t4p-app-test-05 .` → sucesso. `docker run` com `ADMIN_USER`/`ADMIN_PASS`/`PRECO=49.90` de teste → depois de ~35 s (`start-period=20s` + 1 ciclo de `interval=30s`), `docker inspect --format='{{.State.Health.Status}}'` → `healthy`. `curl /health` e `curl /` (preço "R$ 49,90") confirmados dentro do container. Imagem e container de teste removidos ao final.
 - **Divergências:**
-  - A Aula 1 (`conteudo/Aula1_O_Pedido_que_Funciona.html`) é uma lição interativa de uma página só, com 6 passos travados (`data-trava`) que só liberam o botão "Continuar" depois de uma pequena interação (responder o quiz, tocar nos 4 ingredientes do método CAFÉ, etc.) — o cartão "Próxima: Aula 2" só aparece no último passo. A tarefa descrevia só "abre a Aula 1 → clica 'Próxima: Aula 2'", sem prever essa mecânica. Resolvi fazendo o `e2e.js` percorrer os 6 passos com cliques reais nos controles de cada exercício (não usei `page.evaluate` nem chamei funções JS diretamente — são cliques de verdade, só que na sequência certa), e usei `reducedMotion: "reduce"` no contexto do Playwright para pular as animações de digitação/transição (isso não muda o que precisa ser clicado, só a velocidade). Não editei o arquivo em `conteudo/`, que é cópia de `03_Produto_Aula_Digital/`.
-  - Para aprovar o PIX no passo c) do e2e, chamei o `POST /__set/:id` do `mp-fake` diretamente com `fetch` (fora do navegador). Interpretei a instrução "sem `page.request`" como sendo sobre as interações com o **nosso** app (que devem ser cliques de verdade), não sobre o `mp-fake`: não existe formulário no nosso sistema para simular "o banco aprovou o PIX", isso é o papel do Mercado Pago de verdade: o `mp-fake` faz esse papel também fora do navegador.
-  - Os itens 3 a 7 da validação não entraram no `npm run e2e`: usei um `curl` (item 3, que a própria tarefa pede) e três scripts descartáveis no `scratchpad` (items 2, 4 e 5/6 combinados) e o Docker CLI direto (item 7). Não commitei esses scripts avulsos — são só evidência para este relatório.
-  - No commit `1b1d089` ("fix: /admin/alunos aceita valor com vírgula"), acabei incluindo no mesmo `git add src/server.js` as mudanças do `checkoutDisponivel()` e da guarda do `/pagamento/:token/novo` (que documentei corretamente no commit seguinte, `63166a9`, mas cujo código já estava fisicamente ali). Não refiz o histórico porque nada foi perdido nem descrito errado — só o corte entre os dois commits ficou menos limpo do que pretendia.
-  - No backlog (`docs/t4p-00-estado.md`), a tarefa pedia que os itens 4 **e** 5 ficassem com o texto "feito nas tarefas 03 e 04, aguardando merge". O item 5 sempre foi só "(fundido no item 4)" (mesmo padrão do item 3 → item 2); mantive essa marcação e acrescentei o texto pedido ao lado, em vez de duplicar a frase inteira no lugar da marcação de fusão.
+  - **Item 8 do mecanismo ("aviso de banco novo"):** a tarefa descreve a condição como "se o banco acabou de ser criado ... e `NODE_ENV=production`, grave console.warn ... Grave também um evento `db_criado`." Li a condição de produção como aplicável só ao `console.warn` (ruído indesejado em dev/teste, onde o banco é recriado toda hora), e deixei o evento `db_criado` sempre gravado quando o arquivo é novo, independente do ambiente — um evento de auditoria não tem por que sumir fora de produção, e é o `console.warn` que existe especificamente para chamar atenção num redeploy de produção. Se a leitura pretendida era condicionar as duas coisas a `NODE_ENV=production`, é uma mudança de uma linha (mover o `registrarEvento` para dentro do `if`).
+  - **Selo "chip/kicker laranja":** a tarefa não define o marcado exato; reaproveitei o `.hero-tag` (já existia, usado uma vez no hero) nos dois lugares pedidos (hero e `#oferta`), com uma classe modificadora só para o espaçamento (`.selo-lancamento`). Não criei um componente novo.
+  - **Campo "Valor (R$)" do formulário de cadastro manual em `/admin` (`admin.html:97`):** o valor default passou a vir de `precoAtual().toFixed(2)` (antes `process.env.PRECO || "97.00"`) — mesma fonte, mas mantive o formato com ponto (não `precoBRL`, que usa vírgula), porque é um `<input inputmode="decimal">` editável, não um preço "exibido"; a tarefa pede `formatarBRL`/`precoBRL` "usado em ... /admin", o que já está satisfeito pelo `somaFormatada` e pelo `valor` de cada linha da tabela (ambos com `formatarBRL`, vírgula).
 - **Achados** (fora do escopo, não corrigidos):
-  - Quando `POST /pagamento/:token/novo` é rejeitado (pedido ainda válido) e redireciona de volta para `/pagamento/:token`, a página não mostra nenhum aviso explicando por que nada mudou (ela só reaparece igual). Baixo impacto — só acontece se o aluno reenviar o formulário de "Gerar novo PIX" antes de ele realmente expirar (ex.: voltar no navegador) — e a tarefa não pediu mensagem nesse caso.
-  - `docker build` imprime "npm notice: New major version of npm available (10.8.2 -> 12.1.0)"; não é erro, só um lembrete do próprio npm, sem relação com esta tarefa.
-- **Commit/branch:** branch `tarefa/04-correcoes-producao`, criada a partir da `tarefa/03-checkout-pix` (que ainda não tinha sido mergeada). Commits: `9f1cd39` (docs pendentes do planejador), `4e071b2` (Referrer-Policy + trust proxy + limpeza do `SESSION_SECRET`), `1b1d089` (valor com vírgula — ver divergência acima), `63166a9` (`/comprar` indisponível + guarda do `/pagamento/:token/novo`), `7f11af8` (HEALTHCHECK), `1909795` (`scripts/e2e.js` + Playwright), `9a8c8be` (backlog). Fiz o push da branch e abri o PR `tarefa/04-correcoes-producao → main` (inclui os commits da tarefa 03). Sem merge.
+  - Ao implementar o fix da coluna WhatsApp com `overflow-wrap: anywhere` no `th,td` genérico (primeira tentativa), a propriedade é herdada pelos filhos — o botão "Nova senha" da coluna Ações passou a quebrar letra a letra (`N`/`o`/`v`/`a`/.../`h`/`a` numa coluna estreitíssima), porque o navegador calcula uma largura mínima de conteúdo muito menor com `anywhere`. Vi isso no primeiro screenshot do `e2e` e troquei para `td:nth-child(1,2,3)` antes de commitar — não ficou no histórico como regressão, mas registro aqui porque quase passou.
+  - No screenshot final (`docs/claude-bridge/evidencias/tarefa-05-admin-email-longo.png`), a coluna "Ações" aparece cortada na borda direita — a tabela (`overflow-x:auto`) já é um pouco mais larga que o viewport padrão do `page.screenshot()` sem `fullPage`. Não é overflow de conteúdo (o texto do botão está normal, só a página é mais larga que a captura); não mexi nisso, é um comportamento pré-existente do layout responsivo da tabela, fora do que a tarefa pediu.
+  - `docker build` imprime o aviso de rotina do npm sobre nova versão disponível; sem relação com esta tarefa (mesmo achado já registrado na tarefa 04).
+- **Commit/branch:** branch `tarefa/05-preco-lancamento`, criada a partir da `main` atualizada (que já tinha as tarefas 03+04 mergeadas, PR #4). Commits: `11a52fe` (docs pendentes do planejador — inclui o arquivamento da tarefa 04), `d1d0350` (preço numa fonte só + garantia + prazo de acesso + aviso do PIX válido + eventos com origem), `058b9c6` (aviso de banco novo), `f8d240f` (fix do overflow no `/admin`), `a88afa1` (testes do `e2e.js` + screenshot), `9efd352` (backlog). Fiz o push da branch e abri o PR `tarefa/05-preco-lancamento → main`. Sem merge.

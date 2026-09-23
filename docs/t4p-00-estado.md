@@ -9,7 +9,7 @@ Atualizado em 22/09/2026.
 - Empresa CRIA do Empretec (Sebrae). Sócios: Guilherme Pama (produto/site), Felipe Andrade (marketing), Fernando Saad (administrativo).
 - Operação de 21 a 25/09/2026. Encerramento até sexta 25/09 às 14h.
 - Produto: kit **IA para Negócios** — 3 aulas interativas (HTML), kit PDF com 25 prompts, 3 assistentes (PDF + .txt), Manual de Integração (template + exemplo).
-- **Preço: R$ 97,00.** Meta: 17 vendas.
+- **Preço: R$ 49,90 (preço de lançamento até 25/09; antes R$ 97).** Meta R$ 1.600 → 33 vendas.
 
 ## Decisões
 
@@ -35,10 +35,17 @@ Atualizado em 22/09/2026.
 | 23/09 | Formulários sempre validados em navegador real (Playwright) | Bug de `Origin: null` passou por todos os testes com curl |
 | 23/09 | Tarefas 03 e 04 vão juntas num PR só | A 03 sozinha publicaria um checkout quebrado pelo mesmo bug |
 
+| 23/09 | Volume Mount `/app/data` validado em produção (aluno persiste após redeploy) | Venda por PIX direto + cadastro manual liberada |
+
+| 23/09 | **Checkout PIX automático validado em produção** (PIX real gerado, pago e acesso liberado sozinho) | Venda automática aberta |
+| 23/09 | Webhook de produção validado: notificação simulada do MP chegou com assinatura válida (mp_erro 404 esperado para o id fictício 123456) | Cliente que fecha a página também é liberado |
+
+| 23/09 | Preço de lançamento R$ 49,90 até 25/09, sem preço riscado | "De R$ 99,80" nunca foi praticado (CDC, propaganda enganosa) |
+| 23/09 | Garantia de 7 dias com reembolso integral | Reduz o risco da compra por impulso; estorno já retira o acesso |
+| 23/09 | Área do aluno no ar por 90 dias, até 24/12/2026 | Decisão do Guilherme |
+
 ## Pendências de produto (do Guilherme, não do executor)
 
-- Garantia de 7 dias: sim ou não? (a landing tem um aviso âmbar)
-- Prazo de acesso à área do aluno depois do encerramento (a landing tem um aviso âmbar)
 - Preço para equipes (sugestão: R$ 79/acesso a partir de 3, sem anunciar)
 - Número de WhatsApp real para a landing/FAQ
 
@@ -49,8 +56,8 @@ Atualizado em 22/09/2026.
 3. (fundido no item 2)
 4. ~~Checkout PIX + tela de QR + polling + webhook + /privacidade~~ — feito nas tarefas 03 e 04, aguardando merge
 5. (fundido no item 4) — feito nas tarefas 03 e 04, aguardando merge
-6. Teste real com R$ 1 e go-live com R$ 97
-7. Remoção dos avisos âmbar (depende das decisões de garantia/prazo) + favicon/og-image
+6. ~~Preço de lançamento R$ 49,90 numa fonte só, garantia, prazo de acesso e limpeza dos avisos âmbar~~ — feito na tarefa 05, aguardando merge
+7. Teste real com R$ 1 e go-live (preço de lançamento até 25/09, depois decidir o preço cheio) + favicon/og-image
 
 ### Registro rápido (micro-correções, sem tarefa)
 

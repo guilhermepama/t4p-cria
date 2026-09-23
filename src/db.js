@@ -8,6 +8,8 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, "..", "data", "t4p.d
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
+const dbJaExistia = fs.existsSync(DB_PATH);
+
 const db = new Database(DB_PATH);
 
 db.pragma("journal_mode = WAL");
@@ -58,6 +60,15 @@ function migrar() {
 migrar();
 
 db.prepare("DELETE FROM sessions WHERE expira_em <= datetime('now')").run();
+
+if (!dbJaExistia) {
+  registrarEvento("db_criado", `DB_PATH=${DB_PATH}`);
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      `Banco novo criado em ${DB_PATH}. Se isto aconteceu depois de um redeploy, o volume /app/data NÃO está persistindo.`
+    );
+  }
+}
 
 function ping() {
   return db.prepare("SELECT 1 AS ok").get().ok === 1;
