@@ -13,7 +13,7 @@ const { render, escapeHtml } = require("./views/render");
 
 const app = express();
 
-app.set("trust proxy", 1);
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 2));
 
 app.use(
   helmet({
@@ -27,6 +27,7 @@ app.use(
         connectSrc: ["'self'"],
       },
     },
+    referrerPolicy: { policy: "same-origin" },
   })
 );
 app.use(cookieParser());

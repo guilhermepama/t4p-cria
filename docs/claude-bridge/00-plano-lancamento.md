@@ -69,7 +69,7 @@ t4p-app/
 
 ### Variáveis de ambiente (Coolify)
 
-`MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `PRECO` (97.00), `BASE_URL` (https://iadojeitocerto.com), `ADMIN_USER`, `ADMIN_PASS`, `SESSION_SECRET`, `DB_PATH` (/app/data/t4p.db).
+`MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `PRECO` (97.00), `BASE_URL` (https://iadojeitocerto.com), `ADMIN_USER`, `ADMIN_PASS`, `TRUST_PROXY` (2), `DB_PATH` (/app/data/t4p.db).
 
 ## 4. Pré-requisitos (fazer ANTES de codar — são as coisas que travam)
 
