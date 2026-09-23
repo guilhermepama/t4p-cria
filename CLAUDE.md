@@ -26,8 +26,9 @@ Quem planeja é outra sessão do Claude (o **planejador**), e o Guilherme é o d
 - Pagamento: o webhook **nunca** confia no corpo da requisição. Ele sempre valida a assinatura e reconsulta `GET /v1/payments/{id}`, conferindo status, valor e `external_reference` com prefixo `T4P-`.
 - `conteudo/` **nunca** é servido estaticamente. Só a rota protegida por sessão de aluno ativo pode entregá-lo.
 - Todo acesso ao banco passa por `src/db.js`. Nenhum SQL fora dele.
-- Dependências mínimas: express, better-sqlite3, bcrypt, helmet, express-rate-limit, cookie-parser. Adicionar qualquer outra exige justificativa no relatório.
+- Dependências mínimas: express, better-sqlite3, helmet, express-rate-limit, cookie-parser. Hash de senha com `crypto.scrypt` nativo do Node (sem bcrypt). Adicionar qualquer outra exige justificativa no relatório.
 - Sem build step no front: HTML/CSS/JS puros, reaproveitando o visual da landing (`public/index.html`).
 - Textos visíveis ao usuário em português do Brasil.
 - Se a tarefa conflitar com a especificação ou com o código, **pare e reporte como BLOQUEADA**. Não decida sozinho questões de produto (preço, texto de oferta, dados de alunos, dinheiro).
+- Formulários POST (exceto `/webhooks/mp`) exigem `Origin`/`Referer` igual a `BASE_URL` — proteção CSRF, inclusive no /admin com Basic Auth.
 - Não altere nada fora de `09_App/t4p-app/`. As pastas `03_Produto…` e `04_Site/` são fontes: copie delas, não edite.

@@ -1,75 +1,78 @@
-# Tarefa 01 · Esqueleto, Dockerfile e landing no ar (backlog 1)
+# Tarefa 02 · Login, área do aluno, conteúdo protegido e /admin (backlog 2)
 
-**Status: CONCLUÍDA**
+**Status: AGUARDANDO EXECUÇÃO**
 
-- **Tipo:** código (fundação)
-- **Data:** 22/09/2026
-- **Base:** `docs/t4p-01-especificacao.md` §1, §2 e §5; `docs/t4p-00-estado.md` (backlog 1)
+- **Tipo:** código. ⚠️ Mexe em senhas e dados pessoais. ⚠️ Troca uma dependência (sai o bcrypt).
+- **Data:** 23/09/2026
+- **Base:** relatório da tarefa 01 (`concluidas/01-esqueleto.md`); `t4p-01-especificacao.md` §3 e §5 (atualizadas pelo planejador); `t4p-00-estado.md` (decisões de 23/09)
+
+## Antes de começar
+
+1. Confira se `tarefa/01-esqueleto` já foi mergeada na `main`. Se **não** foi, pare e reporte como BLOQUEADA ("aguardando merge da 01"). Não crie a branch a partir da 01.
+2. Há alterações de documentação do planejador ainda não commitadas na árvore de trabalho: CLAUDE.md, docs/t4p-00-estado.md, docs/t4p-01-especificacao.md, e a mudança de `claude-bridge/tarefa-atual.md` para `concluidas/01-esqueleto.md` com este arquivo novo. Crie `tarefa/02-aluno-admin` a partir da `main` e faça o **primeiro commit só com essa documentação**: `docs: planejador — tarefa 02 e decisões de 23/09`.
 
 ## Objetivo
 
-Deixar o repositório pronto para o Coolify: um app Express que sobe em container, serve a landing atual em `/`, responde `/health`, cria o banco SQLite no volume `/app/data` com o schema completo e já tem os middlewares de segurança. As funcionalidades (cadastro, PIX, admin) ficam para as próximas tarefas. Esta tarefa entrega a base em que elas vão encaixar.
+Construir tudo o que funciona **sem o Mercado Pago**: o aluno entra com e-mail e senha, vê as 3 aulas e baixa o kit, e os sócios operam as vendas pelo /admin. Isso inclui cadastrar um aluno manualmente, que é o fallback de "PIX direto". Quando esta tarefa for mergeada, a T4P já consegue vender, mesmo se o checkout automático atrasar.
 
 ## Mecanismo proposto
 
-Valide contra a especificação. Se houver divergência, reporte.
+Valide contra o código e a especificação. Se houver divergência, reporte.
 
-1. `git init -b main` nesta pasta, caso ainda não seja um repositório. O primeiro commit na `main` contém **só** a documentação e os arquivos-base que já existem (README, CLAUDE.md, docs/, .gitignore, .env.example). Depois crie a branch `tarefa/01-esqueleto` para o código.
-2. `package.json` (Node ≥ 20, `"type": "commonjs"`), com as dependências de `CLAUDE.md` e os scripts `start` e `dev`. Gere o `package-lock.json`.
-3. `src/db.js`: abre `DB_PATH` (cria a pasta se não existir), `journal_mode = WAL`, `foreign_keys = ON`, aplica o schema da especificação §2 **incluindo** a coluna `token TEXT UNIQUE` em `orders` (citada na §3) e exporta uma função `ping()`.
-4. `src/server.js`: `trust proxy`, helmet com a CSP da §5 (conferir as fontes usadas em `public/index.html`), cookie-parser, `express.static('public')`, `GET /health` → `{ok:true, db:true}` usando `ping()`, handler 404 simples, porta via `PORT`.
-5. Copie `../../04_Site/index.html` para `public/index.html`, sem alterar o conteúdo.
-6. Copie os 10 arquivos listados na §6 para `conteudo/`. Na cópia da Aula 1, troque o CTA final de compra/WhatsApp por um link "Voltar à área do aluno" → `/aluno`. Nenhuma rota serve `conteudo/` nesta tarefa.
-7. `Dockerfile`: `node:20-slim`, `WORKDIR /app`, `npm ci --omit=dev` (o better-sqlite3 tem binário pré-compilado; se precisar compilar, use build multi-stage), crie `/app/data` com dono `node`, `USER node`, `EXPOSE 3000`, `CMD ["node","src/server.js"]`. Adicione `.dockerignore` (node_modules, .env, data, docs, .git).
-8. Remova os `.gitkeep` das pastas que ficarem com arquivos.
+1. **Dependências:** remova o `bcrypt` do package.json e do lock. `npm audit` deve ficar sem crítico/alto; se sobrar algum, registre em Achados.
+2. **`src/auth.js`:**
+   - `hashSenha` e `verificarSenha` com `crypto.scrypt`, conforme a §5.
+   - Sessões: o token vai no cookie `t4p_sess` (32 bytes, hex; `httpOnly`, `secure` quando `NODE_ENV=production`, `sameSite=lax`, 30 dias). No banco só entra o **SHA-256** do token.
+   - `requireAluno`: sessão válida **e** `users.ativo = 1`. Caso contrário, redireciona para `/entrar?volta=<rota>`, aceitando só caminhos relativos que começam com `/`.
+   - `requireAdmin`: Basic Auth contra `ADMIN_USER`/`ADMIN_PASS` com `timingSafeEqual`. Se essas variáveis estiverem vazias, o /admin responde 503.
+   - `checarOrigem`: middleware em todos os POSTs, exceto `/webhooks/mp`, que exige `Origin` (ou `Referer`) com a mesma origem de `BASE_URL`. Caso contrário, responde 403.
+3. **`src/db.js`:** todas as queries novas ficam aqui (usuário por e-mail, sessões, listagem do admin, criar aluno manual com pedido `manual` numa transação, ativar, trocar senha, registrar e listar `eventos`). Rode a limpeza de sessões expiradas na inicialização.
+4. **Rotas públicas:** `GET/POST /entrar` e `POST /sair`, com rate-limit de 10 por minuto por IP no POST. Use mensagem de erro única ("E-mail ou senha incorretos"). Um usuário inativo com a senha certa vê: "Seu acesso ainda não foi liberado. Se já pagou, fale com a gente."
+5. **Área do aluno:**
+   - `GET /aluno`: saudação com o nome, 3 cartões de aula (abrem em nova aba) e downloads (Kit PDF, Assistentes PDF, 3 .txt, 2 Manuais .docx), mais o botão Sair.
+   - `GET /aluno/conteudo/:arquivo`: lista branca fixa com os 10 nomes. Aulas com `text/html` inline, os demais como download (`Content-Disposition: attachment`). Cabeçalho `Cache-Control: private, no-store`.
+6. **Aulas em `conteudo/`:**
+   - Aula 1: troque o bloco de venda ("Isso foi a aula 1 do kit…", preço, variável `PRECO` e o JS que a preenche) por um cartão "Próxima: Aula 2 — Conserte a resposta", com link para `/aluno/conteudo/Aula2_Conserte_a_Resposta.html`, e mantenha o "Voltar à área do aluno".
+   - Aula 2: acrescente no fim um cartão "Próxima: Aula 3" e o "Voltar à área do aluno". Aula 3: acrescente só o "Voltar".
+   - Use o estilo que cada aula já tem. Não mude o texto didático.
+7. **/admin**, protegido por `requireAdmin`:
+   - Topo: total de pedidos pagos + manuais, soma em R$ e número de pendentes.
+   - Tabela de alunos com os pedidos: nome, e-mail, WhatsApp, status, valor, data em horário de Brasília (BRT).
+   - Formulário **"Cadastrar aluno (PIX direto)"**: nome, e-mail, WhatsApp, senha temporária e valor (padrão `PRECO`). Cria o usuário ativo e o pedido `manual` numa transação só. E-mail duplicado dá erro claro.
+   - Por linha: botão "Ativar" (usuário inativo → pedido `manual`) e "Nova senha" (define uma senha temporária informada pelo admin).
+   - Link para `/admin/vendas.csv` (UTF-8 com BOM, separador `;`, para abrir direto no Excel) e as últimas 50 linhas de `eventos`.
+   - Toda ação do admin grava um registro em `eventos`.
+8. **Views** em `src/views/`: HTML simples no visual da landing (fundo escuro, Inter Tight, botões em pílula laranja), mobile-first. Valores do usuário sempre escapados. Basta um helper mínimo de template (substituir `{{chave}}` com escape). Nada de engine de templates.
+9. **Script `npm run criar-aluno`** (`scripts/criar-aluno.js`): recebe nome, e-mail e senha por argumentos e cria um aluno ativo. Serve para testes e emergência.
 
 ## Fora de escopo
 
-- Rotas de cadastro, login, aluno, admin, checkout e webhook.
-- Qualquer chamada ao Mercado Pago.
-- Mudanças visuais ou de texto na landing (os avisos âmbar e o `LINK_COMPRA` ficam como estão).
-- Deploy no Coolify (é do Guilherme).
+- `/comprar`, `/api/checkout`, `/pagamento`, webhook e qualquer chamada ao MP.
+- `/privacidade`, favicon, og-image, avisos âmbar e `LINK_COMPRA` da landing.
+- Recuperação de senha por e-mail.
+- Qualquer mudança em `public/index.html`.
 
 ## Validação
 
-1. `npm install && npm start` → `curl localhost:3000/health` devolve `{"ok":true,"db":true}`.
-2. `curl -s localhost:3000/ | grep -c "IA para Negócios"` > 0.
-3. `curl -o /dev/null -w "%{http_code}" localhost:3000/conteudo/IA_para_Negocios_Kit_Completo.pdf` → 404.
-4. `sqlite3 "$DB_PATH" ".tables"` (ou um script node) lista `users orders sessions eventos`.
-5. Se houver Docker disponível: `docker build` + `docker run` com volume → `/health` ok, e o arquivo `.db` aparece no volume do host. Sem Docker, reporte como "não validado" (não é bloqueio).
-6. `git status` limpo na branch; `.env` e `data/` não aparecem no `git ls-files`.
-7. A cópia da Aula 1 em `conteudo/` não contém mais `5517000000000`.
+1. `npm audit --omit=dev` sem crítico/alto, e `bcrypt` fora do lock.
+2. `npm run criar-aluno` → login em `/entrar` funciona → `/aluno` lista 3 aulas e 7 downloads.
+3. `/aluno` sem cookie → 302 para `/entrar?volta=/aluno`. `?volta=https://evil.com` é ignorado.
+4. `/aluno/conteudo/../src/db.js` e `/aluno/conteudo/qualquer.txt` → 404. Arquivo válido sem sessão → 302.
+5. Usuário inativo com a senha certa → vê a mensagem de acesso não liberado e não recebe cookie de sessão.
+6. 11 tentativas de login em 1 minuto → a 11ª devolve 429.
+7. Na tabela `sessions` não aparece nenhum token igual ao do cookie (só o hash).
+8. `/admin` sem credencial → 401. Com credencial: cadastrar aluno manual → ele consegue entrar. Ativar um inativo e trocar a senha também funcionam. Os três geram `eventos`.
+9. POST no `/admin/alunos` com `Origin: https://evil.com` → 403.
+10. O CSV abre no Excel com acentos corretos (confira os bytes do BOM: `EF BB BF`).
+11. As aulas abrem pela área do aluno, e os links "Próxima" e "Voltar" funcionam. `grep "R\$ 97"` na cópia da Aula 1 não encontra nada.
+12. `docker build` e `run` com volume → login funciona e o aluno continua lá depois de recriar o container.
 
 ## Entrega
 
-- Branch `tarefa/01-esqueleto` com commits pequenos. **Sem push e sem merge**: o Guilherme faz os dois.
-- Atualize o backlog em `docs/t4p-00-estado.md` (item 1 → "feito na tarefa 01, aguardando merge").
-- Preencha o relatório abaixo e mude o Status para `CONCLUÍDA` ou `BLOQUEADA`.
+- Branch `tarefa/02-aluno-admin` com commits pequenos, **sem push e sem merge**.
+- Atualize o backlog item 2 em `docs/t4p-00-estado.md`.
+- Preencha o relatório abaixo e mude o Status.
 
 ## Relatório do executor
 
-- **Status:** CONCLUÍDA
-- **Feito:**
-  - `git init -b main`; primeiro commit só com docs/base; branch `tarefa/01-esqueleto` criada a partir da `main`.
-  - `package.json` (Node ≥20, `type: commonjs`, scripts `start`/`dev`) com as 6 dependências mínimas de `CLAUDE.md`; `package-lock.json` gerado com `npm install`.
-  - `src/db.js`: cria a pasta de `DB_PATH` se faltar, `journal_mode=WAL`, `foreign_keys=ON`, schema completo da §2 (users, orders — com `token TEXT UNIQUE`, sessions, eventos) e `ping()`.
-  - `src/server.js`: `trust proxy`, helmet com CSP customizada (Google Fonts + `unsafe-inline` para o `<style>`/`<script>` inline da landing, `data:` para imagens), cookie-parser, `express.static('public')`, `GET /health` → `{ok,db}`, 404 simples, porta via `PORT`.
-  - `public/index.html`: cópia idêntica (`diff` sem saída) de `../../04_Site/index.html`.
-  - `conteudo/`: cópia dos 10 arquivos da §6. Na cópia da Aula 1, o CTA final (`#cta-whats`) virou `<a href="/aluno">Voltar à área do aluno</a>`, removida a variável `WHATSAPP` (não usada em mais nada) e a linha de JS que reescrevia o `href` para `wa.me`. Nenhuma outra rota serve `conteudo/`.
-  - `Dockerfile` (node:20-slim, `npm ci --omit=dev`, `/app/data` com dono `node`, `USER node`, `EXPOSE 3000`) e `.dockerignore`.
-  - `docs/t4p-00-estado.md`: item 1 do backlog marcado como feito.
-- **Validação:**
-  1. ✅ `npm install && npm start` → `curl localhost:3011/health` → `{"ok":true,"db":true}` (usei a porta 3011 para não conflitar com nada local).
-  2. ✅ `curl -s localhost:3011/ | grep -c "IA para Negócios"` → `6`.
-  3. ✅ `curl -o /dev/null -w "%{http_code}" localhost:3011/conteudo/IA_para_Negocios_Kit_Completo.pdf` → `404`.
-  4. ✅ `node -e "require('./src/db').db..."` listou as 4 tabelas: `eventos orders sessions users`.
-  5. ✅ Docker disponível (subi o Docker Desktop): `docker build` passou; `docker run` com volume bind (`/app/data`) → `/health` respondeu `{"ok":true,"db":true}` e `t4p.db`/`-shm`/`-wal` apareceram no diretório do host montado. (Nota: o primeiro `docker run` usou um path Unix-style e o Git Bash/MSYS reescreveu o volume errado, sem gerar erro — reraodei com `MSYS_NO_PATHCONV=1` e path Windows explícito e confirmei via `docker inspect` que o bind ficou correto antes de validar.)
-  6. ✅ `git status` limpo na branch (só a doc do backlog e os commits do código); `git ls-files | grep -iE '\.env$|^data/'` não retornou nada; `node_modules/` aparece em `git status --ignored`.
-  7. ✅ `grep -n "5517000000000\|WHATSAPP\|wa.me" conteudo/Aula1_O_Pedido_que_Funciona.html` sem resultado.
-- **Divergências:**
-  - Nenhuma do mecanismo em si. Uma decisão de implementação não detalhada na tarefa: a CSP precisou de `script-src 'unsafe-inline'` e `style-src 'unsafe-inline'` além de `fonts.googleapis.com`/`fonts.gstatic.com`, porque `public/index.html` tem `<style>` e dois blocos `<script>` inline sem nonce (não alterei o HTML, então ajustei a política em vez de quebrar a landing). Se preferirem CSP mais restritiva, isso exige migrar a landing para nonce/hash — decisão de produto/arquitetura, não tomei sozinho.
-  - Na cópia da Aula 1, troquei só o link e o JS que apontava para o WhatsApp (`#cta-whats`, `WHATSAPP`, `PRECO` mantido). Não toquei no texto da oferta ao redor ("Isso foi a aula 1...", preço, parágrafos) porque a tarefa pediu só a troca do CTA, e texto de oferta é decisão de produto.
-- **Achados** (fora do escopo, não corrigidos):
-  - `npm audit` acusa 1 vulnerabilidade crítica e 1 alta em `tar`/`@mapbox/node-pre-gyp`, dependência transitiva de build do `bcrypt` (usada só durante `npm install` para baixar binário pré-compilado, não em runtime). `npm audit fix` não resolve sem `--force`, que trocaria a major do `bcrypt`. Deixei como está; se quiserem resolver, é uma decisão de dependência que passa pelo dono do produto.
-  - `public/` estruturalmente só tem `index.html` por enquanto; a especificação (§1) menciona favicon e og-image, que ainda não existem em `04_Site/` — não é bloqueio desta tarefa, mas falta esse asset para o `og:image`/favicon funcionarem quando o site for divulgado.
-- **Commit/branch:** branch `tarefa/01-esqueleto` (a partir de `main`, commit raiz `591bb00`). Commits: `e677d4e` (esqueleto Express+db+landing), `a5bb16d` (conteúdo do kit), `a6b7e62` (Dockerfile), `37714b8` (backlog). Sem push, sem merge.
+_(preencher aqui)_
