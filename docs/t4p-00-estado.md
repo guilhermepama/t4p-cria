@@ -23,6 +23,11 @@ Atualizado em 22/09/2026.
 | 22/09 | Balanço do Empretec usa o CSV do /admin, não o extrato do MP | O extrato mistura as vendas com as do Orbinote |
 | 22/09 | Fallback: se o PIX automático não passar no teste real até **qua 23/09 às 22h**, vender com PIX direto + ativação manual no /admin | Não perder os dias de venda |
 
+| 23/09 | Não há aula grátis: a amostra é o e-book (PDF). As 3 aulas são exclusivas de quem pagou | Decisão do Guilherme |
+| 23/09 | Na área do aluno, o bloco de venda da Aula 1 vira cartão "Próxima: Aula 2" | Quem já pagou não vê oferta |
+| 23/09 | bcrypt trocado por `crypto.scrypt` nativo | Remove dependência nativa com vulnerabilidade transitiva (tar/node-pre-gyp) |
+| 23/09 | CSP com `unsafe-inline` aceita | Landing/aulas usam inline; sem HTML gerado por usuário |
+
 ## Pendências de produto (do Guilherme, não do executor)
 
 - Garantia de 7 dias: sim ou não? (a landing tem um aviso âmbar)
@@ -32,9 +37,9 @@ Atualizado em 22/09/2026.
 
 ## Backlog
 
-1. ~~Esqueleto + Dockerfile + landing no ar~~ — feito na tarefa 01, aguardando merge
-2. Cadastro, login, área do aluno, conteúdo protegido
-3. /admin (fallback operacional)
+1. ~~Esqueleto + Dockerfile + landing no ar~~ — feito na tarefa 01, mergeado na main
+2. ~~Login, área do aluno, conteúdo protegido + /admin completo~~ — feito na tarefa 02, aguardando merge
+3. (fundido no item 2)
 4. Checkout PIX + tela de QR + polling
 5. Webhook com assinatura + reconsulta
 6. Teste real com R$ 1 e go-live com R$ 97
@@ -42,4 +47,4 @@ Atualizado em 22/09/2026.
 
 ### Registro rápido (micro-correções, sem tarefa)
 
-_(vazio)_
+- favicon e og-image inexistentes (achado da tarefa 01) — criar antes da divulgação (Guilherme: arte)

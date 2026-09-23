@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin | IA para Negócios — T4P</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b0d; --card:#141419; --border:#232329; --text:#f2ede4;
+    --muted:#9b9aa3; --orange:#ee8148; --green:#4ade80; --red:#e07b6a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--text); padding:24px;
+    font-family:'Inter',system-ui,-apple-system,sans-serif; line-height:1.6;
+  }
+  .wrap{max-width:1080px; margin:0 auto}
+  h1{font-family:'Inter Tight',sans-serif; font-weight:800; font-size:26px; margin-bottom:22px}
+  h2{font-family:'Inter Tight',sans-serif; font-weight:700; font-size:18px; margin:36px 0 14px}
+  .resumo{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:8px}
+  .stat{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:16px 20px; min-width:160px;
+  }
+  .stat .valor{font-family:'Inter Tight',sans-serif; font-weight:800; font-size:24px}
+  .stat .rotulo{color:var(--muted); font-size:13px}
+  table{width:100%; border-collapse:collapse; font-size:14px; overflow-x:auto; display:block}
+  thead, tbody{display:table; width:100%; table-layout:fixed}
+  th,td{text-align:left; padding:10px 8px; border-bottom:1px solid var(--border); vertical-align:top}
+  th{color:var(--muted); font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em}
+  .status-pago, .status-manual{color:var(--green)}
+  .status-pendente{color:var(--muted)}
+  .status-expirado, .status-estornado{color:var(--red)}
+  form.acao{display:inline; margin-right:6px}
+  .btn-mini{
+    border:1px solid var(--border); border-radius:999px; padding:5px 12px; background:transparent;
+    color:var(--text); font-family:'Inter Tight',sans-serif; font-weight:600; font-size:12.5px; cursor:pointer;
+  }
+  .btn-mini:hover{border-color:var(--orange)}
+  .painel{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; max-width:480px}
+  label{display:block; font-size:13px; font-weight:600; margin-bottom:5px; margin-top:12px}
+  input{
+    width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border);
+    background:#0f0f12; color:var(--text); font-size:14.5px;
+  }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:999px; padding:11px 22px; margin-top:18px; border:none; cursor:pointer;
+    background:linear-gradient(96deg,#f6c49a 10%,var(--orange) 90%); color:#1a1006;
+    font-family:'Inter Tight',sans-serif; font-weight:700; font-size:14.5px;
+  }
+  .erro{
+    background:rgba(224,123,106,.12); border:1px solid var(--red); color:var(--red);
+    border-radius:10px; padding:10px 14px; font-size:14px; margin-bottom:16px;
+  }
+  a.csv{color:var(--orange); font-weight:600; text-decoration:none}
+  .eventos{font-size:13px; color:var(--muted); max-height:280px; overflow-y:auto}
+  .eventos div{padding:6px 0; border-bottom:1px solid var(--border)}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Painel T4P</h1>
+    {{{mensagemErro}}}
+
+    <div class="resumo">
+      <div class="stat"><div class="valor">{{totalPagos}}</div><div class="rotulo">Pedidos pagos + manuais</div></div>
+      <div class="stat"><div class="valor">{{somaFormatada}}</div><div class="rotulo">Total em vendas</div></div>
+      <div class="stat"><div class="valor">{{pendentes}}</div><div class="rotulo">Pendentes</div></div>
+    </div>
+
+    <h2>Alunos e pedidos</h2>
+    <table>
+      <thead>
+        <tr><th>Nome</th><th>E-mail</th><th>WhatsApp</th><th>Status</th><th>Valor</th><th>Data (BRT)</th><th>Ações</th></tr>
+      </thead>
+      <tbody>
+        {{{linhasAlunos}}}
+      </tbody>
+    </table>
+    <p style="margin-top:14px"><a class="csv" href="/admin/vendas.csv">Baixar CSV de vendas</a></p>
+
+    <h2>Cadastrar aluno (PIX direto)</h2>
+    <form class="painel" method="POST" action="/admin/alunos">
+      <label for="nome">Nome</label>
+      <input type="text" id="nome" name="nome" required>
+      <label for="email">E-mail</label>
+      <input type="email" id="email" name="email" required>
+      <label for="whatsapp">WhatsApp</label>
+      <input type="text" id="whatsapp" name="whatsapp">
+      <label for="senha">Senha temporária</label>
+      <input type="text" id="senha" name="senha" required minlength="8">
+      <label for="valor">Valor (R$)</label>
+      <input type="number" id="valor" name="valor" step="0.01" value="{{preco}}" required>
+      <button class="btn" type="submit">Cadastrar aluno</button>
+    </form>
+
+    <h2>Últimos eventos</h2>
+    <div class="eventos">
+      {{{linhasEventos}}}
+    </div>
+  </div>
+</body>
+</html>
