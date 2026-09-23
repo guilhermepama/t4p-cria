@@ -43,8 +43,11 @@
     background:rgba(224,123,106,.12); border:1px solid var(--red); color:var(--red);
     border-radius:10px; padding:10px 14px; font-size:14px; margin-top:16px;
   }
+  .esqueci{display:block; text-align:right; margin-top:8px; font-size:13.5px; color:var(--muted); text-decoration:none}
+  .esqueci:hover{color:var(--orange)}
   footer{margin-top:22px; text-align:center; font-size:12.5px; color:var(--muted)}
   footer a{color:var(--muted)}
+  footer p{margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -58,9 +61,25 @@
       <input type="email" id="email" name="email" required autocomplete="email" value="{{email}}">
       <label for="senha">Senha</label>
       <input type="password" id="senha" name="senha" required autocomplete="current-password">
+      <a id="esqueci-link" class="esqueci" href="{{linkEsqueci}}" target="_blank" rel="noopener">Esqueci minha senha</a>
       <button class="btn" type="submit">Entrar</button>
     </form>
-    <footer><a href="/privacidade">Privacidade</a></footer>
+    <footer>
+      <p>Ainda não tem o kit? <a href="/">Conhecer o kit</a></p>
+      <a href="/privacidade">Privacidade</a>
+    </footer>
   </div>
+  <script>
+    (function () {
+      var elo = document.getElementById("esqueci-link");
+      var campoEmail = document.getElementById("email");
+      if (!elo || !campoEmail) return;
+      var hrefBase = elo.getAttribute("href");
+      elo.addEventListener("click", function () {
+        var email = campoEmail.value.trim();
+        elo.setAttribute("href", email ? hrefBase + encodeURIComponent(email) : hrefBase);
+      });
+    })();
+  </script>
 </body>
 </html>

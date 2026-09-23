@@ -1,91 +1,89 @@
-# Tarefa 07 — Ajuste de diagramação mobile: navbar e seção de preço
+# Tarefa 08 — Acesso de quem já comprou: "Entrar" na landing + "Esqueci minha senha"
 
 **Status: CONCLUÍDA**
 
-- Tipo: código (CSS apenas, sem mudança de estrutura HTML nem de lógica)
+- Tipo: código (templates + CSS + e2e). Sem rota nova de backend, sem dependência nova, sem e-mail.
 - Data: 23/09/2026
-- Base: tarefas 01–06 concluídas e mergeadas; produção em https://iadojeitocerto.com conferida em 23/09 (print mobile ≈390px enviado pelo Guilherme)
-- ⚠️ Produção está vendendo até sexta 25/09 às 14h. A mudança precisa ser de baixo risco, reversível e não pode tocar checkout, /comprar, webhook ou VENDAS_ATE.
+- Base: tarefas 01–07 concluídas e mergeadas (main em a5a6893). A 07 criou a `@media(max-width:480px)` do header: estender essa, não criar outra.
+- ⚠️ Produção vendendo até sexta 25/09 às 14h. Não tocar checkout, webhook, /pagamento, VENDAS_ATE.
 
 ## Objetivo
 
-Corrigir dois bugs visuais que prejudicam a conversão no mobile: o preço "49,90" encosta ou passa da borda do card, e o link de garantia para o WhatsApp aparece com o azul padrão do navegador. Aproveitar a mesma passada para ajustar a diagramação da navbar e da seção de preço em telas até 480px. O desktop não deve mudar, exceto a cor do link, que é um bug em qualquer largura.
+Hoje quem já comprou e volta ao site não acha onde entrar: a landing não tem link para `/entrar`, e quem esqueceu a senha fica preso na tela de erro. A área do aluno fica no ar até 24/12, então esse caminho vai ser mais usado depois do encerramento das vendas do que agora.
+
+## Decisão de produto que não muda
+
+"Esqueci minha senha" **não** envia e-mail. Vale a decisão de 22/09 (sem e-mail transacional; senha redefinida pelo /admin, botão "Nova senha" que já existe). O link abre o WhatsApp da T4P com mensagem pronta; o Guilherme redefine no /admin e responde com a senha nova.
 
 ## Mecanismo proposto
 
-Validar cada item contra o código real, porque os seletores abaixo são ilustrativos. Se algo divergir, reporte em vez de improvisar.
+Validar contra o código real (seletores ilustrativos). Se divergir, reporte.
 
-1. **Link da garantia**, em todas as larguras: o `<a>` dentro do card de preço deve usar a cor de destaque do tema (a mesma dos acentos laranja), com `text-underline-offset: 3px`, e um estado `:visited` com a mesma cor. Conferir se existem outros `<a>` sem estilo na landing e reportar o que encontrar, sem corrigir o que estiver fora deste escopo.
-2. **Navbar**, com `@media (max-width: 480px)`:
-   - esconder o nome "IA para Negócios", deixando só "T4P." e o botão;
-   - botão "Quero o kit" menor, com padding em torno de 10px 18px, fonte de 15px e altura de toque de no mínimo 44px.
-3. **Selo de prazo**, no mesmo breakpoint:
-   - `border-radius: 16px`, no lugar da pílula de raio 999px;
-   - `letter-spacing` em torno de .08em, fonte de 11px e padding de 10px 16px;
-   - o ponto indicador deve ficar alinhado com a primeira linha do texto, e não solto à esquerda;
-   - se for possível só com CSS, ou com um `<br>`/`<span>` já existente, a hierarquia deve ser "PREÇO DE LANÇAMENTO" em caixa alta e "até sexta, 25/09, às 14h" em peso normal. Se isso exigir mudar a estrutura, não faça e reporte. O texto não pode ser alterado.
-4. **Preço**:
-   - valor com `font-size: clamp(56px, 19vw, 88px)` e `letter-spacing: -0.03em`;
-   - "R$" proporcional, em torno de .35em do valor;
-   - requisito: nenhum pixel do preço pode encostar no padding do card em 360px.
-5. **Card**: padding em torno de 28px 20px no mobile, para eliminar o padding duplo entre a seção e o card.
-6. **CTA "Quero começar agora"**: o texto deve caber em 1 linha em 360px. Para isso, reduzir o círculo do ícone para cerca de 40px, usar `white-space: nowrap` e fonte de 17px. Se mesmo assim estourar em 360px, descer a fonte para 16px. **Não trocar o texto do botão**, porque isso é decisão de produto.
-7. Não sobrescrever regras de desktop. Tudo o que for novo, exceto o item 1, fica dentro da media query.
+1. **Header da landing (`public/index.html`)**
+   - Adicionar `<a class="header-login" href="/entrar">Entrar</a>` antes do botão "Quero o kit", agrupados num wrapper à direita.
+   - Estilo: link de texto (sem fundo), cor `--muted`/texto claro, hover na cor de destaque (peach), peso 600, altura de toque ≥ 44px.
+   - Desktop: gap ~20px entre "Entrar" e o botão. Mobile (≤480px, dentro da media query já criada na 07): gap ~12px. Em 360px, "T4P." + "Entrar" + "Quero o kit" cabem numa linha, sem scroll horizontal.
+   - Não mexer no resto do header nem no que a 07 ajustou.
+
+2. **`/entrar` (`src/views/entrar.html` + rota GET/POST em `src/server.js`)**
+   - Abaixo do campo Senha, alinhado à direita, link "Esqueci minha senha" (fonte ~13.5px, cor muted, hover peach).
+   - `href` gerado no servidor com `linkWhatsapp("Oi! Esqueci minha senha do kit IA para Negócios. Meu e-mail de cadastro é: ")`, passado ao template por placeholder (ex.: `{{linkEsqueci}}`) nas 3 renderizações de `entrar.html` (GET, 401, 403). `target="_blank" rel="noopener"`.
+   - Script inline pequeno (CSP já aceita inline): no clique, se o campo e-mail estiver preenchido, anexar o e-mail digitado (com `encodeURIComponent`) ao `text` do link. Sem e-mail, segue a mensagem base.
+   - No rodapé do card, acima de "Privacidade": "Ainda não tem o kit? <a href="/">Conhecer o kit</a>".
+
+3. **Mensagem de erro 401** — manter "E-mail ou senha incorretos." (não revelar se o e-mail existe). Sem mudança.
+
+4. **`/comprar` (`src/views/comprar.html`)** — linha discreta abaixo do título ou acima do botão: "Já comprou? <a href="/entrar">Entrar</a>". Nada mais nessa tela.
+
+5. **`vendas-encerradas.html`** — acrescentar "Já é aluno? <a href="/entrar">Entrar na área do aluno</a>". Depois de 25/09 às 14h é a tela que quem vem de /comprar vê.
 
 ## Fora de escopo
 
-- Qualquer mudança de texto ou copy, preços, selos ou prazos.
-- Checkout, /comprar, /pagamento, /aluno, /admin, webhook, variáveis de ambiente, VENDAS_ATE.
-- Outras seções da landing, mesmo que também tenham problemas no mobile. Anote no relatório e não corrija.
-- Refatoração de CSS, troca de fontes, novas dependências.
+- Redefinição de senha por e-mail, token ou rota `/esqueci-senha` com formulário.
+- Troca de senha pelo próprio aluno na área logada (pode virar tarefa depois, se aparecer demanda).
+- Qualquer copy da landing além do link "Entrar".
+- Checkout, webhook, /admin, variáveis de ambiente.
 
 ## Validação
 
-- [ ] Prints da landing em 360px, 390px e 430px (navbar e seção de preço), antes e depois, anexados ao PR.
-- [ ] Preço sem corte em 360px.
-- [ ] CTA em 1 linha em 360px.
-- [ ] Link da garantia na cor de destaque e abrindo o WhatsApp correto (variável WHATSAPP).
-- [ ] Desktop (≥1024px) visualmente igual ao atual, exceto a cor do link.
-- [ ] e2e completo (11 passos) verde.
-- [ ] Nenhum arquivo fora de CSS/templates da landing alterado. Listar os arquivos no relatório.
+- [ ] Landing: link "Entrar" leva a `/entrar` (desktop 1280px e mobile 360/390px). Prints.
+- [ ] 360px: header numa linha, `document.documentElement.scrollWidth <= clientWidth`.
+- [ ] `/entrar`: "Esqueci minha senha" presente nos 3 estados (GET, 401, 403), com `href` `https://wa.me/<WHATSAPP>?text=...` usando a env WHATSAPP.
+- [ ] Com e-mail digitado, o link aberto contém o e-mail (Playwright: interceptar popup ou ler o href após o clique).
+- [ ] `/comprar` e `vendas-encerradas` têm link para `/entrar`.
+- [ ] Desktop da landing igual ao atual, exceto o link novo.
+- [ ] e2e completo verde, com os passos novos acima adicionados ao `scripts/e2e.js` (em navegador real).
 
 ## Entrega
 
-- Branch a partir de `main` atualizada: `fix/mobile-preco-navbar`.
+- Branch a partir da `main` atualizada (já com a 07): `tarefa/08-entrar-esqueci-senha`.
 - PR com base em `main`, **sem mergear**. Prints e resultado do e2e na descrição.
-- Atualizar o doc de estado do projeto no mesmo PR, com uma linha sobre o ajuste mobile.
-- Preencher o relatório abaixo e mudar o Status para CONCLUÍDA, ou para BLOQUEADA com o motivo.
+- Atualizar `docs/t4p-00-estado.md`: decisão "23/09 · Esqueci a senha = WhatsApp + /admin (sem e-mail)" e item no backlog.
+- Preencher o relatório e mudar o Status.
 
 ## Relatório do executor
 
 - **Status:** CONCLUÍDA
 - **Feito:**
-  - `public/index.html`: estilo do link de garantia (`.btn-note a`, cor `var(--peach)`, `text-underline-offset:3px`, `:visited` igual) valendo em todas as larguras; nova `@media(max-width:480px)` com ajustes de navbar (`.logo-product{display:none}`, `.header-cta` menor com altura de toque ≥44px), selo de prazo (`border-radius:16px`, `letter-spacing:.08em`, `font-size:11px`, `padding:10px 16px`, ponto indicador alinhado com `align-items:flex-start` + `margin-top`), preço (`clamp(56px,19vw,88px)`, `letter-spacing:-.03em`, "R$" em `.35em`), card da oferta (`padding:28px 20px`) e CTA final (`white-space:nowrap`, `font-size:17px`, ícone 40px).
-  - `docs/t4p-00-estado.md`: linha no Registro rápido sobre o ajuste mobile.
-  - `docs/claude-bridge/evidencias/tarefa-07-mobile/`: prints antes/depois em 360/390/430px (navbar e oferta) + desktop depois (1280px), gerados com Playwright contra o servidor local.
+  - `public/index.html`: header ganhou `.header-actions` (wrapper à direita) com `<a class="header-login" href="/entrar">Entrar</a>` antes do "Quero o kit"; gap 20px desktop / 12px em `@media(max-width:480px)` (mesma media query da tarefa 07).
+  - `src/views/entrar.html`: link "Esqueci minha senha" abaixo da Senha (`#esqueci-link`, alinhado à direita, muted → peach no hover), com script inline que anexa o e-mail digitado (via `encodeURIComponent`, idempotente a múltiplos cliques) ao `href` no clique; rodapé ganhou "Ainda não tem o kit? Conhecer o kit" acima de "Privacidade".
+  - `src/server.js`: nova `linkEsqueciSenha()` passada como `linkEsqueci` nas 3 renderizações de `entrar.html` (GET, 401, 403).
+  - `src/views/comprar.html`: linha "Já comprou? Entrar" abaixo do título.
+  - `src/views/vendas-encerradas.html`: linha "Já é aluno? Entrar na área do aluno".
+  - `scripts/e2e.js`: 9 passos novos (header responsivo com prints, `/entrar` nos 3 estados com o link e o href, e-mail anexado ao link, `/comprar` e vendas-encerradas com link para `/entrar`) + correção de um id de pagamento fake que estava fixo em "1000" no passo (c) (ver Divergências).
+  - `docs/t4p-00-estado.md`: decisão 23/09 "Esqueci a senha = WhatsApp + /admin" e backlog do item da tarefa 08 marcado como feito.
 - **Validação:**
-  - ✅ Prints da landing em 360/390/430px (navbar e oferta), antes e depois — anexados em `docs/claude-bridge/evidencias/tarefa-07-mobile/` (12 arquivos) e linkados abaixo.
-  - ✅ Preço sem corte em 360px — no "antes", "49,90" chegava a encostar na borda direita do card; no "depois", sobra folga visível dos dois lados (ver `depois-oferta-360.png`).
-  - ✅ CTA "Quero começar agora" em 1 linha em 360/390/430px, sem precisar cair para 16px.
-  - ✅ Link da garantia na cor de destaque (`var(--peach)`, sublinhado com offset) e abrindo o WhatsApp correto — confirmado pelo passo do e2e "landing tem pelo menos 3 links wa.me/5519974139426 e nenhum {{whatsapp sobra".
-  - ✅ Desktop (1280px) visualmente igual ao atual, exceto a cor do link — selo continua pílula 999px, navbar mostra "IA para Negócios" por inteiro, preço mantém 76px fixo (ver `depois-desktop-oferta-1280.png`).
-  - ✅ `npm run e2e` — 11/11 passos verdes.
-  - ✅ Nenhum arquivo fora de CSS/templates da landing alterado: só `public/index.html` (CSS) e `docs/t4p-00-estado.md` (1 linha de doc) mudaram no código; o PNG de evidência de outra tarefa que o e2e reescreve como efeito colateral foi revertido antes do commit.
+  - ✅ Landing: link "Entrar" leva a `/entrar` em 1280/360/390px — passo `landing: link 'Entrar' do header leva a /entrar...` no e2e; prints em `docs/claude-bridge/evidencias/tarefa-08-header-{desktop-1280,mobile-360,mobile-390}.png`.
+  - ✅ 360px sem scroll horizontal — mesmo passo, `document.documentElement.scrollWidth <= clientWidth` conferido via `page.evaluate`.
+  - ✅ "Esqueci minha senha" nos 3 estados (GET, 401, 403) com `href` `https://wa.me/<WHATSAPP>?text=...` — 3 passos dedicados no e2e (usa o WHATSAPP padrão do ambiente de teste, `5519974139426`).
+  - ✅ E-mail digitado aparece no link após o clique — passo dedicado, lê o `href` do próprio link após o clique (sem depender da aba `wa.me` carregar, conforme sugerido na tarefa).
+  - ✅ `/comprar` e `vendas-encerradas` com link para `/entrar` — passo dedicado para `/comprar`; para `vendas-encerradas`, checagem incluída no bloco existente de encerramento de vendas (`VENDAS_ATE` no passado).
+  - ✅ Desktop da landing igual ao atual, exceto o link novo — nenhuma outra regra de CSS/HTML fora do header foi tocada; print em `tarefa-08-header-desktop-1280.png` confirma.
+  - ✅ `npm run e2e` verde: **18/18 passos OK** (rodado em navegador real, Chromium via Playwright, duas vezes após o ajuste de Divergências).
 - **Divergências:**
-  - Item 3 (hierarquia do selo — "PREÇO DE LANÇAMENTO" em caixa alta e "até sexta, 25/09, às 14h" em peso normal): **não implementado**. `{{selo_texto}}` chega do servidor como uma string única (`seloVendas()` em `src/server.js`), sem `<br>`/`<span>` existente separando as duas partes, e o `.hero-tag` já força `text-transform:uppercase` no texto inteiro. Diferenciar peso/caixa por trecho exigiria envolver uma parte em `<span>` no HTML gerado pelo servidor — mudança de estrutura/lógica, fora do escopo "CSS apenas" desta tarefa. Reportando em vez de improvisar, como pedido no mecanismo proposto.
-  - O ponto indicador do selo foi alinhado com `align-items:flex-start` + `margin-top:6px` no `i`, uma aproximação visual (não há como calcular o alinhamento exato com o cap-height da primeira linha sem envolver o texto num `<span>` próprio). Ficou visualmente alinhado nos três breakpoints testados.
+  - O novo passo "cria usuário inativo (para o 403)" faz um `/comprar` de verdade contra o `mp-fake`, o que consome um id da sequência `1000, 1001, ...`. Isso quebrava o passo (c) pré-existente, que tinha o id `1000` fixo (`/__set/1000`). Troquei esse trecho para extrair o id real do `copia-e-cola` (`PIXFAKE(\d+)`), do mesmo jeito que o bloco de encerramento de vendas já fazia — deixa o teste robusto à ordem/quantidade de pedidos criados antes dele, sem mudar nenhum comportamento do app.
+  - Não criei uma rota `/esqueci-senha` nem nada de back-end novo: o mecanismo é só o link `mailto`-like de WhatsApp já especificado; nenhuma rota nova foi adicionada a `src/server.js`.
 - **Achados (fora do escopo, não corrigidos):**
-  - `footer a{color:var(--peach)}` já tem cor, mas não tem `text-underline-offset` nem `:visited` explícito (herda a cor do link normal, então não chega a ficar diferente na prática, mas é inconsistente com o padrão pedido para o link da garantia).
-  - O link da FAQ de equipe (`#faq-equipe-whats`, injetado via JS em `public/index.html` linha ~1048) usa `style="color:var(--peach)"` inline em vez de uma classe/CSS — funciona, mas foge do padrão do resto do arquivo.
-  - Nenhum outro `<a>` sem estilo foi encontrado na landing.
-- **Commit/branch:** branch `fix/mobile-preco-navbar`, a partir da `main` atualizada (commit `5c35d63`, com o PR #6 já mergeado). PR ainda não aberto neste relatório — ver seção Entrega.
-
-### Evidências (antes/depois)
-
-360px: [antes navbar](../evidencias/tarefa-07-mobile/antes-navbar-360.png) · [depois navbar](../evidencias/tarefa-07-mobile/depois-navbar-360.png) · [antes oferta](../evidencias/tarefa-07-mobile/antes-oferta-360.png) · [depois oferta](../evidencias/tarefa-07-mobile/depois-oferta-360.png)
-
-390px: [antes navbar](../evidencias/tarefa-07-mobile/antes-navbar-390.png) · [depois navbar](../evidencias/tarefa-07-mobile/depois-navbar-390.png) · [antes oferta](../evidencias/tarefa-07-mobile/antes-oferta-390.png) · [depois oferta](../evidencias/tarefa-07-mobile/depois-oferta-390.png)
-
-430px: [antes navbar](../evidencias/tarefa-07-mobile/antes-navbar-430.png) · [depois navbar](../evidencias/tarefa-07-mobile/depois-navbar-430.png) · [antes oferta](../evidencias/tarefa-07-mobile/antes-oferta-430.png) · [depois oferta](../evidencias/tarefa-07-mobile/depois-oferta-430.png)
-
-Desktop (depois, 1280px): [oferta](../evidencias/tarefa-07-mobile/depois-desktop-oferta-1280.png)
+  - `conteudo/Aula1_O_Pedido_que_Funciona.html`, `Aula2_Conserte_a_Resposta.html` e `Aula3_Monte_sua_Equipe.html` apareceram **modificados na working tree antes de eu tocar em qualquer arquivo** (branch criada a partir de uma `main` limpa; eu só editei os 6 arquivos listados em "Feito"). O diff é grande (~240 linhas por arquivo, um tema "T4P" sobrepondo o CSS original das aulas). Não sei a origem — não veio de commit, stash, nem de nada que rodei (grep confirma que nenhum script em `src/` ou `scripts/` escreve em `conteudo/`). Não toquei nem commitei essas mudanças; ficaram como estavam na working tree, fora do commit desta tarefa. Vale conferir se é trabalho em andamento salvo localmente (ex.: sincronização de pasta) antes de descartar.
+  - `docs/claude-bridge/evidencias/tarefa-05-admin-email-longo.png` foi regravado ao rodar o e2e completo (screenshot não-determinístico da tarefa 05); restaurei a versão do commit antes de finalizar, para não misturar com esta tarefa.
+- **Commit/branch:** branch `tarefa/08-entrar-esqueci-senha` (`e2957fa`), criada a partir de `main` em `6b9784e`. PR: https://github.com/guilhermepama/t4p-cria/pull/8 (sem merge).
