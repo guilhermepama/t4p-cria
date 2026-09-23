@@ -49,8 +49,132 @@ CREATE TABLE IF NOT EXISTS eventos (
 );
 `);
 
+db.prepare("DELETE FROM sessions WHERE expira_em <= datetime('now')").run();
+
 function ping() {
   return db.prepare("SELECT 1 AS ok").get().ok === 1;
 }
 
-module.exports = { db, ping };
+function buscarUsuarioPorEmail(email) {
+  return db.prepare("SELECT * FROM users WHERE email = ? COLLATE NOCASE").get(email);
+}
+
+function buscarUsuarioPorId(id) {
+  return db.prepare("SELECT * FROM users WHERE id = ?").get(id);
+}
+
+function criarSessao(tokenHash, userId, expiraEm) {
+  db.prepare("INSERT INTO sessions (token, user_id, expira_em) VALUES (?, ?, ?)").run(
+    tokenHash,
+    userId,
+    expiraEm
+  );
+}
+
+function destruirSessao(tokenHash) {
+  db.prepare("DELETE FROM sessions WHERE token = ?").run(tokenHash);
+}
+
+function buscarUsuarioPorSessao(tokenHash) {
+  return db
+    .prepare(
+      `SELECT users.* FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.token = ? AND sessions.expira_em > datetime('now')`
+    )
+    .get(tokenHash);
+}
+
+function criarAlunoAtivo(nome, email, senhaHash, whatsapp) {
+  const info = db
+    .prepare(
+      "INSERT INTO users (nome, email, whatsapp, senha_hash, ativo) VALUES (?, ?, ?, ?, 1)"
+    )
+    .run(nome, email, whatsapp || null, senhaHash);
+  return info.lastInsertRowid;
+}
+
+const criarAlunoManualStmt = db.transaction((dados) => {
+  const info = db
+    .prepare(
+      "INSERT INTO users (nome, email, whatsapp, senha_hash, ativo) VALUES (?, ?, ?, ?, 1)"
+    )
+    .run(dados.nome, dados.email, dados.whatsapp, dados.senhaHash);
+  const userId = info.lastInsertRowid;
+  db.prepare(
+    "INSERT INTO orders (user_id, valor, status, pago_em) VALUES (?, ?, 'manual', datetime('now'))"
+  ).run(userId, dados.valor);
+  return userId;
+});
+
+function criarAlunoManual(dados) {
+  return criarAlunoManualStmt(dados);
+}
+
+const ativarAlunoStmt = db.transaction((userId, valor) => {
+  db.prepare("UPDATE users SET ativo = 1 WHERE id = ?").run(userId);
+  db.prepare(
+    "INSERT INTO orders (user_id, valor, status, pago_em) VALUES (?, ?, 'manual', datetime('now'))"
+  ).run(userId, valor);
+});
+
+function ativarAluno(userId, valor) {
+  ativarAlunoStmt(userId, valor);
+}
+
+function trocarSenha(userId, senhaHash) {
+  db.prepare("UPDATE users SET senha_hash = ? WHERE id = ?").run(senhaHash, userId);
+}
+
+function registrarEvento(tipo, detalhe) {
+  db.prepare("INSERT INTO eventos (tipo, detalhe) VALUES (?, ?)").run(tipo, detalhe || null);
+}
+
+function listarEventosRecentes(limite = 50) {
+  return db
+    .prepare("SELECT * FROM eventos ORDER BY id DESC LIMIT ?")
+    .all(limite);
+}
+
+function listarAlunosComPedidos() {
+  return db
+    .prepare(
+      `SELECT
+         users.id AS user_id, users.nome, users.email, users.whatsapp, users.ativo,
+         orders.id AS order_id, orders.valor, orders.status, orders.criado_em, orders.pago_em
+       FROM users
+       LEFT JOIN orders ON orders.user_id = users.id
+       ORDER BY users.id DESC, orders.id DESC`
+    )
+    .all();
+}
+
+function resumoVendas() {
+  return db
+    .prepare(
+      `SELECT
+         COUNT(CASE WHEN status IN ('pago', 'manual') THEN 1 END) AS total_pagos,
+         COALESCE(SUM(CASE WHEN status IN ('pago', 'manual') THEN valor END), 0) AS soma,
+         COUNT(CASE WHEN status = 'pendente' THEN 1 END) AS pendentes
+       FROM orders`
+    )
+    .get();
+}
+
+module.exports = {
+  db,
+  ping,
+  buscarUsuarioPorEmail,
+  buscarUsuarioPorId,
+  criarSessao,
+  destruirSessao,
+  buscarUsuarioPorSessao,
+  criarAlunoAtivo,
+  criarAlunoManual,
+  ativarAluno,
+  trocarSenha,
+  registrarEvento,
+  listarEventosRecentes,
+  listarAlunosComPedidos,
+  resumoVendas,
+};
