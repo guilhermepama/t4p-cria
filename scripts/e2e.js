@@ -136,6 +136,37 @@ async function percorrerAula1(pagina) {
   await continuarQuandoLiberado(pagina); // -> cartão final
 }
 
+// Sobe uma instância própria do app (porta/banco à parte), reaproveitando o
+// mesmo mp-fake. Usado só pelo teste de encerramento de vendas, que precisa
+// reiniciar o servidor com um VENDAS_ATE diferente sobre o mesmo banco.
+async function iniciarApp(fakePort, dbPath, extraEnv) {
+  const porta = await portaLivre(3395);
+  const baseUrl = `http://127.0.0.1:${porta}`;
+
+  const processo = spawn(process.execPath, [path.join(RAIZ, "src", "server.js")], {
+    cwd: RAIZ,
+    env: {
+      ...process.env,
+      PORT: String(porta),
+      DB_PATH: dbPath,
+      BASE_URL: baseUrl,
+      NODE_ENV: "test",
+      TRUST_PROXY: "0",
+      MP_ACCESS_TOKEN: "TEST-fake-access-token",
+      MP_WEBHOOK_SECRET: "segredo-e2e",
+      MP_API_URL: `http://127.0.0.1:${fakePort}`,
+      PRECO,
+      ...extraEnv,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  processo.stdout.on("data", (d) => process.stdout.write(`[app-vendas] ${d}`));
+  processo.stderr.on("data", (d) => process.stderr.write(`[app-vendas] ${d}`));
+  await esperarSaudavel(`${baseUrl}/health`);
+
+  return { processo, baseUrl };
+}
+
 async function abrirChromium() {
   const tentativas = [{ channel: "chrome" }, { channel: "msedge" }, {}];
   let ultimoErro;
@@ -213,6 +244,56 @@ async function main() {
       }
     });
 
+    // ---------- 0b) a landing tem os links de WhatsApp (fonte única, sem WHATSAPP na env → padrão) ----------
+    await passo("landing tem pelo menos 3 links wa.me/5519974139426 e nenhum {{whatsapp sobra", async () => {
+      const pagina = await browser.newPage();
+      await pagina.goto(`${baseUrl}/`);
+      const htmlRenderizado = await pagina.content();
+      const links = htmlRenderizado.match(/wa\.me\/5519974139426/g) || [];
+      if (links.length < 3) {
+        throw new Error(`landing tem só ${links.length} link(s) wa.me/5519974139426, esperava pelo menos 3`);
+      }
+      if (htmlRenderizado.includes("{{whatsapp")) {
+        throw new Error("marcador {{whatsapp... não foi substituído na landing");
+      }
+      await pagina.close();
+    });
+
+    // ---------- 0c) og:image responde 200 e é servido como image/jpeg ----------
+    await passo("landing tem meta og:image apontando para um arquivo que responde 200", async () => {
+      const htmlLanding = await (await fetch(`${baseUrl}/`)).text();
+      const match = htmlLanding.match(/<meta property="og:image" content="([^"]+)">/);
+      if (!match) {
+        throw new Error("landing não tem a meta og:image");
+      }
+      const caminho = new URL(match[1]).pathname;
+      const respImagem = await fetch(`${baseUrl}${caminho}`);
+      if (respImagem.status !== 200) {
+        throw new Error(`og:image (${caminho}) respondeu ${respImagem.status}`);
+      }
+      const tipo = respImagem.headers.get("content-type") || "";
+      if (!tipo.includes("image/jpeg")) {
+        throw new Error(`og:image (${caminho}) veio com content-type "${tipo}", esperava image/jpeg`);
+      }
+    });
+
+    // ---------- 0d) favicon responde 200 e o link[rel=icon] existe na landing ----------
+    // (o /aluno é conferido mais abaixo, no passo que já loga com o aluno manual)
+    await passo("favicon.ico responde 200 e link[rel=icon] existe na landing", async () => {
+      const respFavicon = await fetch(`${baseUrl}/favicon.ico`);
+      if (respFavicon.status !== 200) {
+        throw new Error(`/favicon.ico respondeu ${respFavicon.status}`);
+      }
+
+      const paginaLanding = await browser.newPage();
+      await paginaLanding.goto(`${baseUrl}/`);
+      const temIconLanding = (await paginaLanding.locator('link[rel="icon"]').count()) > 0;
+      await paginaLanding.close();
+      if (!temIconLanding) {
+        throw new Error("landing não tem link[rel=icon]");
+      }
+    });
+
     // ---------- a) /admin cadastra aluno manual com valor "49,90" ----------
     const ctxAdmin = await browser.newContext({
       httpCredentials: { username: ADMIN_USER, password: ADMIN_PASS },
@@ -284,6 +365,9 @@ async function main() {
       const titulo = await paginaAluno.locator("h1").textContent();
       if (!titulo || !titulo.includes(ALUNO_MANUAL.nome)) {
         throw new Error("página /aluno não mostrou o nome do aluno logado");
+      }
+      if ((await paginaAluno.locator('link[rel="icon"]').count()) === 0) {
+        throw new Error("/aluno não tem link[rel=icon]");
       }
 
       const [aula1] = await Promise.all([
@@ -383,6 +467,143 @@ async function main() {
       }
     });
     await ctxEventos.close();
+
+    // ---------- f) encerramento automático das vendas (VENDAS_ATE) ----------
+    await passo(
+      "VENDAS_ATE no passado: /comprar responde 410, nada é gravado, e o pedido criado antes continua sendo processado",
+      async () => {
+        const dirVendas = fs.mkdtempSync(path.join(os.tmpdir(), "t4p-e2e-vendas-"));
+        const dbVendas = path.join(dirVendas, "t4p.db");
+        const ADMIN_USER_V = "admin-vendas-e2e";
+        const ADMIN_PASS_V = "senha-admin-vendas-e2e-12345";
+        const EMAIL_FUTURO = `aluno.vendas.futuro.${SUFIXO}@exemplo.com`;
+        const EMAIL_BLOQUEADO = `aluno.vendas.bloqueado.${SUFIXO}@exemplo.com`;
+
+        try {
+          // com VENDAS_ATE no futuro, o checkout funciona normalmente e cria um pedido pendente
+          let token;
+          let idPagamentoFake;
+          const appFuturo = await iniciarApp(fakePort, dbVendas, {
+            VENDAS_ATE: "2026-12-31T23:59:59-03:00",
+            ADMIN_USER: ADMIN_USER_V,
+            ADMIN_PASS: ADMIN_PASS_V,
+          });
+          try {
+            const ctx = await browser.newContext();
+            const pagina = await ctx.newPage();
+            await pagina.goto(`${appFuturo.baseUrl}/comprar`);
+            await pagina.fill("#nome", "Aluno Vendas Futuras E2E");
+            await pagina.fill("#email", EMAIL_FUTURO);
+            await pagina.fill("#whatsapp", "11999990010");
+            await pagina.fill("#senha", "senha-vendas-futuro-e2e");
+            await pagina.check('input[name="aceite"]');
+            await pagina.click('button:has-text("Gerar PIX")');
+            await pagina.waitForURL(/\/pagamento\//);
+            token = new URL(pagina.url()).pathname.split("/")[2];
+            const copiaCola = await pagina.locator("#copiaCola").inputValue();
+            const match = copiaCola.match(/PIXFAKE(\d+)/);
+            if (!match) {
+              throw new Error("não consegui extrair o id do pagamento fake do copia-e-cola");
+            }
+            idPagamentoFake = match[1];
+            await ctx.close();
+          } finally {
+            appFuturo.processo.kill();
+            await new Promise((r) => setTimeout(r, 300));
+          }
+
+          // reabre o MESMO banco, agora com VENDAS_ATE no passado
+          const appPassado = await iniciarApp(fakePort, dbVendas, {
+            VENDAS_ATE: "2020-01-01T00:00:00-03:00",
+            ADMIN_USER: ADMIN_USER_V,
+            ADMIN_PASS: ADMIN_PASS_V,
+          });
+          try {
+            const respGet = await fetch(`${appPassado.baseUrl}/comprar`);
+            if (respGet.status !== 410) {
+              throw new Error(`GET /comprar com VENDAS_ATE no passado respondeu ${respGet.status}, esperava 410`);
+            }
+
+            const corpoNovo = new URLSearchParams({
+              nome: "Aluno Bloqueado E2E",
+              email: EMAIL_BLOQUEADO,
+              whatsapp: "11999990011",
+              senha: "senha-bloqueada-e2e",
+              aceite: "on",
+            });
+            const respPost = await fetch(`${appPassado.baseUrl}/comprar`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                Origin: appPassado.baseUrl,
+              },
+              body: corpoNovo.toString(),
+            });
+            if (respPost.status !== 410) {
+              throw new Error(`POST /comprar com VENDAS_ATE no passado respondeu ${respPost.status}, esperava 410`);
+            }
+
+            const ctxAdmin = await browser.newContext({
+              httpCredentials: { username: ADMIN_USER_V, password: ADMIN_PASS_V },
+            });
+            const paginaAdmin = await ctxAdmin.newPage();
+            await paginaAdmin.goto(`${appPassado.baseUrl}/admin`);
+            const corpoAdmin = await paginaAdmin.content();
+            await ctxAdmin.close();
+            if (corpoAdmin.includes(EMAIL_BLOQUEADO)) {
+              throw new Error("POST /comprar depois do encerramento gravou um usuário no banco");
+            }
+
+            const respNovo = await fetch(`${appPassado.baseUrl}/pagamento/${token}/novo`, {
+              method: "POST",
+              headers: { Origin: appPassado.baseUrl },
+            });
+            if (respNovo.status !== 410) {
+              throw new Error(
+                `POST /pagamento/:token/novo com VENDAS_ATE no passado respondeu ${respNovo.status}, esperava 410`
+              );
+            }
+
+            // aprova no mp-fake o pedido criado ANTES do encerramento
+            const respAprovar = await fetch(`http://127.0.0.1:${fakePort}/__set/${idPagamentoFake}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "approved" }),
+            });
+            if (!respAprovar.ok) {
+              throw new Error(`mp-fake não aceitou a aprovação do pedido antigo (status ${respAprovar.status})`);
+            }
+
+            // /api/pedido e /pagamento/:token continuam funcionando após o encerramento
+            let statusFinal;
+            for (let i = 0; i < 20; i++) {
+              const respApi = await fetch(`${appPassado.baseUrl}/api/pedido/${token}`);
+              const dados = await respApi.json();
+              statusFinal = dados.status;
+              if (statusFinal === "pago") break;
+              await new Promise((r) => setTimeout(r, 500));
+            }
+            if (statusFinal !== "pago") {
+              throw new Error(`pedido criado antes do encerramento não virou "pago" (ficou "${statusFinal}")`);
+            }
+
+            const respPagamento = await fetch(`${appPassado.baseUrl}/pagamento/${token}`);
+            if (respPagamento.status !== 200) {
+              throw new Error(`/pagamento/${token} respondeu ${respPagamento.status} depois do encerramento`);
+            }
+          } finally {
+            appPassado.processo.kill();
+            await new Promise((r) => setTimeout(r, 300));
+          }
+        } finally {
+          try {
+            fs.rmSync(dirVendas, { recursive: true, force: true });
+          } catch {
+            // best effort (Windows pode segurar o arquivo por um instante)
+          }
+        }
+      }
+    );
   } finally {
     if (browser) await browser.close();
     appProcess.kill();
