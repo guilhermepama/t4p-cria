@@ -45,10 +45,10 @@ Atualizado em 22/09/2026.
 ## Backlog
 
 1. ~~Esqueleto + Dockerfile + landing no ar~~ — feito na tarefa 01, mergeado na main
-2. ~~Login, área do aluno, conteúdo protegido + /admin completo~~ — feito na tarefa 02, aguardando merge
+2. ~~Login, área do aluno, conteúdo protegido + /admin completo~~ — feito na tarefa 02, mergeado na main (achado da tarefa 03: já estava mergeado, só não tinha sido atualizado aqui)
 3. (fundido no item 2)
-4. ~~Checkout PIX + tela de QR + polling + webhook + /privacidade~~ — feito na tarefa 03, aguardando merge
-5. (fundido no item 4)
+4. ~~Checkout PIX + tela de QR + polling + webhook + /privacidade~~ — feito nas tarefas 03 e 04, aguardando merge
+5. (fundido no item 4) — feito nas tarefas 03 e 04, aguardando merge
 6. Teste real com R$ 1 e go-live com R$ 97
 7. Remoção dos avisos âmbar (depende das decisões de garantia/prazo) + favicon/og-image
 
