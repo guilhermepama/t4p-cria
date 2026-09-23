@@ -85,6 +85,8 @@ const ARQUIVOS_PERMITIDOS = new Map();
 AULAS.forEach((a) => ARQUIVOS_PERMITIDOS.set(a.arquivo, "html"));
 DOWNLOADS.forEach((d) => ARQUIVOS_PERMITIDOS.set(d.arquivo, "download"));
 
+const AULAS_ARQUIVOS = new Set(AULAS.map((a) => a.arquivo));
+
 // ---------- helpers de formatação ----------
 
 function formatarBRT(textoUtc) {
@@ -572,22 +574,60 @@ app.get("/privacidade", (req, res) => {
 
 // ---------- área do aluno ----------
 
-app.get("/aluno", auth.requireAluno, (req, res) => {
-  const aulasHtml = AULAS.map(
-    (a) => `
-      <div class="card">
-        <h3>${escapeHtml(a.titulo)}</h3>
-        <a class="btn" href="/aluno/conteudo/${encodeURIComponent(a.arquivo)}" target="_blank" rel="noopener">Abrir aula</a>
-      </div>`
-  ).join("\n");
+function progressoDoAlunoJson(userId) {
+  const mapa = db.progressoDoAluno(userId);
+  const aulas = {};
+  const downloads = {};
+  for (const linha of mapa.values()) {
+    if (linha.tipo === "aula") {
+      aulas[linha.item] = { passo: linha.passo, total: linha.total, concluido: Boolean(linha.concluido) };
+    } else {
+      downloads[linha.item] = Boolean(linha.concluido);
+    }
+  }
+  return { aulas, downloads };
+}
 
-  const downloadsHtml = DOWNLOADS.map(
-    (d) => `
-      <div class="download">
+function cartaoAulaHtml(a, info) {
+  let progressoHtml;
+  let rotuloBotao = "Abrir aula";
+
+  if (!info) {
+    progressoHtml = `<div class="progresso-aula"><span class="texto-progresso">Não iniciada</span></div>`;
+  } else if (info.concluido) {
+    progressoHtml = `<div class="progresso-aula"><div class="trilho"><div class="preenchido" style="width:100%"></div></div><span class="texto-progresso"><span class="selo-concluida">✓ Concluída</span></span></div>`;
+    rotuloBotao = "Rever aula";
+  } else {
+    const pct = info.total > 0 ? Math.round((info.passo / info.total) * 100) : 0;
+    progressoHtml = `<div class="progresso-aula"><div class="trilho"><div class="preenchido" style="width:${pct}%"></div></div><span class="texto-progresso">Passo ${info.passo} de ${info.total}</span></div>`;
+  }
+
+  return `
+      <div class="card" data-aula="${escapeHtml(a.arquivo)}">
+        <h3>${escapeHtml(a.titulo)}</h3>
+        ${progressoHtml}
+        <a class="btn" href="/aluno/conteudo/${encodeURIComponent(a.arquivo)}" target="_blank" rel="noopener">${rotuloBotao}</a>
+      </div>`;
+}
+
+function linhaDownloadHtml(d, baixado) {
+  return `
+      <div class="download" data-arquivo="${escapeHtml(d.arquivo)}">
         <span>${escapeHtml(d.titulo)}</span>
-        <a href="/aluno/conteudo/${encodeURIComponent(d.arquivo)}">Baixar</a>
-      </div>`
-  ).join("\n");
+        <span class="download-acoes">
+          <span class="check-baixado"${baixado ? "" : ' style="display:none"'}>✓ Baixado</span>
+          <a class="link-baixar${baixado ? " ja-baixado" : ""}" href="/aluno/conteudo/${encodeURIComponent(d.arquivo)}">${baixado ? "Baixar de novo" : "Baixar"}</a>
+        </span>
+      </div>`;
+}
+
+app.get("/aluno", auth.requireAluno, (req, res) => {
+  const progresso = progressoDoAlunoJson(req.aluno.id);
+
+  const aulasHtml = AULAS.map((a) => cartaoAulaHtml(a, progresso.aulas[a.arquivo])).join("\n");
+  const downloadsHtml = DOWNLOADS.map((d) => linhaDownloadHtml(d, Boolean(progresso.downloads[d.arquivo]))).join(
+    "\n"
+  );
 
   res.send(
     render("aluno.html", {
@@ -598,6 +638,32 @@ app.get("/aluno", auth.requireAluno, (req, res) => {
       linkWhatsapp: linkWhatsapp("Oi! Tenho uma dúvida sobre o kit IA para Negócios."),
     })
   );
+});
+
+app.get("/aluno/progresso.json", auth.requireAluno, (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  res.json(progressoDoAlunoJson(req.aluno.id));
+});
+
+const limiteProgresso = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `progresso:${req.aluno.id}`,
+});
+
+app.post("/aluno/progresso", auth.requireAluno, auth.checarOrigem, limiteProgresso, (req, res) => {
+  const aula = String(req.body?.aula || "");
+  const passo = Number(req.body?.passo);
+  const total = Number(req.body?.total);
+
+  if (!AULAS_ARQUIVOS.has(aula)) return res.status(400).end();
+  if (!Number.isInteger(passo) || !Number.isInteger(total)) return res.status(400).end();
+  if (passo < 0 || total > 30 || passo > total) return res.status(400).end();
+
+  db.registrarPassoAula(req.aluno.id, aula, passo, total);
+  res.status(204).end();
 });
 
 app.get("/aluno/conteudo/:arquivo", auth.requireAluno, (req, res) => {
@@ -611,6 +677,7 @@ app.get("/aluno/conteudo/:arquivo", auth.requireAluno, (req, res) => {
     return res.sendFile(arquivo, { root: CONTEUDO_DIR, cacheControl: false });
   }
 
+  db.registrarDownload(req.aluno.id, arquivo);
   return res.download(arquivo, arquivo, { root: CONTEUDO_DIR, cacheControl: false });
 });
 
@@ -662,6 +729,27 @@ function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
         .join("\n")
     : "<div>Nenhum evento registrado ainda.</div>";
 
+  const alunosAtivos = db.contarAlunosAtivos();
+  const resumoPorItem = new Map(db.resumoProgresso().map((r) => [r.item, r]));
+
+  function linhaUso(item, titulo, tipo) {
+    const r = resumoPorItem.get(item);
+    const alunosCount = r ? r.alunos : 0;
+    const pct = alunosAtivos > 0 ? Math.round((alunosCount / alunosAtivos) * 100) : 0;
+    const concluiramTexto = tipo === "aula" ? String(r ? r.concluidos : 0) : "—";
+    return `<tr>
+      <td>${escapeHtml(titulo)}</td>
+      <td>${alunosCount}</td>
+      <td>${concluiramTexto}</td>
+      <td>${pct}%</td>
+    </tr>`;
+  }
+
+  const linhasUsoConteudo = [
+    ...AULAS.map((a) => linhaUso(a.arquivo, a.titulo, "aula")),
+    ...DOWNLOADS.map((d) => linhaUso(d.arquivo, d.titulo, "download")),
+  ].join("\n");
+
   res.status(statusCode).send(
     render("admin.html", {
       mensagemErro: mensagemErro ? `<p class="erro">${escapeHtml(mensagemErro)}</p>` : "",
@@ -670,6 +758,7 @@ function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
       pendentes: String(resumo.pendentes),
       linhasAlunos,
       linhasEventos,
+      linhasUsoConteudo,
       preco: precoAtual().toFixed(2),
     })
   );

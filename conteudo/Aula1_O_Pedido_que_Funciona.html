@@ -807,6 +807,16 @@ body.is-hero::after {
   var $ = function (id) { return document.getElementById(id); };
   var btnContinuar = $("continuar"), btnVoltar = $("voltar");
 
+  function salvarProgresso() {
+    fetch("/aluno/progresso", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aula: "Aula1_O_Pedido_que_Funciona.html", passo: atual, total: total }),
+      credentials: "same-origin",
+      keepalive: true
+    }).catch(function () {});
+  }
+
   function nivel(svg, fracao) {
     var rect = svg.querySelector(".cafe-nivel");
     rect.style.transform = "translateY(" + (38 * (1 - fracao)).toFixed(1) + "px)";
@@ -832,6 +842,7 @@ body.is-hero::after {
     atualizarBarra();
     if (steps[atual].id === "s-quiz") montarQuiz();
     if (steps[atual].id === "s-final") setTimeout(function () { nivel($("xicara-final"), 1); }, reduzido ? 0 : 250);
+    if (i > 0) salvarProgresso();
   }
 
   function liberar(id) { var i = idx(id); pronto[i] = true; if (atual === i) atualizarBarra(); }

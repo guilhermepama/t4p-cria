@@ -46,6 +46,7 @@ Atualizado em 23/09/2026.
 | 23/09 | Esqueci a senha = WhatsApp + /admin (sem e-mail) | Link em `/entrar` abre o WhatsApp com mensagem pronta; o Guilherme redefine a senha pelo botão "Nova senha" do /admin e responde por lá (mesma decisão de 22/09 sobre e-mail transacional, agora com caminho de UI) |
 
 | 23/09 | Aulas com o visual da landing (tema escuro fixo); "Aula 1 grátis" removido | Consistência visual com a landing; alinhado à decisão de 23/09 de que não há aula grátis |
+| 23/09 | Progresso do aluno no servidor (aulas + downloads), sem retomar passo | Aluno vê o próprio avanço em `/aluno`; Guilherme vê o uso real no `/admin` para o pitch de impacto e o balanço do Empretec. Sem "continuar de onde parou" porque as travas e o exercício final das aulas dependem do estado da própria página |
 
 ## Pendências de produto (do Guilherme, não do executor)
 
@@ -61,6 +62,7 @@ Atualizado em 23/09/2026.
 5. (fundido no item 4) — feito nas tarefas 03 e 04, aguardando merge
 6. ~~Preço de lançamento R$ 49,90 numa fonte só, garantia, prazo de acesso e limpeza dos avisos âmbar~~ — feito na tarefa 05, aguardando merge
 7. Teste real com R$ 1 e go-live (preço de lançamento até 25/09, depois decidir o preço cheio) + favicon/og-image
+8. ~~Progresso do aluno no servidor (aulas + downloads) em `/aluno`, bloco "Uso do conteúdo" no `/admin`~~ — feito na tarefa 10, aguardando merge
 
 ### Registro rápido (micro-correções, sem tarefa)
 

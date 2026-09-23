@@ -49,6 +49,17 @@ CREATE TABLE IF NOT EXISTS eventos (
   detalhe TEXT,
   criado_em TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS progresso (
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  item TEXT NOT NULL,
+  tipo TEXT NOT NULL CHECK (tipo IN ('aula', 'download')),
+  passo INTEGER NOT NULL DEFAULT 0,
+  total INTEGER NOT NULL DEFAULT 0,
+  concluido INTEGER NOT NULL DEFAULT 0,
+  primeiro_em TEXT NOT NULL DEFAULT (datetime('now')),
+  atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, item)
+);
 `);
 
 function migrar() {
@@ -257,6 +268,59 @@ function listarAlunosComPedidos() {
     .all();
 }
 
+const registrarDownloadStmt = db.prepare(
+  `INSERT INTO progresso (user_id, item, tipo, concluido)
+   VALUES (?, ?, 'download', 1)
+   ON CONFLICT(user_id, item) DO UPDATE SET concluido = 1, atualizado_em = datetime('now')`
+);
+
+function registrarDownload(userId, arquivo) {
+  registrarDownloadStmt.run(userId, arquivo);
+}
+
+const registrarPassoAulaStmt = db.prepare(
+  `INSERT INTO progresso (user_id, item, tipo, passo, total, concluido)
+   VALUES (@userId, @item, 'aula', @passo, @total, @concluido)
+   ON CONFLICT(user_id, item) DO UPDATE SET
+     passo = MAX(passo, excluded.passo),
+     total = excluded.total,
+     concluido = MAX(concluido, excluded.concluido),
+     atualizado_em = datetime('now')`
+);
+
+function registrarPassoAula(userId, arquivo, passo, total) {
+  registrarPassoAulaStmt.run({
+    userId,
+    item: arquivo,
+    passo,
+    total,
+    concluido: passo >= total ? 1 : 0,
+  });
+}
+
+function progressoDoAluno(userId) {
+  const linhas = db.prepare("SELECT * FROM progresso WHERE user_id = ?").all(userId);
+  const mapa = new Map();
+  for (const linha of linhas) mapa.set(linha.item, linha);
+  return mapa;
+}
+
+function resumoProgresso() {
+  return db
+    .prepare(
+      `SELECT item, tipo,
+         COUNT(DISTINCT user_id) AS alunos,
+         COALESCE(SUM(concluido), 0) AS concluidos
+       FROM progresso
+       GROUP BY item, tipo`
+    )
+    .all();
+}
+
+function contarAlunosAtivos() {
+  return db.prepare("SELECT COUNT(*) AS n FROM users WHERE ativo = 1").get().n;
+}
+
 function resumoVendas() {
   return db
     .prepare(
@@ -296,4 +360,9 @@ module.exports = {
   listarEventosRecentes,
   listarAlunosComPedidos,
   resumoVendas,
+  registrarDownload,
+  registrarPassoAula,
+  progressoDoAluno,
+  resumoProgresso,
+  contarAlunosAtivos,
 };
