@@ -1,6 +1,6 @@
 # Tarefa 12 — Partes da landing somem no celular (render)
 
-**Status: AGUARDANDO EXECUÇÃO**
+**Status: CONCLUÍDA**
 
 - Tipo: CSS da landing (`public/index.html`). Sem JS, sem dependência, sem migração.
 - Data: 23/09/2026
@@ -54,4 +54,14 @@ Adicionar **no fim do `<style>`** de `public/index.html` (desktop com mouse cont
 
 ## Relatório do executor
 
-(preencher)
+- **Status:** CONCLUÍDA
+- **Feito:** bloco `@media (max-width: 768px), (hover: none)` no fim do `<style>` de `public/index.html` (10 linhas): remove `body::before`, `backdrop-filter` do header (fundo `rgba(11,11,13,.96)`) e `filter` de `.hero::after`, `.offer::before`, `.final::before`. Evidências em `docs/claude-bridge/evidencias/tarefa-12-render-mobile/`.
+- **Validação:**
+  - ✅ Diff restrito ao bloco `@media` novo (`git diff --stat`: 1 arquivo, +10).
+  - ✅ Playwright (`hasTouch`, `isMobile`) em 360/390/430: `body::before` display `none`, header `backdropFilter` `none`; screenshots `depois-mobile-{360,390,430}.png`.
+  - ✅ 1280 px sem touch: `backdropFilter` = `blur(14px)`, `body::before` display `block`; `depois-desktop-1280.png`.
+  - ✅ Sem rolagem horizontal em 360 px (scrollWidth 360 = clientWidth 360).
+  - ✅ Observação: o defeito depende do aparelho e não se reproduz no Chromium headless; a validação real é a usuária reabrir o site após o deploy.
+- **Divergências:** nenhuma. Mecanismo confere com o código (linhas 55, 116, 147, 443, 500). Local `main` estava desatualizada; fiz fast-forward para `origin/main` (ee46000) antes de criar a branch.
+- **Achados:** nenhum outro `filter`/`backdrop-filter` grande nem camada `position:fixed` de tela cheia na landing (só `filter:brightness` em hover de botões).
+- **Commit/branch:** `tarefa/12-render-mobile`

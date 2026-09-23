@@ -548,6 +548,16 @@
     .offer .btn-ico{width:40px;height:40px;flex:0 0 40px}
     .offer .btn-solid{white-space:nowrap;font-size:17px}
   }
+
+  /* Render em celular: evita camadas de GPU pesadas (granulado fixo, blur) */
+  @media (max-width: 768px), (hover: none) {
+    body::before{display:none}
+    header{
+      backdrop-filter:none;-webkit-backdrop-filter:none;
+      background:rgba(11,11,13,.96);
+    }
+    .hero::after, .offer::before, .final::before{filter:none}
+  }
 </style>
 </head>
 <body>
