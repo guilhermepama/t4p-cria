@@ -1,6 +1,6 @@
 # Tarefa 08 — Acesso de quem já comprou: "Entrar" na landing + "Esqueci minha senha"
 
-**Status: AGUARDANDO EXECUÇÃO**
+**Status: CONCLUÍDA**
 
 - Tipo: código (templates + CSS + e2e). Sem rota nova de backend, sem dependência nova, sem e-mail.
 - Data: 23/09/2026
@@ -63,4 +63,27 @@ Validar contra o código real (seletores ilustrativos). Se divergir, reporte.
 
 ## Relatório do executor
 
-_(preencher aqui)_
+- **Status:** CONCLUÍDA
+- **Feito:**
+  - `public/index.html`: header ganhou `.header-actions` (wrapper à direita) com `<a class="header-login" href="/entrar">Entrar</a>` antes do "Quero o kit"; gap 20px desktop / 12px em `@media(max-width:480px)` (mesma media query da tarefa 07).
+  - `src/views/entrar.html`: link "Esqueci minha senha" abaixo da Senha (`#esqueci-link`, alinhado à direita, muted → peach no hover), com script inline que anexa o e-mail digitado (via `encodeURIComponent`, idempotente a múltiplos cliques) ao `href` no clique; rodapé ganhou "Ainda não tem o kit? Conhecer o kit" acima de "Privacidade".
+  - `src/server.js`: nova `linkEsqueciSenha()` passada como `linkEsqueci` nas 3 renderizações de `entrar.html` (GET, 401, 403).
+  - `src/views/comprar.html`: linha "Já comprou? Entrar" abaixo do título.
+  - `src/views/vendas-encerradas.html`: linha "Já é aluno? Entrar na área do aluno".
+  - `scripts/e2e.js`: 9 passos novos (header responsivo com prints, `/entrar` nos 3 estados com o link e o href, e-mail anexado ao link, `/comprar` e vendas-encerradas com link para `/entrar`) + correção de um id de pagamento fake que estava fixo em "1000" no passo (c) (ver Divergências).
+  - `docs/t4p-00-estado.md`: decisão 23/09 "Esqueci a senha = WhatsApp + /admin" e backlog do item da tarefa 08 marcado como feito.
+- **Validação:**
+  - ✅ Landing: link "Entrar" leva a `/entrar` em 1280/360/390px — passo `landing: link 'Entrar' do header leva a /entrar...` no e2e; prints em `docs/claude-bridge/evidencias/tarefa-08-header-{desktop-1280,mobile-360,mobile-390}.png`.
+  - ✅ 360px sem scroll horizontal — mesmo passo, `document.documentElement.scrollWidth <= clientWidth` conferido via `page.evaluate`.
+  - ✅ "Esqueci minha senha" nos 3 estados (GET, 401, 403) com `href` `https://wa.me/<WHATSAPP>?text=...` — 3 passos dedicados no e2e (usa o WHATSAPP padrão do ambiente de teste, `5519974139426`).
+  - ✅ E-mail digitado aparece no link após o clique — passo dedicado, lê o `href` do próprio link após o clique (sem depender da aba `wa.me` carregar, conforme sugerido na tarefa).
+  - ✅ `/comprar` e `vendas-encerradas` com link para `/entrar` — passo dedicado para `/comprar`; para `vendas-encerradas`, checagem incluída no bloco existente de encerramento de vendas (`VENDAS_ATE` no passado).
+  - ✅ Desktop da landing igual ao atual, exceto o link novo — nenhuma outra regra de CSS/HTML fora do header foi tocada; print em `tarefa-08-header-desktop-1280.png` confirma.
+  - ✅ `npm run e2e` verde: **18/18 passos OK** (rodado em navegador real, Chromium via Playwright, duas vezes após o ajuste de Divergências).
+- **Divergências:**
+  - O novo passo "cria usuário inativo (para o 403)" faz um `/comprar` de verdade contra o `mp-fake`, o que consome um id da sequência `1000, 1001, ...`. Isso quebrava o passo (c) pré-existente, que tinha o id `1000` fixo (`/__set/1000`). Troquei esse trecho para extrair o id real do `copia-e-cola` (`PIXFAKE(\d+)`), do mesmo jeito que o bloco de encerramento de vendas já fazia — deixa o teste robusto à ordem/quantidade de pedidos criados antes dele, sem mudar nenhum comportamento do app.
+  - Não criei uma rota `/esqueci-senha` nem nada de back-end novo: o mecanismo é só o link `mailto`-like de WhatsApp já especificado; nenhuma rota nova foi adicionada a `src/server.js`.
+- **Achados (fora do escopo, não corrigidos):**
+  - `conteudo/Aula1_O_Pedido_que_Funciona.html`, `Aula2_Conserte_a_Resposta.html` e `Aula3_Monte_sua_Equipe.html` apareceram **modificados na working tree antes de eu tocar em qualquer arquivo** (branch criada a partir de uma `main` limpa; eu só editei os 6 arquivos listados em "Feito"). O diff é grande (~240 linhas por arquivo, um tema "T4P" sobrepondo o CSS original das aulas). Não sei a origem — não veio de commit, stash, nem de nada que rodei (grep confirma que nenhum script em `src/` ou `scripts/` escreve em `conteudo/`). Não toquei nem commitei essas mudanças; ficaram como estavam na working tree, fora do commit desta tarefa. Vale conferir se é trabalho em andamento salvo localmente (ex.: sincronização de pasta) antes de descartar.
+  - `docs/claude-bridge/evidencias/tarefa-05-admin-email-longo.png` foi regravado ao rodar o e2e completo (screenshot não-determinístico da tarefa 05); restaurei a versão do commit antes de finalizar, para não misturar com esta tarefa.
+- **Commit/branch:** branch `tarefa/08-entrar-esqueci-senha`, criada a partir de `main` em `6b9784e`. PR ainda não aberto neste relatório — ver mensagem de entrega.

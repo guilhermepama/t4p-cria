@@ -294,6 +294,84 @@ async function main() {
       }
     });
 
+    // ---------- 0e) header da landing: link "Entrar" (desktop 1280 e mobile 360/390, sem scroll horizontal) ----------
+    await passo(
+      "landing: link 'Entrar' do header leva a /entrar (desktop 1280 e mobile 360/390, sem scroll horizontal)",
+      async () => {
+        const evidenciasDir = path.join(RAIZ, "docs", "claude-bridge", "evidencias");
+        fs.mkdirSync(evidenciasDir, { recursive: true });
+
+        const viewports = [
+          { nome: "desktop-1280", width: 1280, height: 900 },
+          { nome: "mobile-360", width: 360, height: 780 },
+          { nome: "mobile-390", width: 390, height: 844 },
+        ];
+
+        for (const viewport of viewports) {
+          const pagina = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } });
+          await pagina.goto(`${baseUrl}/`);
+
+          const href = await pagina.locator(".header-login").getAttribute("href");
+          if (href !== "/entrar") {
+            throw new Error(`link "Entrar" do header (${viewport.nome}) aponta para "${href}", esperava "/entrar"`);
+          }
+
+          if (viewport.width === 360) {
+            const semScrollHorizontal = await pagina.evaluate(
+              () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+            );
+            if (!semScrollHorizontal) {
+              throw new Error("header em 360px provoca scroll horizontal (documentElement.scrollWidth > clientWidth)");
+            }
+          }
+
+          await pagina.screenshot({ path: path.join(evidenciasDir, `tarefa-08-header-${viewport.nome}.png`) });
+          await pagina.close();
+        }
+      }
+    );
+
+    // ---------- 0f) /entrar (GET): link "Esqueci minha senha" presente ----------
+    await passo('/entrar (GET): link "Esqueci minha senha" presente com href wa.me esperado', async () => {
+      const pagina = await browser.newPage();
+      await pagina.goto(`${baseUrl}/entrar`);
+      const href = await pagina.locator("#esqueci-link").getAttribute("href");
+      if (!href || !href.startsWith("https://wa.me/5519974139426?text=")) {
+        throw new Error(`href do link "Esqueci minha senha" (GET) inesperado: "${href}"`);
+      }
+      await pagina.close();
+    });
+
+    // ---------- 0g) /entrar: com e-mail digitado, o link passa a conter o e-mail ----------
+    await passo('/entrar: com e-mail digitado, o link "Esqueci minha senha" passa a conter o e-mail', async () => {
+      const pagina = await browser.newPage();
+      await pagina.goto(`${baseUrl}/entrar`);
+      const emailTeste = "cliente.teste@exemplo.com";
+      await pagina.fill("#email", emailTeste);
+
+      // O link abre uma aba nova (target=_blank) para o wa.me; não esperamos o
+      // carregamento dela (pode não haver internet no ambiente de teste). Lemos
+      // o href do próprio link depois do clique, como sugerido na validação.
+      const popupPromise = pagina.context().waitForEvent("page").catch(() => null);
+      await pagina.click("#esqueci-link");
+      const hrefFinal = await pagina.locator("#esqueci-link").getAttribute("href");
+      const popup = await popupPromise;
+      if (popup) await popup.close();
+
+      if (!hrefFinal || !hrefFinal.includes(encodeURIComponent(emailTeste))) {
+        throw new Error(`href do link "Esqueci minha senha" não contém o e-mail digitado: "${hrefFinal}"`);
+      }
+      await pagina.close();
+    });
+
+    // ---------- 0h) /comprar tem link para /entrar ----------
+    await passo("/comprar tem link para /entrar", async () => {
+      const html = await (await fetch(`${baseUrl}/comprar`)).text();
+      if (!/href="\/entrar"/.test(html)) {
+        throw new Error("/comprar não tem link para /entrar");
+      }
+    });
+
     // ---------- a) /admin cadastra aluno manual com valor "49,90" ----------
     const ctxAdmin = await browser.newContext({
       httpCredentials: { username: ADMIN_USER, password: ADMIN_PASS },
@@ -348,6 +426,65 @@ async function main() {
       });
     });
     await ctxAdmin.close();
+
+    // ---------- 0i) /entrar (401 senha errada): link "Esqueci minha senha" presente ----------
+    await passo('/entrar (401 senha errada): link "Esqueci minha senha" presente', async () => {
+      const pagina = await browser.newPage();
+      await pagina.goto(`${baseUrl}/entrar`);
+      const respPromise = pagina.waitForResponse(
+        (r) => r.url() === `${baseUrl}/entrar` && r.request().method() === "POST"
+      );
+      await pagina.fill("#email", ALUNO_MANUAL.email);
+      await pagina.fill("#senha", "senha-completamente-errada");
+      await pagina.click('button:has-text("Entrar")');
+      const resp = await respPromise;
+      if (resp.status() !== 401) {
+        throw new Error(`POST /entrar com senha errada respondeu ${resp.status()}, esperava 401`);
+      }
+      const href = await pagina.locator("#esqueci-link").getAttribute("href");
+      if (!href || !href.startsWith("https://wa.me/5519974139426?text=")) {
+        throw new Error(`href do link "Esqueci minha senha" (401) inesperado: "${href}"`);
+      }
+      await pagina.close();
+    });
+
+    // ---------- 0j) /entrar (403 inativo): link "Esqueci minha senha" presente ----------
+    const EMAIL_INATIVO = `aluno.inativo.${SUFIXO}@exemplo.com`;
+    const SENHA_INATIVO = "senha-inativo-e2e-1234";
+
+    await passo("cria usuário inativo (via /comprar, sem pagar) para o teste do /entrar 403", async () => {
+      const ctx = await browser.newContext();
+      const pagina = await ctx.newPage();
+      await pagina.goto(`${baseUrl}/comprar`);
+      await pagina.fill("#nome", "Aluno Inativo E2E");
+      await pagina.fill("#email", EMAIL_INATIVO);
+      await pagina.fill("#whatsapp", "11999990099");
+      await pagina.fill("#senha", SENHA_INATIVO);
+      await pagina.check('input[name="aceite"]');
+      await pagina.click('button:has-text("Gerar PIX")');
+      await pagina.waitForURL(/\/pagamento\//);
+      await ctx.close();
+    });
+
+    await passo('/entrar (403 inativo): link "Esqueci minha senha" presente', async () => {
+      const pagina = await browser.newPage();
+      await pagina.goto(`${baseUrl}/entrar`);
+      const respPromise = pagina.waitForResponse(
+        (r) => r.url() === `${baseUrl}/entrar` && r.request().method() === "POST"
+      );
+      await pagina.fill("#email", EMAIL_INATIVO);
+      await pagina.fill("#senha", SENHA_INATIVO);
+      await pagina.click('button:has-text("Entrar")');
+      const resp = await respPromise;
+      if (resp.status() !== 403) {
+        throw new Error(`POST /entrar com usuário inativo respondeu ${resp.status()}, esperava 403`);
+      }
+      const href = await pagina.locator("#esqueci-link").getAttribute("href");
+      if (!href || !href.startsWith("https://wa.me/5519974139426?text=")) {
+        throw new Error(`href do link "Esqueci minha senha" (403) inesperado: "${href}"`);
+      }
+      await pagina.close();
+    });
 
     // ---------- b) /entrar com esse aluno, abre Aula 1, vai para Aula 2 ----------
     // reducedMotion: a Aula 1 é uma lição interativa com animações/digitação
@@ -413,9 +550,18 @@ async function main() {
           throw new Error("/pagamento não mostrou o copia-e-cola");
         }
 
+        // Extrai o id do pagamento fake do copia-e-cola em vez de supor "1000":
+        // o teste do usuário inativo (para o /entrar 403) já consumiu um pedido
+        // antes deste, então o próximo id da sequência do mp-fake não é fixo.
+        const matchId = copiaCola.match(/PIXFAKE(\d+)/);
+        if (!matchId) {
+          throw new Error("não consegui extrair o id do pagamento fake do copia-e-cola");
+        }
+        const idPagamentoFake = matchId[1];
+
         // Aprova o pagamento no servidor falso do MP (é o MP real quem faria
         // isso; não existe formulário no nosso app para simular isso).
-        const respAprovar = await fetch(`http://127.0.0.1:${fakePort}/__set/1000`, {
+        const respAprovar = await fetch(`http://127.0.0.1:${fakePort}/__set/${idPagamentoFake}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: "approved" }),
@@ -425,8 +571,10 @@ async function main() {
         }
 
         // Confere que o valor cobrado no MP é exatamente o preço mostrado na
-        // landing/comprar (mesma fonte, o pedido 1000 é o único criado até aqui).
-        const pagamentoFake = await (await fetch(`http://127.0.0.1:${fakePort}/v1/payments/1000`)).json();
+        // landing/comprar (mesma fonte).
+        const pagamentoFake = await (
+          await fetch(`http://127.0.0.1:${fakePort}/v1/payments/${idPagamentoFake}`)
+        ).json();
         if (pagamentoFake.transaction_amount !== PRECO_NUM) {
           throw new Error(
             `valor cobrado no mp-fake (${pagamentoFake.transaction_amount}) diferente do preço mostrado (${PRECO_NUM})`
@@ -522,6 +670,10 @@ async function main() {
             const respGet = await fetch(`${appPassado.baseUrl}/comprar`);
             if (respGet.status !== 410) {
               throw new Error(`GET /comprar com VENDAS_ATE no passado respondeu ${respGet.status}, esperava 410`);
+            }
+            const htmlEncerradas = await respGet.text();
+            if (!/href="\/entrar"/.test(htmlEncerradas)) {
+              throw new Error("tela de vendas encerradas não tem link para /entrar");
             }
 
             const corpoNovo = new URLSearchParams({

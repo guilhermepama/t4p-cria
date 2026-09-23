@@ -255,6 +255,10 @@ const limiteEntrar = rateLimit({
   legacyHeaders: false,
 });
 
+function linkEsqueciSenha() {
+  return linkWhatsapp("Oi! Esqueci minha senha do kit IA para Negócios. Meu e-mail de cadastro é: ");
+}
+
 app.get("/entrar", (req, res) => {
   const volta = auth.caminhoRelativoSeguro(req.query.volta) || "/aluno";
   res.send(
@@ -262,6 +266,7 @@ app.get("/entrar", (req, res) => {
       volta,
       email: "",
       mensagemErro: "",
+      linkEsqueci: linkEsqueciSenha(),
     })
   );
 });
@@ -280,6 +285,7 @@ app.post("/entrar", limiteEntrar, auth.checarOrigem, (req, res) => {
         volta,
         email,
         mensagemErro: '<p class="erro">E-mail ou senha incorretos.</p>',
+        linkEsqueci: linkEsqueciSenha(),
       })
     );
   }
@@ -292,6 +298,7 @@ app.post("/entrar", limiteEntrar, auth.checarOrigem, (req, res) => {
         mensagemErro: `<p class="erro">Seu acesso ainda não foi liberado. Se já pagou, <a href="${linkWhatsapp(
           "Oi! Já paguei o kit e meu acesso não foi liberado."
         )}" target="_blank" rel="noopener">fale com a gente no WhatsApp</a>.</p>`,
+        linkEsqueci: linkEsqueciSenha(),
       })
     );
   }

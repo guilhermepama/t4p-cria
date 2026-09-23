@@ -43,6 +43,7 @@ Atualizado em 23/09/2026.
 | 23/09 | Preço de lançamento R$ 49,90 até 25/09, sem preço riscado | "De R$ 99,80" nunca foi praticado (CDC, propaganda enganosa) |
 | 23/09 | Garantia de 7 dias com reembolso integral | Reduz o risco da compra por impulso; estorno já retira o acesso |
 | 23/09 | Área do aluno no ar por 90 dias, até 24/12/2026 | Decisão do Guilherme |
+| 23/09 | Esqueci a senha = WhatsApp + /admin (sem e-mail) | Link em `/entrar` abre o WhatsApp com mensagem pronta; o Guilherme redefine a senha pelo botão "Nova senha" do /admin e responde por lá (mesma decisão de 22/09 sobre e-mail transacional, agora com caminho de UI) |
 
 ## Pendências de produto (do Guilherme, não do executor)
 
@@ -64,4 +65,4 @@ Atualizado em 23/09/2026.
 - favicon e og-image inexistentes (achado da tarefa 01) — criar antes da divulgação (Guilherme: arte)
 - Ajuste de diagramação mobile (navbar, selo de prazo, preço e link da garantia) na landing, feito na tarefa 07, mergeado (PR #7)
 - Selo de prazo: hierarquia "PREÇO DE LANÇAMENTO" / "até sexta…" não feita na 07 (exige `<span>` no `seloVendas()`); baixa prioridade
-- Login de quem já comprou ("Entrar" na landing, "Esqueci minha senha" via WhatsApp) — tarefa 08
+- ~~Login de quem já comprou ("Entrar" na landing, "Esqueci minha senha" via WhatsApp)~~ — feito na tarefa 08, aguardando merge
