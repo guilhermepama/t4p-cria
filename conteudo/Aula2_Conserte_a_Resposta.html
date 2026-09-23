@@ -6,7 +6,7 @@
 <title>IA para Negócios · Aula 2: conserte a resposta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
   --paper: #F6F0E6; --card: #FFFCF7; --ink: #1E1B18; --muted: #6B635A; --line: #E2D6C3;
@@ -137,24 +137,241 @@ body.is-hero .barra { display: none; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
+<style id="tema-t4p">
+/* ==========================================================
+   Tema T4P: mesmo visual da landing (iadojeitocerto.com)
+   Sobrepõe o tema antigo sem mexer na estrutura nem no JS.
+   ========================================================== */
+:root:root:root {
+  --paper: #0b0b0d; --card: #141419; --card-2: #17171d; --bg-2: #101014;
+  --ink: #f2ede4; --muted: #9b9aa3; --line: #232329; --line-soft: #1c1c22;
+  --hero: #0b0b0d; --on-hero: #f2ede4; --on-hero-muted: #9b9aa3;
+  --teal: #f2ede4;
+  --coral: #ee8148; --coral-deco: #ee8148; --on-coral: #1b0f06; --coral-soft: rgba(238,129,72,.14);
+  --peach: #f6c49a; --cream: #f4efce; --orange-deep: #d96a33;
+  --grad: linear-gradient(96deg, #f6c49a 10%, #ee8148 90%);
+  --prompt: #101014; --ph: #f6c49a; --ok: #4ade80; --erro: #e07b6a;
+  --coffee: #1b0f06; --crema: #f6c49a;
+  --serif: "Instrument Serif", Georgia, serif;
+  --display: "Inter Tight", "Inter", system-ui, sans-serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --topo: 64px;
+  color-scheme: dark;
+}
+html { scroll-padding-top: calc(var(--topo) + 12px); }
+body, body.is-hero { background: var(--paper); color: var(--ink); font-size: 16.5px; line-height: 1.7; overflow-x: hidden; }
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+.app { position: relative; z-index: 2; max-width: 720px; }
+:focus-visible { outline-color: var(--coral); }
+::selection { background: rgba(238,129,72,.35); }
+
+/* ---------- topo (igual ao header da landing) ---------- */
+.topo {
+  position: sticky; top: 0; z-index: 20; height: var(--topo);
+  background: rgba(11,11,13,.75); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.topo-in { max-width: 960px; height: 100%; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.topo .logo { font-family: var(--display); font-weight: 800; font-size: 19px; letter-spacing: -.02em; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.topo .logo > span { color: var(--coral); }
+.topo .logo-product { font-size: 1.15em; margin-left: 7px; font-weight: 400; }
+.topo-link {
+  font-family: var(--display); font-size: 14px; font-weight: 600; color: var(--muted); text-decoration: none;
+  border: 1px solid #3a3a42; border-radius: 999px; padding: 9px 18px; white-space: nowrap;
+  transition: border-color .2s, color .2s;
+}
+.topo-link:hover { border-color: var(--coral); color: var(--peach); }
+@media (max-width: 480px) {
+  .topo-in { padding: 0 16px; }
+  .topo .logo-product { display: none; }
+  .topo-link { font-size: 13.5px; padding: 8px 14px; }
+}
+
+/* ---------- tipografia ---------- */
+.serif {
+  font-family: var(--serif); font-style: italic; font-weight: 400; letter-spacing: 0;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent; padding-right: .06em;
+}
+h1, h2 { font-family: var(--display); font-weight: 700; letter-spacing: -.03em; }
+h2 { font-size: clamp(28px, 5.4vw, 40px); line-height: 1.12; color: var(--ink); }
+h3 { font-family: var(--display); }
+.coluna h3, .painel h3, .oferta h3 { font-family: var(--display); font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
+.coluna h3 { font-size: 1.15rem; }
+.painel h3 { font-size: 1.35rem; }
+.oferta h3 { font-size: 1.45rem; }
+.muted, .rotulo, .contador, .sugestoes-rotulo { color: var(--muted); }
+.rotulo {
+  font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.rotulo::before { content: ""; width: 18px; height: 1px; background: var(--coral); }
+.frase { font-family: var(--serif); font-style: italic; font-size: 2rem; }
+.letra, .diag-letras .letra, legend .l, .cuidados li::before, .passolista li::before, .oferta .preco { font-family: var(--serif); font-style: italic; }
+.contador-caso { color: var(--coral); }
+.conclusao { border-left-color: var(--coral); color: var(--ink); }
+.dica-erro, .aviso { color: var(--erro); }
+.feedback.bom { color: var(--ok); }
+a { color: var(--peach); text-underline-offset: 3px; }
+a:visited { color: var(--peach); }
+
+/* ---------- abertura ---------- */
+.hero {
+  position: relative; text-align: center; align-items: center;
+  min-height: calc(100vh - var(--topo)); min-height: calc(100dvh - var(--topo));
+  padding-top: clamp(48px, 9vh, 96px);
+}
+body.is-hero::after {
+  content: ""; position: fixed; left: 50%; bottom: -240px; transform: translateX(-50%); z-index: 1;
+  width: 1200px; max-width: 220vw; height: 440px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(238,129,72,.28), rgba(246,196,154,.10) 45%, transparent 70%);
+  filter: blur(30px);
+}
+.hero .marca {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--peach); border: 1px solid rgba(238,129,72,.35); border-radius: 999px;
+  padding: 7px 18px; margin-bottom: 34px; background: rgba(238,129,72,.06);
+}
+.hero .marca::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 8px var(--coral); }
+.hero h1 {
+  position: relative; font-size: clamp(38px, 8.6vw, 72px); font-weight: 800; line-height: 1.05; color: var(--ink);
+  border: 1px solid rgba(238,129,72,.30); padding: clamp(22px, 5vw, 44px) clamp(18px, 5vw, 56px);
+  margin-bottom: 30px; max-width: 760px;
+}
+.hero h1::before {
+  content: ""; position: absolute; inset: -5px; pointer-events: none;
+  background:
+    linear-gradient(var(--coral), var(--coral)) top left / 9px 9px no-repeat,
+    linear-gradient(var(--coral), var(--coral)) top right / 9px 9px no-repeat,
+    linear-gradient(var(--coral), var(--coral)) bottom left / 9px 9px no-repeat,
+    linear-gradient(var(--coral), var(--coral)) bottom right / 9px 9px no-repeat;
+  filter: drop-shadow(0 0 6px rgba(238,129,72,.6));
+}
+.hero h1 .serif { font-size: 1.05em; }
+.hero .lead { color: var(--muted); opacity: 1; max-width: 36ch; margin: 0 auto 32px; font-size: clamp(16px, 3.8vw, 18.5px); }
+.hero .btn { align-self: center; min-height: 56px; padding: 0 32px; font-size: 1.05rem; background: var(--grad); color: var(--on-coral); }
+.hero .nota { color: var(--muted); font-size: 13.5px; }
+.xicara-hero {
+  position: relative; z-index: 1; align-self: center; margin: auto 0 0; padding-top: 40px;
+  width: min(68vw, 300px); margin-bottom: -18%;
+  filter: drop-shadow(0 0 40px rgba(238,129,72,.25));
+}
+
+/* ---------- botões (pill da landing) ---------- */
+.btn {
+  font-family: var(--display); font-weight: 700; font-size: 1rem; letter-spacing: -.005em;
+  background: var(--grad); color: var(--on-coral);
+  box-shadow: 0 0 22px rgba(238,129,72,.35);
+  transition: filter .2s, transform .15s, opacity .2s;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.07); transform: translateY(-1px); }
+.btn:disabled { box-shadow: none; }
+.btn-linha {
+  font-family: var(--display); color: var(--ink);
+  border: 1px solid #3a3a42; background: rgba(255,255,255,.02);
+  transition: border-color .2s, background .2s, color .2s;
+}
+.btn-linha:hover:not(:disabled) { border-color: var(--coral); background: rgba(238,129,72,.06); }
+.btn-texto { font-family: var(--display); color: var(--muted); }
+.btn-texto:hover { color: var(--ink); }
+
+/* ---------- blocos ---------- */
+.pense {
+  background: linear-gradient(160deg, var(--card-2), var(--card)); color: var(--ink);
+  border: 1px solid rgba(238,129,72,.40); border-radius: 18px; padding: 20px 22px;
+  box-shadow: 0 0 44px rgba(238,129,72,.08);
+}
+.pense .rotulo-pense {
+  display: inline-flex; align-items: center; gap: 8px; color: var(--peach);
+  font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+}
+.pense .rotulo-pense::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 8px var(--coral); }
+.pense p { color: var(--ink); }
+.coluna, .painel, .cartao, .resposta, .teclado, .item, .conserto {
+  background: var(--card); border-color: var(--line);
+}
+.coluna, .painel, .cartao, .teclado { border-radius: 18px; }
+.pedido {
+  background: var(--bg-2); border: 1px solid var(--line-soft); border-left: 3px solid var(--coral);
+  color: var(--ink); font-size: .9rem;
+}
+.pedido .ph { color: var(--peach); }
+.contexto-tag, .sugestoes { background: var(--bg-2); border: 1px solid var(--line-soft); }
+.onde li, .tag { background: var(--paper); border: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+.foto img { border: 1px solid var(--line); }
+.item[aria-expanded="true"], .conserto, .chip.forte, .letra.visto { border-color: var(--coral); }
+.item[aria-expanded="true"] { box-shadow: 0 0 30px rgba(238,129,72,.08); }
+.chip { background: var(--card); border-color: var(--line); }
+.chip:hover:not(:disabled) { border-color: rgba(238,129,72,.5); }
+.chip[aria-pressed="true"] { background: rgba(238,129,72,.10); border-color: var(--coral); color: var(--peach); }
+.letra { background: var(--card); border-color: var(--line); color: var(--coral); }
+.letra:hover:not(:disabled) { border-color: rgba(238,129,72,.6); }
+.letra[aria-pressed="true"] { background: var(--grad); color: var(--on-coral); border-color: transparent; box-shadow: 0 0 22px rgba(238,129,72,.35); }
+.letra.acertou, .quiz-letras .letra.acertou, .diag-letras .letra.acertou { background: var(--ok); border-color: var(--ok); color: #06210f; }
+.barra-op .trilho { background: var(--line); }
+.barra-op.top .enche { background: var(--grad); }
+.campo input, .campo textarea { background: var(--bg-2); border: 1px solid var(--line); color: var(--ink); }
+.campo input:focus, .campo textarea:focus { border-color: var(--coral); box-shadow: 0 0 0 3px rgba(238,129,72,.15); }
+.oferta {
+  background: linear-gradient(160deg, var(--card-2), var(--card)); color: var(--ink);
+  border: 1px solid rgba(238,129,72,.45); box-shadow: 0 0 60px rgba(238,129,72,.10);
+}
+.oferta p { color: var(--muted); }
+.oferta .btn { background: var(--grad); color: var(--on-coral); }
+.rodada + .rodada, .cuidados li { border-color: var(--line); }
+
+/* ---------- barra inferior ---------- */
+.barra { background: rgba(11,11,13,.8); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid var(--line-soft); }
+.barra-in { max-width: 720px; }
+.progresso { color: var(--muted); font-family: var(--display); white-space: nowrap; }
+.barra .btn { padding: 0 22px; }
+@media (max-width: 380px) { .barra .btn { padding: 0 18px; } .progresso svg { width: 28px; height: 28px; } }
+
+/* ---------- desktop: usa a largura da tela ---------- */
+@media (min-width: 768px) {
+  body { font-size: 17px; }
+  .step { padding: 64px 32px 160px; }
+  .hero { padding-bottom: 0; }
+  .duas-colunas { grid-template-columns: 1fr 1fr; }
+  .lista-toque { grid-template-columns: 1fr 1fr; align-items: start; }
+  .ingredientes { grid-template-columns: repeat(4, 1fr); }
+  .pense p { font-size: 1.1rem; }
+  .barra { padding-left: 32px; padding-right: 32px; }
+  .xicara-hero { width: 320px; margin-bottom: -120px; }
+}
+@media (min-width: 1100px) {
+  .app { max-width: 780px; }
+  .barra-in { max-width: 780px; }
+}
+</style>
 </head>
 <body>
 
+<header class="topo">
+  <div class="topo-in">
+    <a class="logo" href="/aluno">T4P<span>.</span> <em class="serif logo-product">IA para Negócios</em></a>
+    <a class="topo-link" href="/aluno">Área do aluno</a>
+  </div>
+</header>
 <main class="app">
 
   <!-- 0 · abertura -->
   <section class="step hero is-active" data-step="0" id="s-hero" aria-labelledby="t0">
     <p class="marca">IA para Negócios · Aula 2</p>
-    <h1 id="t0" tabindex="-1">Conserte a resposta</h1>
+    <h1 id="t0" tabindex="-1">Conserte a <span class="serif">resposta</span></h1>
     <p class="lead">A resposta veio ruim? Em uns 15 minutos você aprende a descobrir o que faltou e a consertar com uma mensagem curta — sem começar do zero.</p>
     <button class="btn" id="comecar">Começar a aula</button>
     <p class="nota">Aula 2 do kit. Funciona melhor depois da Aula 1.</p>
     <svg class="xicara-hero" viewBox="0 0 340 340" aria-hidden="true">
-      <circle cx="170" cy="170" r="165" fill="#E0543A"/>
-      <circle cx="170" cy="170" r="128" fill="#C94A32"/>
-      <circle cx="170" cy="170" r="116" fill="#EAD8BA"/>
-      <circle cx="170" cy="170" r="99" fill="#4A2C1E"/>
-      <path class="brilho" fill="#F6F0E6" d="M148 110 C152 142 158 148 190 152 C158 156 152 162 148 194 C144 162 138 156 106 152 C138 148 144 142 148 110 Z"/>
+      <circle cx="170" cy="170" r="165" fill="#ee8148"/>
+      <circle cx="170" cy="170" r="128" fill="#d96a33"/>
+      <circle cx="170" cy="170" r="116" fill="#f6c49a"/>
+      <circle cx="170" cy="170" r="99" fill="#1b0f06"/>
+      <path class="brilho" fill="#f4efce" d="M148 110 C152 142 158 148 190 152 C158 156 152 162 148 194 C144 162 138 156 106 152 C138 148 144 142 148 110 Z"/>
     </svg>
   </section>
 
@@ -308,10 +525,10 @@ body.is-hero .barra { display: none; }
     <div class="final-topo">
       <svg class="xicara-final" id="xicara-final" viewBox="0 0 64 64" aria-hidden="true">
         <defs><clipPath id="clip-final2"><path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z"/></clipPath></defs>
-        <g clip-path="url(#clip-final2)"><rect class="cafe-nivel" x="8" y="17" width="40" height="38" fill="#C9472B" style="transform: translateY(38px)"/></g>
+        <g clip-path="url(#clip-final2)"><rect class="cafe-nivel" x="8" y="17" width="40" height="38" fill="#ee8148" style="transform: translateY(38px)"/></g>
         <path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z" fill="none" stroke="currentColor" stroke-width="3"/>
         <path d="M45 23 H49 A7.5 7.5 0 0 1 49 38 H44" fill="none" stroke="currentColor" stroke-width="3"/>
-        <path class="cafe-brilho" fill="#F6F0E6" d="M26 21 C26.8 27 27.8 28 33 29 C27.8 30 26.8 31 26 37 C25.2 31 24.2 30 19 29 C24.2 28 25.2 27 26 21 Z"/>
+        <path class="cafe-brilho" fill="#f4efce" d="M26 21 C26.8 27 27.8 28 33 29 C27.8 30 26.8 31 26 37 C25.2 31 24.2 30 19 29 C24.2 28 25.2 27 26 21 Z"/>
         <path d="M6 57 H50" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
       </svg>
       <h2 id="t7" tabindex="-1">Você virou o gestor</h2>
@@ -350,10 +567,10 @@ A primeira resposta é rascunho, não veredito.</pre>
     <div class="progresso">
       <svg viewBox="0 0 64 64" aria-hidden="true" id="xicara-barra">
         <defs><clipPath id="clip-barra2"><path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z"/></clipPath></defs>
-        <g clip-path="url(#clip-barra2)"><rect class="cafe-nivel" x="8" y="17" width="40" height="38" fill="#C9472B" style="transform: translateY(38px)"/></g>
+        <g clip-path="url(#clip-barra2)"><rect class="cafe-nivel" x="8" y="17" width="40" height="38" fill="#ee8148" style="transform: translateY(38px)"/></g>
         <path d="M11 17 H45 V35 A17 17 0 0 1 28 52 A17 17 0 0 1 11 35 Z" fill="none" stroke="currentColor" stroke-width="3"/>
         <path d="M45 23 H49 A7.5 7.5 0 0 1 49 38 H44" fill="none" stroke="currentColor" stroke-width="3"/>
-        <path class="cafe-brilho" fill="#F6F0E6" d="M26 21 C26.8 27 27.8 28 33 29 C27.8 30 26.8 31 26 37 C25.2 31 24.2 30 19 29 C24.2 28 25.2 27 26 21 Z"/>
+        <path class="cafe-brilho" fill="#f4efce" d="M26 21 C26.8 27 27.8 28 33 29 C27.8 30 26.8 31 26 37 C25.2 31 24.2 30 19 29 C24.2 28 25.2 27 26 21 Z"/>
       </svg>
       <span id="passo"></span>
     </div>
