@@ -40,7 +40,19 @@ app.use(express.json());
 const INDEX_TEMPLATE = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
 
 app.get(["/", "/index.html"], (req, res) => {
-  res.type("html").send(INDEX_TEMPLATE.replace(/\{\{preco_brl\}\}/g, precoBRL(precoAtual())));
+  const html = INDEX_TEMPLATE.replace(/\{\{preco_brl\}\}/g, precoBRL(precoAtual()))
+    .replace(/\{\{selo_texto\}\}/g, seloVendas())
+    .replace(/\{\{whatsapp_fmt\}\}/g, whatsappContatoFormatado())
+    .replace(
+      /\{\{link_garantia\}\}/g,
+      linkWhatsapp("Oi! Quero pedir o reembolso do kit IA para Negócios (garantia de 7 dias).")
+    )
+    .replace(
+      /\{\{link_contato\}\}/g,
+      linkWhatsapp("Oi! Tenho uma dúvida sobre o kit IA para Negócios.")
+    )
+    .replace(/\{\{whatsapp\}\}/g, whatsappContatoDigitos());
+  res.type("html").send(html);
 });
 
 app.use(express.static(path.join(__dirname, "..", "public")));
@@ -103,6 +115,48 @@ function precoAtual() {
 
 function limparWhatsapp(valor) {
   return String(valor || "").replace(/\D/g, "");
+}
+
+const WHATSAPP_PADRAO = "5519974139426";
+
+function whatsappContatoDigitos() {
+  return limparWhatsapp(process.env.WHATSAPP) || WHATSAPP_PADRAO;
+}
+
+function whatsappContatoFormatado() {
+  const digitos = whatsappContatoDigitos();
+  const semDdi = digitos.startsWith("55") && digitos.length > 11 ? digitos.slice(2) : digitos;
+  const ddd = semDdi.slice(0, 2);
+  const numero = semDdi.slice(2);
+  if (numero.length === 9) return `(${ddd}) ${numero.slice(0, 5)}-${numero.slice(5)}`;
+  if (numero.length === 8) return `(${ddd}) ${numero.slice(0, 4)}-${numero.slice(4)}`;
+  return digitos;
+}
+
+function linkWhatsapp(mensagem) {
+  return `https://wa.me/${whatsappContatoDigitos()}?text=${encodeURIComponent(mensagem)}`;
+}
+
+const VENDAS_ATE_PADRAO = "2026-09-25T14:00:00-03:00";
+
+function vendasAte() {
+  return process.env.VENDAS_ATE || VENDAS_ATE_PADRAO;
+}
+
+function vendasEncerradas() {
+  return Date.now() >= new Date(vendasAte()).getTime();
+}
+
+function seloVendas() {
+  return vendasEncerradas() ? "Vendas encerradas" : "Preço de lançamento — só até sexta, 25/09, às 14h";
+}
+
+function renderVendasEncerradas(res) {
+  return res.status(410).send(
+    render("vendas-encerradas.html", {
+      linkWhatsapp: linkWhatsapp("Oi! Vi que as vendas do kit IA para Negócios encerraram."),
+    })
+  );
 }
 
 function normalizarValor(valor) {
@@ -235,8 +289,9 @@ app.post("/entrar", limiteEntrar, auth.checarOrigem, (req, res) => {
       render("entrar.html", {
         volta,
         email,
-        mensagemErro:
-          '<p class="erro">Seu acesso ainda não foi liberado. Se já pagou, fale com a gente.</p>',
+        mensagemErro: `<p class="erro">Seu acesso ainda não foi liberado. Se já pagou, <a href="${linkWhatsapp(
+          "Oi! Já paguei o kit e meu acesso não foi liberado."
+        )}" target="_blank" rel="noopener">fale com a gente no WhatsApp</a>.</p>`,
       })
     );
   }
@@ -264,8 +319,15 @@ function checkoutDisponivel() {
 }
 
 app.get("/comprar", (req, res) => {
+  if (vendasEncerradas()) {
+    return renderVendasEncerradas(res);
+  }
   if (!checkoutDisponivel()) {
-    return res.status(503).send(render("comprar-indisponivel.html", {}));
+    return res.status(503).send(
+      render("comprar-indisponivel.html", {
+        linkWhatsapp: linkWhatsapp("Oi! Quero comprar o kit IA para Negócios por PIX direto."),
+      })
+    );
   }
 
   res.send(
@@ -280,8 +342,15 @@ app.get("/comprar", (req, res) => {
 });
 
 app.post("/comprar", limiteComprar, auth.checarOrigem, async (req, res) => {
+  if (vendasEncerradas()) {
+    return renderVendasEncerradas(res);
+  }
   if (!checkoutDisponivel()) {
-    return res.status(503).send(render("comprar-indisponivel.html", {}));
+    return res.status(503).send(
+      render("comprar-indisponivel.html", {
+        linkWhatsapp: linkWhatsapp("Oi! Quero comprar o kit IA para Negócios por PIX direto."),
+      })
+    );
   }
 
   const dadosForm = {
@@ -380,11 +449,16 @@ app.get("/pagamento/:token", (req, res) => {
       avisoHtml: req.query.aviso === "valido"
         ? '<p class="aviso">Seu PIX atual ainda está válido. Use o QR abaixo.</p>'
         : "",
+      linkWhatsapp: linkWhatsapp("Oi! Fiz o PIX do kit IA para Negócios e o acesso não foi liberado."),
     })
   );
 });
 
 app.post("/pagamento/:token/novo", auth.checarOrigem, async (req, res) => {
+  if (vendasEncerradas()) {
+    return renderVendasEncerradas(res);
+  }
+
   const pedidoAntigo = db.buscarPedidoPorToken(req.params.token);
   if (!pedidoAntigo) return res.status(404).send("Não encontrado.");
 
@@ -481,7 +555,12 @@ app.post("/webhooks/mp", (req, res) => {
 });
 
 app.get("/privacidade", (req, res) => {
-  res.send(render("privacidade.html", {}));
+  res.send(
+    render("privacidade.html", {
+      whatsappFmt: whatsappContatoFormatado(),
+      linkWhatsapp: linkWhatsapp("Oi! Tenho uma dúvida sobre o kit IA para Negócios."),
+    })
+  );
 });
 
 // ---------- área do aluno ----------
@@ -503,7 +582,15 @@ app.get("/aluno", auth.requireAluno, (req, res) => {
       </div>`
   ).join("\n");
 
-  res.send(render("aluno.html", { nome: req.aluno.nome, aulasHtml, downloadsHtml }));
+  res.send(
+    render("aluno.html", {
+      nome: req.aluno.nome,
+      aulasHtml,
+      downloadsHtml,
+      whatsappFmt: whatsappContatoFormatado(),
+      linkWhatsapp: linkWhatsapp("Oi! Tenho uma dúvida sobre o kit IA para Negócios."),
+    })
+  );
 });
 
 app.get("/aluno/conteudo/:arquivo", auth.requireAluno, (req, res) => {

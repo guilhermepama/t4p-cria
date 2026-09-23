@@ -9,7 +9,7 @@ Atualizado em 22/09/2026.
 - Empresa CRIA do Empretec (Sebrae). Sócios: Guilherme Pama (produto/site), Felipe Andrade (marketing), Fernando Saad (administrativo).
 - Operação de 21 a 25/09/2026. Encerramento até sexta 25/09 às 14h.
 - Produto: kit **IA para Negócios** — 3 aulas interativas (HTML), kit PDF com 25 prompts, 3 assistentes (PDF + .txt), Manual de Integração (template + exemplo).
-- **Preço: R$ 49,90 (preço de lançamento até 25/09; antes R$ 97).** Meta R$ 1.600 → 33 vendas.
+- **Preço: R$ 49,90 (preço de lançamento até 25/09 às 14h; antes R$ 97).** Meta R$ 1.600 → 33 vendas.
 
 ## Decisões
 

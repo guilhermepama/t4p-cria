@@ -9,6 +9,14 @@
 <meta property="og:description" content="25 pedidos prontos, 3 aulas e 3 assistentes para o pequeno negócio usar ChatGPT, Gemini ou Claude sem receber resposta genérica. R$ {{preco_brl}}, acesso na hora.">
 <meta property="og:url" content="https://iadojeitocerto.com">
 <meta property="og:type" content="website">
+<meta property="og:image" content="https://iadojeitocerto.com/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A IA não é fraca. Ela só não conhece o seu negócio. Kit IA para Negócios, R$ 49,90">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -174,7 +182,7 @@
   }
   .chip-1{background:var(--grad);color:#1b0f06;top:-16px;left:-8px;transform:rotate(-4deg)}
   .chip-1::after{border-top-color:var(--orange);bottom:-12px;left:16px}
-  .chip-2{background:#fdfbf4;color:#1a1a1e;top:64%;right:5%;transform:rotate(3deg)}
+  .chip-2{background:#fdfbf4;color:#1a1a1e;top:73%;right:-3%;transform:rotate(3deg)}
   .chip-2::after{border-bottom-color:#fdfbf4;top:-12px;left:14px}
   .chip-3{background:var(--cream);color:#3a3208;bottom:-14px;right:16%;transform:rotate(-2deg)}
   .chip-3::after{border-top-color:var(--cream);bottom:-12px;right:18px}
@@ -490,6 +498,12 @@
     border-top:1px solid var(--border-soft);padding:36px 0;
     font-size:13.5px;color:var(--muted);text-align:center;letter-spacing:.02em;
   }
+  footer a{color:var(--peach)}
+  footer p+p{margin-top:8px}
+
+  @media(max-width:900px){
+    .chip-2{display:none}
+  }
 
   @media(max-width:560px){
     section{padding:64px 0}
@@ -506,15 +520,15 @@
 <body>
 
 <!-- ============================================================
-  CONFIGURAÇÃO — preencher antes de publicar
+  CONFIGURAÇÃO
   LINK_COMPRA : URL do checkout (Mercado Pago / área de aluno).
                 Vazio = botões rolam até a seção de oferta.
-  WHATSAPP    : número com DDI/DDD, só dígitos (ex.: 5517999999999).
-                Usado na FAQ de equipe. Vazio = fica sem link.
+  WHATSAPP    : preenchido pelo servidor a partir da env WHATSAPP
+                (src/server.js), usado na FAQ de equipe.
 ============================================================= -->
 <script>
   const LINK_COMPRA = "/comprar";
-  const WHATSAPP = "";
+  const WHATSAPP = "{{whatsapp}}";
 </script>
 
 <header>
@@ -534,7 +548,7 @@
     <div class="frame">
       <i></i><i></i><i></i><i></i>
       <span class="chip chip-1">Método CAFÉ</span>
-      <span class="chip chip-2">25 pedidos prontos</span>
+      <span class="chip chip-2">25 pedidos prontos pra IA</span>
       <span class="chip chip-3">acesso na hora</span>
       <h1>A IA não é fraca.<br>Ela só não conhece <span class="serif">o seu negócio.</span></h1>
     </div>
@@ -542,7 +556,7 @@
     <p class="sub">O kit <strong>IA para Negócios</strong> ensina o dono de pequeno negócio a pedir do jeito certo, para a IA entregar posts, respostas de WhatsApp e orçamentos com a cara da sua empresa — e não iguais aos do concorrente.</p>
 
     <div class="hero-cta">
-      <span class="hero-tag selo-lancamento"><i></i>Preço de lançamento — só até sexta, 25/09</span>
+      <span class="hero-tag selo-lancamento"><i></i>{{selo_texto}}</span>
       <a class="btn btn-buy" href="#oferta"><span class="btn-ico">»</span>Quero o kit por R$ {{preco_brl}}</a>
       <p class="btn-note">Pagamento por PIX &nbsp;·&nbsp; Acesso liberado assim que o pagamento cai &nbsp;·&nbsp; Funciona com as IAs gratuitas</p>
     </div>
@@ -793,7 +807,7 @@
   <div class="wrap narrow">
     <div class="offer">
       <h3>IA para Negócios</h3>
-      <span class="hero-tag selo-lancamento"><i></i>Preço de lançamento — só até sexta, 25/09</span>
+      <span class="hero-tag selo-lancamento"><i></i>{{selo_texto}}</span>
       <div class="price"><sup>R$</sup>{{preco_brl}}</div>
       <p class="price-note">Pagamento único por PIX</p>
       <ul class="offer-list">
@@ -804,7 +818,7 @@
       </ul>
       <a class="btn btn-solid btn-buy" href="#oferta"><span class="btn-ico">»</span>Quero começar agora</a>
       <p class="btn-note">Os materiais em PDF e .docx são seus para baixar e guardar.</p>
-      <p class="btn-note">Garantia de 7 dias: se não fizer sentido para você, devolvemos 100% do valor. É só chamar a gente.</p>
+      <p class="btn-note">Garantia de 7 dias: se não fizer sentido para você, devolvemos 100% do valor. É só <a href="{{link_garantia}}" target="_blank" rel="noopener">chamar a gente no WhatsApp</a>.</p>
     </div>
   </div>
 </section>
@@ -879,6 +893,7 @@
 <footer>
   <div class="wrap">
     <p>© 2026 T4P — Tech for People · Olímpia, SP</p>
+    <p>WhatsApp <a href="{{link_contato}}" target="_blank" rel="noopener">{{whatsapp_fmt}}</a></p>
   </div>
 </footer>
 
@@ -1030,7 +1045,7 @@
     const el = document.getElementById('faq-equipe-whats');
     if (el) {
       const msg = encodeURIComponent('Oi! Quero o kit IA para Negócios para a minha equipe (3 acessos ou mais).');
-      el.innerHTML = '<a href="https://wa.me/' + WHATSAPP + '?text=' + msg + '" style="color:var(--peach)">chame a gente no WhatsApp</a>';
+      el.innerHTML = '<a href="https://wa.me/' + WHATSAPP + '?text=' + msg + '" target="_blank" rel="noopener" style="color:var(--peach)">chame a gente no WhatsApp</a>';
     }
   }
 </script>
