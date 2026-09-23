@@ -19,13 +19,16 @@ const RAIZ = path.join(__dirname, "..");
 
 const ADMIN_USER = "admin-e2e";
 const ADMIN_PASS = "senha-admin-e2e-12345";
+const PRECO = "49.90";
+const PRECO_BRL = "49,90";
+const PRECO_NUM = 49.9;
 const SUFIXO = Date.now();
 const ALUNO_MANUAL = {
   nome: "Aluno Manual E2E",
   email: `aluno.manual.${SUFIXO}@exemplo.com`,
   whatsapp: "11999990001",
   senha: "senha-aluno-e2e",
-  valor: "97,00",
+  valor: "49,90",
 };
 const ALUNO_PIX = {
   nome: "Aluno Pix E2E",
@@ -174,7 +177,7 @@ async function main() {
         MP_ACCESS_TOKEN: "TEST-fake-access-token",
         MP_WEBHOOK_SECRET: "segredo-e2e",
         MP_API_URL: `http://127.0.0.1:${fakePort}`,
-        PRECO: "97.00",
+        PRECO,
         ADMIN_USER,
         ADMIN_PASS,
       },
@@ -189,13 +192,34 @@ async function main() {
     await esperarSaudavel(`${baseUrl}/health`);
     browser = await abrirChromium();
 
-    // ---------- a) /admin cadastra aluno manual com valor "97,00" ----------
+    // ---------- 0) a landing e o /comprar mostram o preço de lançamento (fonte única) ----------
+    await passo(`GET / e /comprar mostram o preço de lançamento (R$ ${PRECO_BRL})`, async () => {
+      const respLanding = await fetch(`${baseUrl}/`);
+      const htmlLanding = await respLanding.text();
+      if (!htmlLanding.includes(`R$ ${PRECO_BRL}`) && !htmlLanding.includes(`>${PRECO_BRL}<`) && !htmlLanding.includes(`>${PRECO_BRL}`)) {
+        throw new Error(`landing não mostra o preço ${PRECO_BRL}`);
+      }
+      if (htmlLanding.includes("{{preco_brl}}")) {
+        throw new Error("marcador {{preco_brl}} não foi substituído na landing");
+      }
+      if (/\bR\$\s*97\b/.test(htmlLanding)) {
+        throw new Error("landing ainda mostra o preço antigo (R$ 97)");
+      }
+
+      const respComprar = await fetch(`${baseUrl}/comprar`);
+      const htmlComprar = await respComprar.text();
+      if (!htmlComprar.includes(`R$ ${PRECO_BRL}`)) {
+        throw new Error(`/comprar não mostra o preço ${PRECO_BRL}`);
+      }
+    });
+
+    // ---------- a) /admin cadastra aluno manual com valor "49,90" ----------
     const ctxAdmin = await browser.newContext({
       httpCredentials: { username: ADMIN_USER, password: ADMIN_PASS },
     });
     const paginaAdmin = await ctxAdmin.newPage();
 
-    await passo("/admin cadastra aluno manual com valor 97,00 (vírgula)", async () => {
+    await passo(`/admin cadastra aluno manual com valor ${ALUNO_MANUAL.valor} (vírgula)`, async () => {
       await paginaAdmin.goto(`${baseUrl}/admin`);
       await paginaAdmin.fill("#nome", ALUNO_MANUAL.nome);
       await paginaAdmin.fill("#email", ALUNO_MANUAL.email);
@@ -211,6 +235,36 @@ async function main() {
       if (!corpo.includes("R$")) {
         throw new Error("valor não aparece formatado na tabela do /admin");
       }
+    });
+
+    const EMAIL_LONGO = `aluno.com.nome.bem.longo.${SUFIXO}@exemplo-longo.com`;
+
+    await passo("/admin: e-mail de 40+ caracteres não invade a coluna do WhatsApp", async () => {
+      await paginaAdmin.fill("#nome", "Aluno Email Longo E2E");
+      await paginaAdmin.fill("#email", EMAIL_LONGO);
+      await paginaAdmin.fill("#whatsapp", "11999990003");
+      await paginaAdmin.fill("#senha", "senha-email-longo-e2e");
+      await paginaAdmin.fill("#valor", ALUNO_MANUAL.valor);
+      await paginaAdmin.click('button:has-text("Cadastrar aluno")');
+      await paginaAdmin.waitForURL(`${baseUrl}/admin`);
+
+      if (EMAIL_LONGO.length < 40) {
+        throw new Error("o e-mail de teste precisa ter pelo menos 40 caracteres");
+      }
+
+      const linha = paginaAdmin.locator("tr", { hasText: EMAIL_LONGO });
+      const celulaEmail = linha.locator("td").nth(1);
+      const semEstouro = await celulaEmail.evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
+      if (!semEstouro) {
+        throw new Error("a célula do e-mail estoura a largura da coluna (invade o WhatsApp)");
+      }
+
+      const evidenciasDir = path.join(RAIZ, "docs", "claude-bridge", "evidencias");
+      fs.mkdirSync(evidenciasDir, { recursive: true });
+      await linha.scrollIntoViewIfNeeded();
+      await paginaAdmin.screenshot({
+        path: path.join(evidenciasDir, "tarefa-05-admin-email-longo.png"),
+      });
     });
     await ctxAdmin.close();
 
@@ -286,6 +340,15 @@ async function main() {
           throw new Error(`mp-fake não aceitou a aprovação (status ${respAprovar.status})`);
         }
 
+        // Confere que o valor cobrado no MP é exatamente o preço mostrado na
+        // landing/comprar (mesma fonte, o pedido 1000 é o único criado até aqui).
+        const pagamentoFake = await (await fetch(`http://127.0.0.1:${fakePort}/v1/payments/1000`)).json();
+        if (pagamentoFake.transaction_amount !== PRECO_NUM) {
+          throw new Error(
+            `valor cobrado no mp-fake (${pagamentoFake.transaction_amount}) diferente do preço mostrado (${PRECO_NUM})`
+          );
+        }
+
         // A própria página, pelo polling, detecta o pagamento e navega sozinha.
         await paginaCompra.waitForURL((url) => url.pathname === "/aluno", { timeout: 20000 });
         const titulo = await paginaCompra.locator("h1").textContent();
@@ -302,6 +365,24 @@ async function main() {
       await paginaCompra.waitForURL(`${baseUrl}/entrar`);
     });
     await ctxCompra.close();
+
+    // ---------- e) eventos: sem mp_ignorado "pending", e mp_aprovado com origem= ----------
+    const ctxEventos = await browser.newContext({
+      httpCredentials: { username: ADMIN_USER, password: ADMIN_PASS },
+    });
+    const paginaEventos = await ctxEventos.newPage();
+
+    await passo("eventos: sem mp_ignorado pending repetido, e mp_aprovado registra origem=", async () => {
+      await paginaEventos.goto(`${baseUrl}/admin`);
+      const corpo = await paginaEventos.content();
+      if (/mp_ignorado[^<]*status=pending/.test(corpo)) {
+        throw new Error("o polling ainda registra mp_ignorado para status pending");
+      }
+      if (!/mp_aprovado[^<]*origem=polling/.test(corpo)) {
+        throw new Error("o evento mp_aprovado não registra origem=polling");
+      }
+    });
+    await ctxEventos.close();
   } finally {
     if (browser) await browser.close();
     appProcess.kill();
