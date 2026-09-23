@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IA para Negócios: faça a IA trabalhar no seu negócio | T4P</title>
-<meta name="description" content="25 pedidos prontos, 3 aulas e 3 assistentes para o pequeno negócio usar ChatGPT, Gemini ou Claude sem receber resposta genérica. R$ 97, acesso na hora.">
+<meta name="description" content="25 pedidos prontos, 3 aulas e 3 assistentes para o pequeno negócio usar ChatGPT, Gemini ou Claude sem receber resposta genérica. R$ {{preco_brl}}, acesso na hora.">
 <meta property="og:title" content="Sua IA está respondendo igual para todo mundo?">
-<meta property="og:description" content="25 pedidos prontos, 3 aulas e 3 assistentes para o pequeno negócio usar ChatGPT, Gemini ou Claude sem receber resposta genérica. R$ 97, acesso na hora.">
+<meta property="og:description" content="25 pedidos prontos, 3 aulas e 3 assistentes para o pequeno negócio usar ChatGPT, Gemini ou Claude sem receber resposta genérica. R$ {{preco_brl}}, acesso na hora.">
 <meta property="og:url" content="https://iadojeitocerto.com">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -139,6 +139,7 @@
     padding:7px 18px;margin-bottom:38px;background:rgba(238,129,72,.06);
   }
   .hero-tag i{width:6px;height:6px;border-radius:50%;background:var(--orange);box-shadow:0 0 8px var(--orange)}
+  .selo-lancamento{margin-bottom:18px}
 
   /* moldura de seleção */
   .frame{
@@ -485,13 +486,6 @@
   .final h2{font-size:clamp(30px,6.4vw,50px);max-width:720px;margin:0 auto 36px}
   .final-cta{display:flex;flex-direction:column;align-items:center}
 
-  /* ---------- Pendências (remover antes de publicar) ---------- */
-  .pendente{
-    display:block;margin-top:20px;padding:10px 14px;font-size:13px;
-    background:rgba(238,129,72,.07);border:1px dashed rgba(238,129,72,.6);
-    border-radius:10px;color:var(--peach);text-align:left;
-  }
-
   footer{
     border-top:1px solid var(--border-soft);padding:36px 0;
     font-size:13.5px;color:var(--muted);text-align:center;letter-spacing:.02em;
@@ -548,7 +542,8 @@
     <p class="sub">O kit <strong>IA para Negócios</strong> ensina o dono de pequeno negócio a pedir do jeito certo, para a IA entregar posts, respostas de WhatsApp e orçamentos com a cara da sua empresa — e não iguais aos do concorrente.</p>
 
     <div class="hero-cta">
-      <a class="btn btn-buy" href="#oferta"><span class="btn-ico">»</span>Quero o kit por R$ 97</a>
+      <span class="hero-tag selo-lancamento"><i></i>Preço de lançamento — só até sexta, 25/09</span>
+      <a class="btn btn-buy" href="#oferta"><span class="btn-ico">»</span>Quero o kit por R$ {{preco_brl}}</a>
       <p class="btn-note">Pagamento por PIX &nbsp;·&nbsp; Acesso liberado assim que o pagamento cai &nbsp;·&nbsp; Funciona com as IAs gratuitas</p>
     </div>
   </div>
@@ -665,7 +660,7 @@
     <div class="head-row">
       <div>
         <span class="kicker">O que vem no kit</span>
-        <h2>Tudo o que você recebe <span class="serif">por R$ 97</span></h2>
+        <h2>Tudo o que você recebe <span class="serif">por R$ {{preco_brl}}</span></h2>
       </div>
       <a class="btn btn-buy" href="#oferta"><span class="btn-ico">»</span>Quero o kit</a>
     </div>
@@ -798,7 +793,8 @@
   <div class="wrap narrow">
     <div class="offer">
       <h3>IA para Negócios</h3>
-      <div class="price"><sup>R$</sup>97</div>
+      <span class="hero-tag selo-lancamento"><i></i>Preço de lançamento — só até sexta, 25/09</span>
+      <div class="price"><sup>R$</sup>{{preco_brl}}</div>
       <p class="price-note">Pagamento único por PIX</p>
       <ul class="offer-list">
         <li><strong>Guia com 25 pedidos prontos</strong> em 5 segmentos</li>
@@ -808,8 +804,7 @@
       </ul>
       <a class="btn btn-solid btn-buy" href="#oferta"><span class="btn-ico">»</span>Quero começar agora</a>
       <p class="btn-note">Os materiais em PDF e .docx são seus para baixar e guardar.</p>
-      <!-- PENDÊNCIA: garantia de 7 dias (observação 3 da copy) — decidir e trocar/remover o bloco abaixo -->
-      <span class="pendente">⚠ Pendência: decidir a garantia — sugestão da copy: “7 dias para pedir reembolso, sem perguntas.” Remover este aviso antes de publicar.</span>
+      <p class="btn-note">Garantia de 7 dias: se não fizer sentido para você, devolvemos 100% do valor. É só chamar a gente.</p>
     </div>
   </div>
 </section>
@@ -855,7 +850,7 @@
     </details>
     <details>
       <summary>Por quanto tempo tenho acesso?</summary>
-      <div class="faq-body">Os PDFs e modelos são seus para baixar e guardar para sempre. A área de aluno fica no ar até <mark style="background:rgba(238,129,72,.2);color:var(--peach);padding:0 5px;border-radius:4px">[DEFINIR DATA — observação 7 da copy]</mark>.</div>
+      <div class="faq-body">Os PDFs e modelos são seus para baixar e guardar para sempre. A área de aluno fica no ar até <strong>24 de dezembro de 2026 (90 dias)</strong>.</div>
     </details>
     <details>
       <summary>Posso comprar para a minha equipe?</summary>
@@ -873,7 +868,7 @@
   <div class="wrap">
     <h2>Na próxima vez que você pedir, a IA vai saber <span class="serif">com quem está falando.</span></h2>
     <div class="final-cta">
-      <a class="btn btn-buy" href="#oferta"><span class="btn-ico">»</span>Quero o kit por R$ 97</a>
+      <a class="btn btn-buy" href="#oferta"><span class="btn-ico">»</span>Quero o kit por R$ {{preco_brl}}</a>
       <p class="btn-note">PIX &nbsp;·&nbsp; acesso liberado na hora &nbsp;·&nbsp; funciona nas IAs gratuitas</p>
     </div>
   </div>

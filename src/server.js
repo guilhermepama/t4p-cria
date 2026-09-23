@@ -1,5 +1,6 @@
 "use strict";
 
+const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
@@ -33,6 +34,14 @@ app.use(
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+
+// ---------- landing (public/index.html), com o preço trocado no servidor ----------
+
+const INDEX_TEMPLATE = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+
+app.get(["/", "/index.html"], (req, res) => {
+  res.type("html").send(INDEX_TEMPLATE.replace(/\{\{preco_brl\}\}/g, precoBRL(precoAtual())));
+});
 
 app.use(express.static(path.join(__dirname, "..", "public")));
 
@@ -76,8 +85,12 @@ function formatarBRT(textoUtc) {
   });
 }
 
+function precoBRL(valor) {
+  return Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function formatarBRL(valor) {
-  return Number(valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return `R$ ${precoBRL(valor)}`;
 }
 
 function paraIsoUtc(textoUtc) {
@@ -85,7 +98,7 @@ function paraIsoUtc(textoUtc) {
 }
 
 function precoAtual() {
-  return Number(process.env.PRECO || 97);
+  return Number(process.env.PRECO || 49.9);
 }
 
 function limparWhatsapp(valor) {
@@ -105,29 +118,29 @@ function protegerCsv(valor) {
 
 const ultimaConsultaPorPedido = new Map();
 
-async function processarPagamento(paymentId) {
+async function processarPagamento(paymentId, origem) {
   let pagamento;
   try {
     pagamento = await mp.consultarPagamento(paymentId);
   } catch (erro) {
-    db.registrarEvento("mp_erro", `consulta paymentId=${paymentId}: ${erro.message}`);
+    db.registrarEvento("mp_erro", `consulta paymentId=${paymentId} origem=${origem}: ${erro.message}`);
     return;
   }
 
   const externalRef = String(pagamento.external_reference || "");
   if (!externalRef.startsWith("T4P-")) {
-    db.registrarEvento("mp_ignorado", `external_reference inválido paymentId=${paymentId}`);
+    db.registrarEvento("mp_ignorado", `external_reference inválido paymentId=${paymentId} origem=${origem}`);
     return;
   }
 
   const orderId = Number(externalRef.slice(4));
   const pedido = db.buscarPedidoPorId(orderId);
   if (!pedido) {
-    db.registrarEvento("mp_ignorado", `pedido não encontrado id=${orderId}`);
+    db.registrarEvento("mp_ignorado", `pedido não encontrado id=${orderId} origem=${origem}`);
     return;
   }
   if (pedido.mp_payment_id && String(pedido.mp_payment_id) !== String(paymentId)) {
-    db.registrarEvento("mp_ignorado", `mp_payment_id não confere pedido=${orderId}`);
+    db.registrarEvento("mp_ignorado", `mp_payment_id não confere pedido=${orderId} origem=${origem}`);
     return;
   }
 
@@ -135,28 +148,32 @@ async function processarPagamento(paymentId) {
 
   if (status === "approved") {
     if (Number(pagamento.transaction_amount) < Number(pedido.valor)) {
-      db.registrarEvento("mp_ignorado", `valor menor que o pedido pedido=${orderId}`);
+      db.registrarEvento("mp_ignorado", `valor menor que o pedido pedido=${orderId} origem=${origem}`);
       return;
     }
     db.marcarPedidoPago(orderId);
-    db.registrarEvento("mp_aprovado", `pedido=${orderId}`);
+    db.registrarEvento("mp_aprovado", `pedido=${orderId} origem=${origem}`);
     return;
   }
 
   if (status === "refunded" || status === "charged_back") {
     db.marcarPedidoEstornado(orderId);
-    db.registrarEvento("mp_estorno", `pedido=${orderId} status=${status}`);
+    db.registrarEvento("mp_estorno", `pedido=${orderId} status=${status} origem=${origem}`);
     return;
   }
 
   const expirou = pedido.expira_em && new Date(paraIsoUtc(pedido.expira_em)).getTime() < Date.now();
   if (status === "cancelled" || status === "rejected" || expirou) {
     db.marcarPedidoExpirado(orderId);
-    db.registrarEvento("mp_ignorado", `pedido=${orderId} status=${status}`);
+    db.registrarEvento("mp_ignorado", `pedido=${orderId} status=${status} origem=${origem}`);
     return;
   }
 
-  db.registrarEvento("mp_ignorado", `pedido=${orderId} status=${status} sem ação`);
+  if (status === "pending") {
+    return;
+  }
+
+  db.registrarEvento("mp_ignorado", `pedido=${orderId} status=${status} sem ação origem=${origem}`);
 }
 
 async function criarPedidoComPix(usuario) {
@@ -253,7 +270,7 @@ app.get("/comprar", (req, res) => {
 
   res.send(
     render("comprar.html", {
-      preco: precoAtual().toFixed(2),
+      preco: precoBRL(precoAtual()),
       nome: "",
       email: "",
       whatsapp: "",
@@ -278,7 +295,7 @@ app.post("/comprar", limiteComprar, auth.checarOrigem, async (req, res) => {
   const reexibir = (statusCode, mensagemErro) =>
     res.status(statusCode).send(
       render("comprar.html", {
-        preco: precoAtual().toFixed(2),
+        preco: precoBRL(precoAtual()),
         nome: dadosForm.nome,
         email: dadosForm.email,
         whatsapp: dadosForm.whatsapp,
@@ -306,7 +323,7 @@ app.post("/comprar", limiteComprar, auth.checarOrigem, async (req, res) => {
   if (usuarioExistente && usuarioExistente.ativo) {
     return res.status(409).send(
       render("comprar.html", {
-        preco: precoAtual().toFixed(2),
+        preco: precoBRL(precoAtual()),
         nome: dadosForm.nome,
         email: dadosForm.email,
         whatsapp: dadosForm.whatsapp,
@@ -360,6 +377,9 @@ app.get("/pagamento/:token", (req, res) => {
       erroHtml: req.query.erro
         ? '<p class="erro">Não conseguimos gerar um novo PIX agora. Tente de novo em instantes.</p>'
         : "",
+      avisoHtml: req.query.aviso === "valido"
+        ? '<p class="aviso">Seu PIX atual ainda está válido. Use o QR abaixo.</p>'
+        : "",
     })
   );
 });
@@ -373,7 +393,7 @@ app.post("/pagamento/:token/novo", auth.checarOrigem, async (req, res) => {
   const podeGerarNovo = pedidoAntigo.status === "expirado" || (pedidoAntigo.status === "pendente" && expirou);
 
   if (!podeGerarNovo) {
-    return res.redirect(303, `/pagamento/${pedidoAntigo.token}`);
+    return res.redirect(303, `/pagamento/${pedidoAntigo.token}?aviso=valido`);
   }
 
   db.marcarPedidoExpirado(pedidoAntigo.id);
@@ -402,7 +422,7 @@ app.get("/api/pedido/:token", async (req, res) => {
       const ultima = ultimaConsultaPorPedido.get(pedido.id) || 0;
       if (Date.now() - ultima > 5000) {
         ultimaConsultaPorPedido.set(pedido.id, Date.now());
-        await processarPagamento(pedido.mp_payment_id);
+        await processarPagamento(pedido.mp_payment_id, "polling");
       }
     }
   }
@@ -453,9 +473,9 @@ app.post("/webhooks/mp", (req, res) => {
 
   setImmediate(async () => {
     try {
-      await processarPagamento(dataId);
+      await processarPagamento(dataId, "webhook");
     } catch (erro) {
-      db.registrarEvento("mp_erro", `webhook paymentId=${dataId}: ${erro.message}`);
+      db.registrarEvento("mp_erro", `webhook paymentId=${dataId} origem=webhook: ${erro.message}`);
     }
   });
 });
@@ -556,7 +576,7 @@ function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
       pendentes: String(resumo.pendentes),
       linhasAlunos,
       linhasEventos,
-      preco: process.env.PRECO || "97.00",
+      preco: precoAtual().toFixed(2),
     })
   );
 }
@@ -570,7 +590,7 @@ app.post("/admin/alunos", auth.requireAdmin, auth.checarOrigem, (req, res) => {
   const email = String(req.body.email || "").trim();
   const whatsapp = String(req.body.whatsapp || "").trim() || null;
   const senha = String(req.body.senha || "");
-  const valor = normalizarValor(req.body.valor || process.env.PRECO || 0);
+  const valor = normalizarValor(req.body.valor || precoAtual());
 
   if (!nome || !email || senha.length < 8 || !Number.isFinite(valor) || valor <= 0) {
     return renderAdmin(res, { statusCode: 400, mensagemErro: "Dados inválidos para cadastro." });
@@ -593,7 +613,7 @@ app.post("/admin/ativar/:userId", auth.requireAdmin, auth.checarOrigem, (req, re
   const usuario = db.buscarUsuarioPorId(req.params.userId);
   if (!usuario) return renderAdmin(res, { statusCode: 404, mensagemErro: "Aluno não encontrado." });
 
-  db.ativarAluno(usuario.id, Number(process.env.PRECO || 0));
+  db.ativarAluno(usuario.id, precoAtual());
   db.registrarEvento("admin_ativacao", `user_id=${usuario.id}`);
   res.redirect("/admin");
 });
