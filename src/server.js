@@ -1,17 +1,19 @@
 "use strict";
 
 const path = require("path");
+const crypto = require("crypto");
 const express = require("express");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const db = require("./db");
 const auth = require("./auth");
+const mp = require("./mp");
 const { render, escapeHtml } = require("./views/render");
 
 const app = express();
 
-app.set("trust proxy", 1);
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 2));
 
 app.use(
   helmet({
@@ -25,6 +27,7 @@ app.use(
         connectSrc: ["'self'"],
       },
     },
+    referrerPolicy: { policy: "same-origin" },
   })
 );
 app.use(cookieParser());
@@ -75,6 +78,101 @@ function formatarBRT(textoUtc) {
 
 function formatarBRL(valor) {
   return Number(valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function paraIsoUtc(textoUtc) {
+  return textoUtc.replace(" ", "T") + "Z";
+}
+
+function precoAtual() {
+  return Number(process.env.PRECO || 97);
+}
+
+function limparWhatsapp(valor) {
+  return String(valor || "").replace(/\D/g, "");
+}
+
+function normalizarValor(valor) {
+  return Number(String(valor ?? "").trim().replace(",", "."));
+}
+
+function protegerCsv(valor) {
+  const texto = String(valor ?? "");
+  return /^[=+\-@\t\r]/.test(texto) ? "'" + texto : texto;
+}
+
+// ---------- checkout / pagamento PIX ----------
+
+const ultimaConsultaPorPedido = new Map();
+
+async function processarPagamento(paymentId) {
+  let pagamento;
+  try {
+    pagamento = await mp.consultarPagamento(paymentId);
+  } catch (erro) {
+    db.registrarEvento("mp_erro", `consulta paymentId=${paymentId}: ${erro.message}`);
+    return;
+  }
+
+  const externalRef = String(pagamento.external_reference || "");
+  if (!externalRef.startsWith("T4P-")) {
+    db.registrarEvento("mp_ignorado", `external_reference inválido paymentId=${paymentId}`);
+    return;
+  }
+
+  const orderId = Number(externalRef.slice(4));
+  const pedido = db.buscarPedidoPorId(orderId);
+  if (!pedido) {
+    db.registrarEvento("mp_ignorado", `pedido não encontrado id=${orderId}`);
+    return;
+  }
+  if (pedido.mp_payment_id && String(pedido.mp_payment_id) !== String(paymentId)) {
+    db.registrarEvento("mp_ignorado", `mp_payment_id não confere pedido=${orderId}`);
+    return;
+  }
+
+  const status = pagamento.status;
+
+  if (status === "approved") {
+    if (Number(pagamento.transaction_amount) < Number(pedido.valor)) {
+      db.registrarEvento("mp_ignorado", `valor menor que o pedido pedido=${orderId}`);
+      return;
+    }
+    db.marcarPedidoPago(orderId);
+    db.registrarEvento("mp_aprovado", `pedido=${orderId}`);
+    return;
+  }
+
+  if (status === "refunded" || status === "charged_back") {
+    db.marcarPedidoEstornado(orderId);
+    db.registrarEvento("mp_estorno", `pedido=${orderId} status=${status}`);
+    return;
+  }
+
+  const expirou = pedido.expira_em && new Date(paraIsoUtc(pedido.expira_em)).getTime() < Date.now();
+  if (status === "cancelled" || status === "rejected" || expirou) {
+    db.marcarPedidoExpirado(orderId);
+    db.registrarEvento("mp_ignorado", `pedido=${orderId} status=${status}`);
+    return;
+  }
+
+  db.registrarEvento("mp_ignorado", `pedido=${orderId} status=${status} sem ação`);
+}
+
+async function criarPedidoComPix(usuario) {
+  const token = crypto.randomBytes(16).toString("hex");
+  const orderId = db.criarPedido(usuario.id, precoAtual(), token);
+  const pedido = db.buscarPedidoPorId(orderId);
+
+  try {
+    const resultado = await mp.criarPix({ pedido, usuario });
+    db.atualizarPedidoPix(orderId, resultado);
+  } catch (erro) {
+    db.registrarEvento("mp_erro", `criar pix pedido=${orderId}: ${erro.message}`);
+    return { ok: false };
+  }
+
+  return { ok: true, token };
 }
 
 // ---------- /entrar, /sair ----------
@@ -135,6 +233,237 @@ app.post("/sair", auth.checarOrigem, (req, res) => {
   res.redirect("/entrar");
 });
 
+// ---------- /comprar, /pagamento, /webhooks/mp ----------
+
+const limiteComprar = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+function checkoutDisponivel() {
+  return Boolean(process.env.MP_ACCESS_TOKEN);
+}
+
+app.get("/comprar", (req, res) => {
+  if (!checkoutDisponivel()) {
+    return res.status(503).send(render("comprar-indisponivel.html", {}));
+  }
+
+  res.send(
+    render("comprar.html", {
+      preco: precoAtual().toFixed(2),
+      nome: "",
+      email: "",
+      whatsapp: "",
+      mensagemErro: "",
+    })
+  );
+});
+
+app.post("/comprar", limiteComprar, auth.checarOrigem, async (req, res) => {
+  if (!checkoutDisponivel()) {
+    return res.status(503).send(render("comprar-indisponivel.html", {}));
+  }
+
+  const dadosForm = {
+    nome: String(req.body.nome || "").trim(),
+    email: String(req.body.email || "").trim(),
+    whatsapp: String(req.body.whatsapp || "").trim(),
+    senha: String(req.body.senha || ""),
+    aceite: req.body.aceite,
+  };
+
+  const reexibir = (statusCode, mensagemErro) =>
+    res.status(statusCode).send(
+      render("comprar.html", {
+        preco: precoAtual().toFixed(2),
+        nome: dadosForm.nome,
+        email: dadosForm.email,
+        whatsapp: dadosForm.whatsapp,
+        mensagemErro: `<p class="erro">${mensagemErro}</p>`,
+      })
+    );
+
+  const digitosWhatsapp = limparWhatsapp(dadosForm.whatsapp);
+
+  if (!dadosForm.nome || !dadosForm.email) {
+    return reexibir(400, "Preencha nome e e-mail.");
+  }
+  if (digitosWhatsapp.length !== 10 && digitosWhatsapp.length !== 11) {
+    return reexibir(400, "Informe um WhatsApp válido, com DDD.");
+  }
+  if (dadosForm.senha.length < 8) {
+    return reexibir(400, "A senha precisa ter ao menos 8 caracteres.");
+  }
+  if (!dadosForm.aceite) {
+    return reexibir(400, 'É preciso aceitar a <a href="/privacidade">política de privacidade</a>.');
+  }
+
+  const usuarioExistente = db.buscarUsuarioPorEmail(dadosForm.email);
+
+  if (usuarioExistente && usuarioExistente.ativo) {
+    return res.status(409).send(
+      render("comprar.html", {
+        preco: precoAtual().toFixed(2),
+        nome: dadosForm.nome,
+        email: dadosForm.email,
+        whatsapp: dadosForm.whatsapp,
+        mensagemErro: '<p class="erro">Você já tem acesso. <a href="/entrar">Entrar</a>.</p>',
+      })
+    );
+  }
+
+  const senhaHash = auth.hashSenha(dadosForm.senha);
+  let usuario;
+
+  if (usuarioExistente) {
+    db.atualizarUsuarioParaCompra(usuarioExistente.id, {
+      nome: dadosForm.nome,
+      whatsapp: digitosWhatsapp,
+      senhaHash,
+    });
+    usuario = db.buscarUsuarioPorId(usuarioExistente.id);
+  } else {
+    const userId = db.criarUsuarioInativo(dadosForm.nome, dadosForm.email, digitosWhatsapp, senhaHash);
+    usuario = db.buscarUsuarioPorId(userId);
+  }
+
+  const pedidoReaproveitavel = db.buscarPedidoPendenteValido(usuario.id);
+  if (pedidoReaproveitavel) {
+    return res.redirect(303, `/pagamento/${pedidoReaproveitavel.token}`);
+  }
+
+  const resultado = await criarPedidoComPix(usuario);
+  if (!resultado.ok) {
+    return reexibir(502, "Não conseguimos gerar o PIX agora. Tente de novo em instantes.");
+  }
+
+  res.redirect(303, `/pagamento/${resultado.token}`);
+});
+
+app.get("/pagamento/:token", (req, res) => {
+  const pedido = db.buscarPedidoPorToken(req.params.token);
+  if (!pedido || !pedido.pix_qr_base64) {
+    return res.status(404).send("Não encontrado.");
+  }
+
+  res.send(
+    render("pagamento.html", {
+      token: pedido.token,
+      tokenJson: JSON.stringify(pedido.token),
+      expiraEmJson: JSON.stringify(paraIsoUtc(pedido.expira_em)),
+      valorFormatado: formatarBRL(pedido.valor),
+      qrBase64: pedido.pix_qr_base64,
+      copiaCola: pedido.pix_copia_cola || "",
+      erroHtml: req.query.erro
+        ? '<p class="erro">Não conseguimos gerar um novo PIX agora. Tente de novo em instantes.</p>'
+        : "",
+    })
+  );
+});
+
+app.post("/pagamento/:token/novo", auth.checarOrigem, async (req, res) => {
+  const pedidoAntigo = db.buscarPedidoPorToken(req.params.token);
+  if (!pedidoAntigo) return res.status(404).send("Não encontrado.");
+
+  const expirou =
+    pedidoAntigo.expira_em && new Date(paraIsoUtc(pedidoAntigo.expira_em)).getTime() < Date.now();
+  const podeGerarNovo = pedidoAntigo.status === "expirado" || (pedidoAntigo.status === "pendente" && expirou);
+
+  if (!podeGerarNovo) {
+    return res.redirect(303, `/pagamento/${pedidoAntigo.token}`);
+  }
+
+  db.marcarPedidoExpirado(pedidoAntigo.id);
+
+  const usuario = db.buscarUsuarioPorId(pedidoAntigo.user_id);
+  const resultado = await criarPedidoComPix(usuario);
+  if (!resultado.ok) {
+    return res.redirect(303, `/pagamento/${pedidoAntigo.token}?erro=1`);
+  }
+
+  res.redirect(303, `/pagamento/${resultado.token}`);
+});
+
+app.get("/api/pedido/:token", async (req, res) => {
+  const pedido = db.buscarPedidoPorToken(req.params.token);
+  if (!pedido) return res.status(404).json({});
+
+  if (pedido.status === "pendente") {
+    const expirou = pedido.expira_em && new Date(paraIsoUtc(pedido.expira_em)).getTime() < Date.now();
+    if (expirou) {
+      db.marcarPedidoExpirado(pedido.id);
+      return res.json({ status: "expirado" });
+    }
+
+    if (pedido.mp_payment_id) {
+      const ultima = ultimaConsultaPorPedido.get(pedido.id) || 0;
+      if (Date.now() - ultima > 5000) {
+        ultimaConsultaPorPedido.set(pedido.id, Date.now());
+        await processarPagamento(pedido.mp_payment_id);
+      }
+    }
+  }
+
+  const pedidoAtualizado = db.buscarPedidoPorId(pedido.id);
+  res.json({ status: pedidoAtualizado.status });
+});
+
+app.get("/pagamento/:token/acesso", (req, res) => {
+  const pedido = db.buscarPedidoPorToken(req.params.token);
+  const pagoRecente =
+    pedido &&
+    pedido.status === "pago" &&
+    !pedido.login_feito &&
+    pedido.pago_em &&
+    Date.now() - new Date(paraIsoUtc(pedido.pago_em)).getTime() < 2 * 60 * 60 * 1000;
+
+  if (!pagoRecente) {
+    return res.redirect("/entrar");
+  }
+
+  db.marcarLoginFeito(pedido.id);
+  auth.criarSessaoCookie(res, pedido.user_id);
+  res.redirect("/aluno");
+});
+
+app.post("/webhooks/mp", (req, res) => {
+  const dataId = req.query["data.id"] || req.body?.data?.id;
+  const tipo = req.query.type || req.body?.type || req.body?.topic;
+
+  if (tipo !== "payment") {
+    db.registrarEvento("mp_ignorado", `webhook type=${tipo}`);
+    return res.status(200).end();
+  }
+
+  const assinaturaValida = mp.validarAssinatura({
+    xSignature: req.headers["x-signature"],
+    xRequestId: req.headers["x-request-id"],
+    dataId,
+  });
+
+  if (!assinaturaValida) {
+    db.registrarEvento("webhook_assinatura_invalida", `data.id=${dataId}`);
+    return res.status(401).end();
+  }
+
+  res.status(200).end();
+
+  setImmediate(async () => {
+    try {
+      await processarPagamento(dataId);
+    } catch (erro) {
+      db.registrarEvento("mp_erro", `webhook paymentId=${dataId}: ${erro.message}`);
+    }
+  });
+});
+
+app.get("/privacidade", (req, res) => {
+  res.send(render("privacidade.html", {}));
+});
+
 // ---------- área do aluno ----------
 
 app.get("/aluno", auth.requireAluno, (req, res) => {
@@ -182,6 +511,10 @@ function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
     ? alunos
         .map((linha) => {
           const status = linha.status || "sem pedido";
+          const statusTexto =
+            status === "pendente" && linha.expira_em
+              ? `pendente (expira ${formatarBRT(linha.expira_em)})`
+              : status;
           const acoes = [];
           if (!linha.ativo) {
             acoes.push(
@@ -197,7 +530,7 @@ function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
             <td>${escapeHtml(linha.nome)}</td>
             <td>${escapeHtml(linha.email)}</td>
             <td>${escapeHtml(linha.whatsapp || "—")}</td>
-            <td class="status-${escapeHtml(status)}">${escapeHtml(status)}</td>
+            <td class="status-${escapeHtml(status)}">${escapeHtml(statusTexto)}</td>
             <td>${linha.valor != null ? escapeHtml(formatarBRL(linha.valor)) : "—"}</td>
             <td>${escapeHtml(formatarBRT(linha.criado_em))}</td>
             <td>${acoes.join(" ")}</td>
@@ -237,7 +570,7 @@ app.post("/admin/alunos", auth.requireAdmin, auth.checarOrigem, (req, res) => {
   const email = String(req.body.email || "").trim();
   const whatsapp = String(req.body.whatsapp || "").trim() || null;
   const senha = String(req.body.senha || "");
-  const valor = Number(req.body.valor || process.env.PRECO || 0);
+  const valor = normalizarValor(req.body.valor || process.env.PRECO || 0);
 
   if (!nome || !email || senha.length < 8 || !Number.isFinite(valor) || valor <= 0) {
     return renderAdmin(res, { statusCode: 400, mensagemErro: "Dados inválidos para cadastro." });
@@ -286,9 +619,9 @@ app.get("/admin/vendas.csv", auth.requireAdmin, (req, res) => {
     .map((l) =>
       [
         l.order_id ?? "",
-        l.nome,
-        l.email,
-        l.whatsapp || "",
+        protegerCsv(l.nome),
+        protegerCsv(l.email),
+        protegerCsv(l.whatsapp || ""),
         l.valor != null ? String(l.valor).replace(".", ",") : "",
         l.status || "",
         l.pago_em ? formatarBRT(l.pago_em) : "",

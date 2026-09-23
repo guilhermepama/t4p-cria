@@ -3,3 +3,5 @@ node_modules
 data
 docs
 .git
+scripts/mp-fake.js
+scripts/e2e.js

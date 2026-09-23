@@ -1,110 +1,96 @@
-# Tarefa 02 · Login, área do aluno, conteúdo protegido e /admin (backlog 2)
+# Tarefa 04 · Correções de produção: Origin null, proxy, navegador real (URGENTE)
 
 **Status: CONCLUÍDA**
 
-- **Tipo:** código. ⚠️ Mexe em senhas e dados pessoais. ⚠️ Troca uma dependência (sai o bcrypt).
+- **Tipo:** correção (hotfix) + testes. ⚠️ Bloqueia a venda: hoje, em produção, **todo POST de formulário** (`/entrar`, `/admin/*`) devolve "Origem inválida".
 - **Data:** 23/09/2026
-- **Base:** relatório da tarefa 01 (`concluidas/01-esqueleto.md`); `t4p-01-especificacao.md` §3 e §5 (atualizadas pelo planejador); `t4p-00-estado.md` (decisões de 23/09)
+- **Base:** `concluidas/03-checkout-pix.md` (aprovada, ainda sem merge); `t4p-01-especificacao.md` §3 e §5 (revisadas); `t4p-02-deploy-coolify.md` §1 (Cloudflare)
 
 ## Antes de começar
 
-1. Confira se `tarefa/01-esqueleto` já foi mergeada na `main`. Se **não** foi, pare e reporte como BLOQUEADA ("aguardando merge da 01"). Não crie a branch a partir da 01.
-2. Há alterações de documentação do planejador ainda não commitadas na árvore de trabalho: CLAUDE.md, docs/t4p-00-estado.md, docs/t4p-01-especificacao.md, e a mudança de `claude-bridge/tarefa-atual.md` para `concluidas/01-esqueleto.md` com este arquivo novo. Crie `tarefa/02-aluno-admin` a partir da `main` e faça o **primeiro commit só com essa documentação**: `docs: planejador — tarefa 02 e decisões de 23/09`.
+1. Crie `tarefa/04-correcoes-producao` **a partir de `tarefa/03-checkout-pix`**, não da `main`. As tarefas 03 e 04 vão juntas num PR só: se a 03 fosse sozinha, publicaria um `/comprar` quebrado pelo mesmo bug.
+2. O primeiro commit leva só a documentação pendente do planejador (o arquivamento da 03, a especificação, o `.env.example`, os docs de deploy e o estado): `docs: planejador — tarefa 04`.
 
-## Objetivo
+## Diagnóstico (já confirmado pelo planejador)
 
-Construir tudo o que funciona **sem o Mercado Pago**: o aluno entra com e-mail e senha, vê as 3 aulas e baixa o kit, e os sócios operam as vendas pelo /admin. Isso inclui cadastrar um aluno manualmente, que é o fallback de "PIX direto". Quando esta tarefa for mergeada, a T4P já consegue vender, mesmo se o checkout automático atrasar.
+O helmet envia por padrão `Referrer-Policy: no-referrer`. Com essa política, o Chrome manda `Origin: null` nos POSTs de formulário e não manda `Referer`. O `checarOrigem` recebe "null", `new URL("null")` lança erro e a resposta é 403. Os testes das tarefas 02 e 03 não pegaram isso porque usaram curl com `Origin` montado à mão.
 
 ## Mecanismo proposto
 
 Valide contra o código e a especificação. Se houver divergência, reporte.
 
-1. **Dependências:** remova o `bcrypt` do package.json e do lock. `npm audit` deve ficar sem crítico/alto; se sobrar algum, registre em Achados.
-2. **`src/auth.js`:**
-   - `hashSenha` e `verificarSenha` com `crypto.scrypt`, conforme a §5.
-   - Sessões: o token vai no cookie `t4p_sess` (32 bytes, hex; `httpOnly`, `secure` quando `NODE_ENV=production`, `sameSite=lax`, 30 dias). No banco só entra o **SHA-256** do token.
-   - `requireAluno`: sessão válida **e** `users.ativo = 1`. Caso contrário, redireciona para `/entrar?volta=<rota>`, aceitando só caminhos relativos que começam com `/`.
-   - `requireAdmin`: Basic Auth contra `ADMIN_USER`/`ADMIN_PASS` com `timingSafeEqual`. Se essas variáveis estiverem vazias, o /admin responde 503.
-   - `checarOrigem`: middleware em todos os POSTs, exceto `/webhooks/mp`, que exige `Origin` (ou `Referer`) com a mesma origem de `BASE_URL`. Caso contrário, responde 403.
-3. **`src/db.js`:** todas as queries novas ficam aqui (usuário por e-mail, sessões, listagem do admin, criar aluno manual com pedido `manual` numa transação, ativar, trocar senha, registrar e listar `eventos`). Rode a limpeza de sessões expiradas na inicialização.
-4. **Rotas públicas:** `GET/POST /entrar` e `POST /sair`, com rate-limit de 10 por minuto por IP no POST. Use mensagem de erro única ("E-mail ou senha incorretos"). Um usuário inativo com a senha certa vê: "Seu acesso ainda não foi liberado. Se já pagou, fale com a gente."
-5. **Área do aluno:**
-   - `GET /aluno`: saudação com o nome, 3 cartões de aula (abrem em nova aba) e downloads (Kit PDF, Assistentes PDF, 3 .txt, 2 Manuais .docx), mais o botão Sair.
-   - `GET /aluno/conteudo/:arquivo`: lista branca fixa com os 10 nomes. Aulas com `text/html` inline, os demais como download (`Content-Disposition: attachment`). Cabeçalho `Cache-Control: private, no-store`.
-6. **Aulas em `conteudo/`:**
-   - Aula 1: troque o bloco de venda ("Isso foi a aula 1 do kit…", preço, variável `PRECO` e o JS que a preenche) por um cartão "Próxima: Aula 2 — Conserte a resposta", com link para `/aluno/conteudo/Aula2_Conserte_a_Resposta.html`, e mantenha o "Voltar à área do aluno".
-   - Aula 2: acrescente no fim um cartão "Próxima: Aula 3" e o "Voltar à área do aluno". Aula 3: acrescente só o "Voltar".
-   - Use o estilo que cada aula já tem. Não mude o texto didático.
-7. **/admin**, protegido por `requireAdmin`:
-   - Topo: total de pedidos pagos + manuais, soma em R$ e número de pendentes.
-   - Tabela de alunos com os pedidos: nome, e-mail, WhatsApp, status, valor, data em horário de Brasília (BRT).
-   - Formulário **"Cadastrar aluno (PIX direto)"**: nome, e-mail, WhatsApp, senha temporária e valor (padrão `PRECO`). Cria o usuário ativo e o pedido `manual` numa transação só. E-mail duplicado dá erro claro.
-   - Por linha: botão "Ativar" (usuário inativo → pedido `manual`) e "Nova senha" (define uma senha temporária informada pelo admin).
-   - Link para `/admin/vendas.csv` (UTF-8 com BOM, separador `;`, para abrir direto no Excel) e as últimas 50 linhas de `eventos`.
-   - Toda ação do admin grava um registro em `eventos`.
-8. **Views** em `src/views/`: HTML simples no visual da landing (fundo escuro, Inter Tight, botões em pílula laranja), mobile-first. Valores do usuário sempre escapados. Basta um helper mínimo de template (substituir `{{chave}}` com escape). Nada de engine de templates.
-9. **Script `npm run criar-aluno`** (`scripts/criar-aluno.js`): recebe nome, e-mail e senha por argumentos e cria um aluno ativo. Serve para testes e emergência.
+1. **Referrer-Policy:** no `helmet({...})`, `referrerPolicy: { policy: "same-origin" }`.
+2. **Proxy:** `app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 2))`. O caminho é Cloudflare → Traefik → app. Remova `SESSION_SECRET` de qualquer referência no código ou nos docs que ainda falem dela (o `.env.example` já foi ajustado).
+3. **Testes em navegador real:**
+   - Crie `scripts/e2e.js` com o Playwright como **devDependency**. Use o Chromium do sistema se houver, ou `npx playwright install chromium` localmente. Justifique a dependência no relatório. Ela não entra na imagem, porque o `npm ci --omit=dev` e o `.dockerignore` já a deixam de fora.
+   - O script sobe o app (com o `mp-fake`) num banco temporário e roda, **clicando nos formulários de verdade**, sem `page.request` e sem cabeçalhos montados à mão:
+     - a) `/admin` com `httpCredentials` → cadastra um aluno manual com valor `97,00` (vírgula) → aparece na tabela.
+     - b) `/entrar` com esse aluno → vê `/aluno` → abre a Aula 1 → clica "Próxima: Aula 2".
+     - c) `/comprar` → preenche e envia → `/pagamento/<token>` mostra o QR → aprova no `mp-fake` → a página navega sozinha até `/aluno`.
+     - d) `/sair` funciona.
+   - Script `npm run e2e`. Imprime ✅/❌ por passo e sai com código ≠ 0 em qualquer falha.
+4. **Valor com vírgula:** `/admin/alunos` aceita `97,00`, `97.00` e `97`. Normalize no servidor, trocando a vírgula por ponto antes do `Number`. No formulário, use `inputmode="decimal"`.
+5. **`/comprar` sem credencial:** se `MP_ACCESS_TOKEN` estiver vazio, o GET e o POST de `/comprar` mostram a página "A compra online abre em instantes. Se preferir, fale com a gente e pague por PIX direto." (status 503), sem criar usuário nem pedido. Isso permite fazer o deploy **antes** de ter as credenciais do MP, sem expor um checkout quebrado.
+6. **`POST /pagamento/:token/novo`:** só aceite se o pedido estiver `expirado`, ou `pendente` com `expira_em` já vencido. Nos outros casos, redirecione para `/pagamento/:token`.
+7. **HEALTHCHECK no Dockerfile**, sem curl: `HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"`.
+8. **Docs:** marque o item 2 do backlog como mergeado (achado da 03). Os itens 4 e 5 ficam como "feito nas tarefas 03 e 04, aguardando merge".
 
 ## Fora de escopo
 
-- `/comprar`, `/api/checkout`, `/pagamento`, webhook e qualquer chamada ao MP.
-- `/privacidade`, favicon, og-image, avisos âmbar e `LINK_COMPRA` da landing.
-- Recuperação de senha por e-mail.
-- Qualquer mudança em `public/index.html`.
+- Mudanças visuais, de textos da landing ou de preço.
+- Separar `server.js` em `routes/` (divergência já aceita).
+- Qualquer chamada ao MP real.
 
 ## Validação
 
-1. `npm audit --omit=dev` sem crítico/alto, e `bcrypt` fora do lock.
-2. `npm run criar-aluno` → login em `/entrar` funciona → `/aluno` lista 3 aulas e 7 downloads.
-3. `/aluno` sem cookie → 302 para `/entrar?volta=/aluno`. `?volta=https://evil.com` é ignorado.
-4. `/aluno/conteudo/../src/db.js` e `/aluno/conteudo/qualquer.txt` → 404. Arquivo válido sem sessão → 302.
-5. Usuário inativo com a senha certa → vê a mensagem de acesso não liberado e não recebe cookie de sessão.
-6. 11 tentativas de login em 1 minuto → a 11ª devolve 429.
-7. Na tabela `sessions` não aparece nenhum token igual ao do cookie (só o hash).
-8. `/admin` sem credencial → 401. Com credencial: cadastrar aluno manual → ele consegue entrar. Ativar um inativo e trocar a senha também funcionam. Os três geram `eventos`.
-9. POST no `/admin/alunos` com `Origin: https://evil.com` → 403.
-10. O CSV abre no Excel com acentos corretos (confira os bytes do BOM: `EF BB BF`).
-11. As aulas abrem pela área do aluno, e os links "Próxima" e "Voltar" funcionam. `grep "R\$ 97"` na cópia da Aula 1 não encontra nada.
-12. `docker build` e `run` com volume → login funciona e o aluno continua lá depois de recriar o container.
+1. `npm run e2e` → todos os passos de a) a d) ✅. Cole a saída no relatório.
+2. O mesmo e2e **rodando na versão da `main` atual** (antes do fix): o passo a) ou b) falha com "Origem inválida". Isso prova que o teste reproduz o bug. Basta registrar a saída, sem commitar nada na `main`.
+3. `curl -X POST /entrar -H "Origin: https://evil.com"` → 403 (o CSRF continua ativo).
+4. Com `TRUST_PROXY=2`: uma requisição com `X-Forwarded-For: 1.1.1.1, 2.2.2.2` resulta em `req.ip === "1.1.1.1"` (log temporário ou teste unitário). Duas "origens" diferentes não compartilham o limite do rate-limit.
+5. Com `MP_ACCESS_TOKEN` vazio, `/comprar` → 503 com a mensagem e **nenhuma** linha nova em `users` ou `orders`.
+6. `POST /pagamento/<token>/novo` com o pedido ainda válido → redireciona e não cria pedido.
+7. `docker build` + `docker run` → o `docker inspect` mostra `Health: healthy` depois de ~30 s. A imagem não contém `playwright`.
 
 ## Entrega
 
-- Branch `tarefa/02-aluno-admin` com commits pequenos, **sem push e sem merge**.
-- Atualize o backlog item 2 em `docs/t4p-00-estado.md`.
-- Preencha o relatório abaixo e mude o Status.
+- Branch `tarefa/04-correcoes-producao`. **Push liberado nesta tarefa** para abrir o PR `tarefa/04-correcoes-producao → main` (esse PR inclui os commits da 03). Sem merge.
+- No corpo do PR, liste: "inclui tarefa 03 (checkout PIX) + tarefa 04 (hotfix Origin null)".
+- Preencha o relatório e mude o Status.
 
 ## Relatório do executor
 
 - **Status:** CONCLUÍDA
 - **Feito:**
-  - `package.json`/`package-lock.json`: `bcrypt` removido, script `npm run criar-aluno` adicionado.
-  - `src/auth.js` (novo): `hashSenha`/`verificarSenha` (scrypt N=16384 r=8 p=1, formato `scrypt$salt$hash`, comparação com `timingSafeEqual`), `criarSessaoCookie`/`destruirSessaoCookie` (cookie `t4p_sess`, hash SHA-256 no banco), `caminhoRelativoSeguro`, `requireAluno`, `requireAdmin` (Basic Auth + `timingSafeEqual`, 503 se `ADMIN_USER`/`ADMIN_PASS` vazios), `checarOrigem` (CSRF por Origin/Referer vs `BASE_URL`).
-  - `src/db.js`: queries de usuário por e-mail/id/sessão, criação/destruição de sessão, `criarAlunoManual` e `ativarAluno` (transações), `trocarSenha`, `criarAlunoAtivo` (para o script), `registrarEvento`/`listarEventosRecentes`, `listarAlunosComPedidos`, `resumoVendas`, e limpeza de sessões expiradas na inicialização.
-  - `src/views/render.js` (helper mínimo `{{chave}}` escapado / `{{{chave}}}` raw) + `entrar.html`, `aluno.html`, `admin.html` no visual da landing (fundo escuro, Inter Tight, botões em pílula laranja), mobile-first.
-  - `src/server.js`: rotas `GET/POST /entrar`, `POST /sair` (rate-limit 10/min/IP no POST), `GET /aluno`, `GET /aluno/conteudo/:arquivo` (lista branca `Map` com os 10 nomes), `GET /admin`, `POST /admin/alunos`, `POST /admin/ativar/:userId`, `POST /admin/senha/:userId`, `GET /admin/vendas.csv` (BOM UTF-8, `;`).
-  - `conteudo/Aula1_O_Pedido_que_Funciona.html`: bloco de venda (`PRECO`, preço, JS que preenchia) trocado por cartão "Próxima: Aula 2" + link + "Voltar à área do aluno".
-  - `conteudo/Aula2_Conserte_a_Resposta.html`: cartão final ganhou link real para a Aula 3 e "Voltar à área do aluno".
-  - `conteudo/Aula3_Monte_sua_Equipe.html`: acrescentado só o "Voltar à área do aluno".
-  - `scripts/criar-aluno.js` (novo) + script `npm run criar-aluno`.
-  - `Dockerfile`: adicionado `COPY scripts ./scripts` (faltava; sem isso o script não existe na imagem).
-  - `docs/t4p-00-estado.md`: item 1 marcado como mergeado, item 2 marcado como feito/aguardando merge.
+  - `src/server.js`: `app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 2))`; `helmet({ ..., referrerPolicy: { policy: "same-origin" } })` (era o padrão `no-referrer` que fazia o Chrome mandar `Origin: null`); `normalizarValor()` troca vírgula por ponto antes do `Number()` em `POST /admin/alunos`; `checkoutDisponivel()` bloqueia `GET`/`POST /comprar` com 503 (view nova `comprar-indisponivel.html`) quando `MP_ACCESS_TOKEN` está vazio, antes de tocar no banco; `POST /pagamento/:token/novo` só aceita se o pedido estiver `expirado` ou `pendente` com `expira_em` vencido, senão redireciona sem criar nada (achado já registrado no relatório da tarefa 03).
+  - `src/views/admin.html`: campo `valor` virou `type="text" inputmode="decimal"` (o `type="number"` rejeitava a vírgula).
+  - `src/views/comprar-indisponivel.html` (novo): página da mensagem "A compra online abre em instantes...".
+  - `Dockerfile`: `HEALTHCHECK` com `node -e` + `fetch` nativo contra `/health` (sem `curl`, que não está na `node:20-slim`).
+  - `.dockerignore`: acrescenta `scripts/e2e.js` (mesmo tratamento do `mp-fake.js`).
+  - `scripts/e2e.js` (novo) + `package.json`/`package-lock.json`: `playwright` como devDependency e `npm run e2e`. Sobe o app e o `mp-fake` num banco temporário (`os.tmpdir()`) e clica nos formulários de verdade num Chromium real (tenta o canal `chrome` do sistema, depois `msedge`, depois o Chromium do próprio Playwright — não precisou baixar nada, o Chrome do Windows já estava instalado).
+  - `docs/t4p-00-estado.md`: item 2 do backlog marcado como mergeado (era um achado da tarefa 03); itens 4 e 5 como "feito nas tarefas 03 e 04, aguardando merge".
+  - `docs/claude-bridge/00-plano-lancamento.md`: removida a menção a `SESSION_SECRET` (nunca foi lida pelo código), trocada por `TRUST_PROXY`.
 - **Validação:**
-  1. ✅ `npm audit --omit=dev` → "found 0 vulnerabilities"; `grep bcrypt package-lock.json` → vazio.
-  2. ✅ `npm run criar-aluno -- "Fulano Teste" fulano@teste.com senha1234` → login em `/entrar` → 302; `/aluno` lista as 3 aulas (`AULAS.length===3`) e 7 downloads (`DOWNLOADS.length===7`).
-  3. ✅ `/aluno` sem cookie → `302` para `/entrar?volta=%2Faluno`; `GET /entrar?volta=https://evil.com` → campo oculto `volta` vem como `/aluno` (ignorado).
-  4. ✅ `/aluno/conteudo/../src/db.js` → `404`; `/aluno/conteudo/qualquer.txt` → `404`; arquivo válido (`Aula1...html`) sem sessão → `302`.
-  5. ✅ Usuário inativo com senha certa → `403` com a mensagem exata; nenhum cookie `t4p_sess` foi setado (confirmado lendo o jar de cookies do curl).
-  6. ✅ Em instância isolada (sem outras chamadas ao limiter antes), 10 tentativas seguidas devolveram `401` e a 11ª devolveu `429`.
-  7. ✅ Comparando o valor do cookie com a coluna `token` da tabela `sessions`: são diferentes; `sha256(cookie) === token_no_banco` confirmado.
-  8. ✅ `/admin` sem credencial → `401`. Com credencial: cadastro manual → `302` e o aluno criado loga (`302`); e-mail duplicado → `409`; `POST /admin/ativar/:id` em usuário inativo → `ativo=1` + nova linha em `orders` (status `manual`); `POST /admin/senha/:id` → nova senha verificável com `verificarSenha`. As 3 ações geraram linhas em `eventos` (`admin_cadastro_manual`, `admin_ativacao`, `admin_nova_senha`).
-  9. ✅ `POST /admin/alunos` com `Origin: https://evil.com` (e credencial válida) → `403`.
-  10. ✅ CSV: primeiros 3 bytes `EF BB BF`; nome com acento (`José Ção`) chega correto no arquivo quando enviado com bytes UTF-8 reais (ver Divergências sobre o teste com curl/shell).
-  11. ✅ Links "Próxima"/"Voltar" abrem as rotas certas (`/aluno/conteudo/AulaN...html`, `/aluno`); `grep "R\$ 97" conteudo/Aula1_O_Pedido_que_Funciona.html` → sem resultado.
-  12. ✅ `docker build` + `docker run` com bind mount → `npm`/script `criar-aluno` dentro do container → login `302` → `docker rm -f` + novo `docker run` no mesmo volume → login continua `302` (aluno persistiu). Precisei de `MSYS_NO_PATHCONV=1` e path Windows explícito no bind mount, mesma questão já registrada no relatório da tarefa 01.
+  1. ✅ `npm run e2e` → 4/4 passos ✅ (rodei duas vezes seguidas para descartar instabilidade). Saída:
+     ```
+     ✅ /admin cadastra aluno manual com valor 97,00 (vírgula)
+     ✅ /entrar com o aluno manual → /aluno → Aula 1 → Aula 2
+     ✅ /comprar → /pagamento mostra QR → aprovado no mp-fake → cai em /aluno sozinho
+     ✅ /sair encerra a sessão e volta para /entrar
+     4/4 passos OK
+     ```
+  2. ✅ Reproduzido isoladamente: subi o `src/server.js` da própria `main` (`git worktree add`, commit `29aa005`) e submeti o formulário de `/admin` num Chromium real. `POST /admin/alunos` → **403 "Origem inválida."** — confirma que o bug já existe na `main` (não é algo introduzido pela tarefa 03) e que um teste em navegador real o pega. Depois de aplicar o fix desta tarefa, o mesmo fluxo (dentro do `npm run e2e`) passa. Não commitei nada na `main`; usei uma worktree temporária, removida ao final (`git worktree remove`).
+  3. ✅ `curl -X POST /entrar -H "Origin: https://evil.com" -d "..."` → `403`. O CSRF continua ativo (não ficou "aberto" ao consertar o Origin null).
+  4. ✅ Com `TRUST_PROXY=2` (também o padrão, sem a variável), uma requisição com `X-Forwarded-For: 1.1.1.1, 2.2.2.2` resulta em `req.ip === "1.1.1.1"` (`req.ips === ["1.1.1.1","2.2.2.2"]`), testado com uma instância mínima do Express isolada (mesma linha `app.set("trust proxy", ...)` do `server.js`). Como o rate-limit usa `req.ip` como chave, duas origens diferentes (duas cadeias de X-Forwarded-For distintas) caem em buckets diferentes — é consequência direta do `trust proxy` estar correto, não precisou de um teste à parte.
+  5. ✅ Com `MP_ACCESS_TOKEN` vazio: `GET /comprar` → 503 com a mensagem amigável; `POST /comprar` (com nome/e-mail/whatsapp/senha/aceite válidos) → 503, mesma mensagem. Consultei o SQLite depois: `users: 0`, `orders: 0` — nenhuma linha criada.
+  6. ✅ `POST /pagamento/<token>/novo` com o pedido ainda `pendente` e não vencido → `303` de volta para `/pagamento/<token>` (mesmo token); no banco, continua havendo só 1 pedido, `status = 'pendente'`. Nenhum pedido novo foi criado.
+  7. ✅ `docker build` + `docker run` (porta 3460, `ADMIN_USER`/`ADMIN_PASS` de teste) → depois de ~35s, `docker inspect` mostra `"Status":"healthy"`. Confirmado com `docker run ... ls /app/scripts` que a imagem só tem `criar-aluno.js` (nem `mp-fake.js` nem `e2e.js`), e que `node_modules` não tem `playwright` nem `curl` no sistema de arquivos da imagem.
 - **Divergências:**
-  - Dockerfile: acrescentei `COPY scripts ./scripts`, que não estava no mecanismo proposto mas é necessário para `npm run criar-aluno` funcionar dentro do container (o script é descrito como ferramenta de "testes e emergência", inclusive em produção).
-  - Tabela do `/admin`: é uma linha por par (usuário, pedido) via `LEFT JOIN`; um aluno com mais de um pedido aparece em mais de uma linha, cada uma com seus próprios botões "Ativar"/"Nova senha". Funciona, mas repete a ação por linha em vez de agrupar por aluno — não implementei agrupamento por ser decisão de UI não especificada e o volume esperado é pequeno (~17 alunos).
-  - Ao testar acentos no CSV (item 10) pelo terminal Git Bash/PowerShell deste ambiente Windows, o codepage do console (850, não UTF-8) corrompeu o argumento antes de chegar no `curl`. Confirmei que o problema era só do terminal de teste (não do app) reenviando a mesma requisição via um cliente HTTP em Node com bytes UTF-8 reais: o CSV saiu com os acentos corretos. Registro isso para quem for reproduzir os testes manualmente no Windows.
+  - A Aula 1 (`conteudo/Aula1_O_Pedido_que_Funciona.html`) é uma lição interativa de uma página só, com 6 passos travados (`data-trava`) que só liberam o botão "Continuar" depois de uma pequena interação (responder o quiz, tocar nos 4 ingredientes do método CAFÉ, etc.) — o cartão "Próxima: Aula 2" só aparece no último passo. A tarefa descrevia só "abre a Aula 1 → clica 'Próxima: Aula 2'", sem prever essa mecânica. Resolvi fazendo o `e2e.js` percorrer os 6 passos com cliques reais nos controles de cada exercício (não usei `page.evaluate` nem chamei funções JS diretamente — são cliques de verdade, só que na sequência certa), e usei `reducedMotion: "reduce"` no contexto do Playwright para pular as animações de digitação/transição (isso não muda o que precisa ser clicado, só a velocidade). Não editei o arquivo em `conteudo/`, que é cópia de `03_Produto_Aula_Digital/`.
+  - Para aprovar o PIX no passo c) do e2e, chamei o `POST /__set/:id` do `mp-fake` diretamente com `fetch` (fora do navegador). Interpretei a instrução "sem `page.request`" como sendo sobre as interações com o **nosso** app (que devem ser cliques de verdade), não sobre o `mp-fake`: não existe formulário no nosso sistema para simular "o banco aprovou o PIX", isso é o papel do Mercado Pago de verdade: o `mp-fake` faz esse papel também fora do navegador.
+  - Os itens 3 a 7 da validação não entraram no `npm run e2e`: usei um `curl` (item 3, que a própria tarefa pede) e três scripts descartáveis no `scratchpad` (items 2, 4 e 5/6 combinados) e o Docker CLI direto (item 7). Não commitei esses scripts avulsos — são só evidência para este relatório.
+  - No commit `1b1d089` ("fix: /admin/alunos aceita valor com vírgula"), acabei incluindo no mesmo `git add src/server.js` as mudanças do `checkoutDisponivel()` e da guarda do `/pagamento/:token/novo` (que documentei corretamente no commit seguinte, `63166a9`, mas cujo código já estava fisicamente ali). Não refiz o histórico porque nada foi perdido nem descrito errado — só o corte entre os dois commits ficou menos limpo do que pretendia.
+  - No backlog (`docs/t4p-00-estado.md`), a tarefa pedia que os itens 4 **e** 5 ficassem com o texto "feito nas tarefas 03 e 04, aguardando merge". O item 5 sempre foi só "(fundido no item 4)" (mesmo padrão do item 3 → item 2); mantive essa marcação e acrescentei o texto pedido ao lado, em vez de duplicar a frase inteira no lugar da marcação de fusão.
 - **Achados** (fora do escopo, não corrigidos):
-  - Nenhum novo além dos já registrados na tarefa 01 (favicon/og-image ausentes). O achado de `npm audit` da tarefa 01 (crítico/alto via `bcrypt`/`tar`/`node-pre-gyp`) está resolvido nesta tarefa como consequência de remover o `bcrypt`.
-- **Commit/branch:** branch `tarefa/02-aluno-admin`, criada a partir da `main` pós-merge da tarefa 01 (`beca235`). Commits: `bdaf959` (docs do planejador), `6578435` (troca de CTA nas aulas), `0cbd0e8` (remoção do bcrypt), `0e31232` (auth.js + db.js), `04a10a8` (script criar-aluno), `372e473` (rotas + views), `3862bc3` (fix Dockerfile). Sem push, sem merge.
+  - Quando `POST /pagamento/:token/novo` é rejeitado (pedido ainda válido) e redireciona de volta para `/pagamento/:token`, a página não mostra nenhum aviso explicando por que nada mudou (ela só reaparece igual). Baixo impacto — só acontece se o aluno reenviar o formulário de "Gerar novo PIX" antes de ele realmente expirar (ex.: voltar no navegador) — e a tarefa não pediu mensagem nesse caso.
+  - `docker build` imprime "npm notice: New major version of npm available (10.8.2 -> 12.1.0)"; não é erro, só um lembrete do próprio npm, sem relação com esta tarefa.
+- **Commit/branch:** branch `tarefa/04-correcoes-producao`, criada a partir da `tarefa/03-checkout-pix` (que ainda não tinha sido mergeada). Commits: `9f1cd39` (docs pendentes do planejador), `4e071b2` (Referrer-Policy + trust proxy + limpeza do `SESSION_SECRET`), `1b1d089` (valor com vírgula — ver divergência acima), `63166a9` (`/comprar` indisponível + guarda do `/pagamento/:token/novo`), `7f11af8` (HEALTHCHECK), `1909795` (`scripts/e2e.js` + Playwright), `9a8c8be` (backlog). Fiz o push da branch e abri o PR `tarefa/04-correcoes-producao → main` (inclui os commits da tarefa 03). Sem merge.

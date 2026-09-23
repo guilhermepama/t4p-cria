@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "criar-aluno": "node scripts/criar-aluno.js"
+    "criar-aluno": "node scripts/criar-aluno.js",
+    "e2e": "node scripts/e2e.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
@@ -18,5 +19,8 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
   }
 }

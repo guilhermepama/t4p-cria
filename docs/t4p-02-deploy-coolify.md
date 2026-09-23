@@ -2,7 +2,14 @@
 
 Tarefas do **Guilherme**: o executor não tem acesso a painéis.
 
-## 1. DNS (GoDaddy → iadojeitocerto.com → DNS)
+## 1. DNS (registro na GoDaddy, DNS no Cloudflare) — FEITO em 23/09
+
+- Nameservers na GoDaddy: `glen.ns.cloudflare.com` e `reza.ns.cloudflare.com`.
+- Cloudflare: `A @ → 187.77.254.188` e `CNAME www → iadojeitocerto.com`, os dois **proxied** (nuvem laranja), SSL **Full**. Always Use HTTPS desligado.
+- A VPS é compartilhada com o Orbinote e tem o firewall `orbinote-cloudflare-only`: só entra tráfego do Cloudflare. Por isso a nuvem cinza não funciona aqui.
+- Pendente: trocar para **Full (strict)** depois de confirmar que o certificado do Let's Encrypt foi emitido no Traefik.
+
+### (histórico) instruções originais
 
 | Tipo | Nome | Valor | TTL |
 |---|---|---|---|
@@ -34,7 +41,7 @@ Tarefas do **Guilherme**: o executor não tem acesso a painéis.
 2. Build Pack: **Dockerfile**. Porta: **3000**.
 3. Domains: `https://iadojeitocerto.com,https://www.iadojeitocerto.com` (o Traefik emite o Let's Encrypt sozinho).
 4. **Storages → Add Volume:** destino `/app/data`. ⚠️ Fazer ANTES da primeira venda; sem ele, cada deploy apaga o banco.
-5. Environment Variables: todas do `.env.example` (`SESSION_SECRET` com `openssl rand -hex 32`).
+5. Environment Variables: todas do `.env.example`. `ADMIN_USER`/`ADMIN_PASS` são obrigatórias (sem elas o /admin responde 503).
 6. Health check: path `/health`.
 7. Auto Deploy ligado (deploy a cada push/merge na `main`).
 8. Testar a persistência: criar um aluno → Redeploy → o aluno continua lá.

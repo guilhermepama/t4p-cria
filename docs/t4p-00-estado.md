@@ -28,6 +28,13 @@ Atualizado em 22/09/2026.
 | 23/09 | bcrypt trocado por `crypto.scrypt` nativo | Remove dependência nativa com vulnerabilidade transitiva (tar/node-pre-gyp) |
 | 23/09 | CSP com `unsafe-inline` aceita | Landing/aulas usam inline; sem HTML gerado por usuário |
 
+| 23/09 | Checkout e webhook numa tarefa só (03) | Um fluxo só; o teste de R$ 1 precisa dos dois |
+| 23/09 | Sem `notification_url` no pagamento; só o webhook do painel da aplicação T4P | Uma fonte assinada, sem notificações duplicadas |
+
+| 23/09 | Cloudflare na frente (proxied), mesma VPS e firewall do Orbinote; `TRUST_PROXY=2` | Firewall só aceita tráfego do Cloudflare |
+| 23/09 | Formulários sempre validados em navegador real (Playwright) | Bug de `Origin: null` passou por todos os testes com curl |
+| 23/09 | Tarefas 03 e 04 vão juntas num PR só | A 03 sozinha publicaria um checkout quebrado pelo mesmo bug |
+
 ## Pendências de produto (do Guilherme, não do executor)
 
 - Garantia de 7 dias: sim ou não? (a landing tem um aviso âmbar)
@@ -38,12 +45,12 @@ Atualizado em 22/09/2026.
 ## Backlog
 
 1. ~~Esqueleto + Dockerfile + landing no ar~~ — feito na tarefa 01, mergeado na main
-2. ~~Login, área do aluno, conteúdo protegido + /admin completo~~ — feito na tarefa 02, aguardando merge
+2. ~~Login, área do aluno, conteúdo protegido + /admin completo~~ — feito na tarefa 02, mergeado na main (achado da tarefa 03: já estava mergeado, só não tinha sido atualizado aqui)
 3. (fundido no item 2)
-4. Checkout PIX + tela de QR + polling
-5. Webhook com assinatura + reconsulta
+4. ~~Checkout PIX + tela de QR + polling + webhook + /privacidade~~ — feito nas tarefas 03 e 04, aguardando merge
+5. (fundido no item 4) — feito nas tarefas 03 e 04, aguardando merge
 6. Teste real com R$ 1 e go-live com R$ 97
-7. /privacidade + remoção dos avisos âmbar + `LINK_COMPRA`
+7. Remoção dos avisos âmbar (depende das decisões de garantia/prazo) + favicon/og-image
 
 ### Registro rápido (micro-correções, sem tarefa)
 
