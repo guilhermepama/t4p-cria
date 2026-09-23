@@ -5,9 +5,8 @@ Tarefas do **Guilherme**: o executor não tem acesso a painéis.
 ## 1. DNS (registro na GoDaddy, DNS no Cloudflare) — FEITO em 23/09
 
 - Nameservers na GoDaddy: `glen.ns.cloudflare.com` e `reza.ns.cloudflare.com`.
-- Cloudflare: `A @ → 187.77.254.188` e `CNAME www → iadojeitocerto.com`, os dois **proxied** (nuvem laranja), SSL **Full**. Always Use HTTPS desligado.
+- Cloudflare: `A @ → 187.77.254.188` e `CNAME www → iadojeitocerto.com`, os dois **proxied** (nuvem laranja), SSL **Full (strict)** desde 23/09 (certificado do Let's Encrypt válido na origem). Always Use HTTPS desligado.
 - A VPS é compartilhada com o Orbinote e tem o firewall `orbinote-cloudflare-only`: só entra tráfego do Cloudflare. Por isso a nuvem cinza não funciona aqui.
-- Pendente: trocar para **Full (strict)** depois de confirmar que o certificado do Let's Encrypt foi emitido no Traefik.
 
 ### (histórico) instruções originais
 
