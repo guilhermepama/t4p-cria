@@ -36,6 +36,13 @@ const ALUNO_PIX = {
   whatsapp: "11999990002",
   senha: "senha-pix-e2e-1234",
 };
+const ALUNO_PROGRESSO = {
+  nome: "Aluno Progresso E2E",
+  email: `aluno.progresso.${SUFIXO}@exemplo.com`,
+  whatsapp: "11999990004",
+  senha: "senha-progresso-e2e-1234",
+  valor: "49,90",
+};
 
 const passos = [];
 let falhou = false;
@@ -76,6 +83,29 @@ async function esperarSaudavel(url, tentativas = 60) {
     await new Promise((r) => setTimeout(r, 250));
   }
   throw new Error(`Servidor não respondeu em ${url} a tempo.`);
+}
+
+// /entrar tem rate-limit de 10 req/min por IP (proteção de segurança que esta
+// tarefa não deve tocar). Os testes de tema (09) já usam boa parte desse
+// orçamento com vários logins reais; os testes novos de progresso (10) fazem
+// mais alguns, então tentam de novo com espera se caírem no 429 em vez de
+// simplesmente falhar.
+async function entrarComRetentativa(pagina, credenciais, baseUrl) {
+  for (let tentativa = 0; tentativa < 4; tentativa++) {
+    if (tentativa > 0) await new Promise((r) => setTimeout(r, 15000));
+    await pagina.goto(`${baseUrl}/entrar`);
+    await pagina.fill("#email", credenciais.email);
+    await pagina.fill("#senha", credenciais.senha);
+    const respPromise = pagina.waitForResponse(
+      (r) => r.url() === `${baseUrl}/entrar` && r.request().method() === "POST"
+    );
+    await pagina.click('button:has-text("Entrar")');
+    const resp = await respPromise;
+    if (resp.status() === 429) continue;
+    await pagina.waitForURL(`${baseUrl}/aluno`);
+    return;
+  }
+  throw new Error(`login de ${credenciais.email} bloqueado por rate limit (429) mesmo após novas tentativas`);
 }
 
 async function continuarQuandoLiberado(pagina) {
@@ -144,6 +174,7 @@ async function percorrerAula1(pagina) {
 // print da abertura + 2 passos quando pedido.
 
 const EVIDENCIAS_AULAS_DIR = path.join(RAIZ, "docs", "claude-bridge", "evidencias", "tarefa-09-aulas");
+const EVIDENCIAS_PROGRESSO_DIR = path.join(RAIZ, "docs", "claude-bridge", "evidencias", "tarefa-10-progresso");
 
 function contarLinhas(pagina, seletor) {
   return pagina.evaluate((sel) => {
@@ -665,6 +696,21 @@ async function main() {
         path: path.join(evidenciasDir, "tarefa-05-admin-email-longo.png"),
       });
     });
+
+    await passo("/admin cadastra o aluno usado nos testes de progresso (tarefa 10)", async () => {
+      await paginaAdmin.goto(`${baseUrl}/admin`);
+      await paginaAdmin.fill("#nome", ALUNO_PROGRESSO.nome);
+      await paginaAdmin.fill("#email", ALUNO_PROGRESSO.email);
+      await paginaAdmin.fill("#whatsapp", ALUNO_PROGRESSO.whatsapp);
+      await paginaAdmin.fill("#senha", ALUNO_PROGRESSO.senha);
+      await paginaAdmin.fill("#valor", ALUNO_PROGRESSO.valor);
+      await paginaAdmin.click('button:has-text("Cadastrar aluno")');
+      await paginaAdmin.waitForURL(`${baseUrl}/admin`);
+      const corpo = await paginaAdmin.content();
+      if (!corpo.includes(ALUNO_PROGRESSO.email)) {
+        throw new Error("aluno de progresso não aparece na tabela do /admin");
+      }
+    });
     await ctxAdmin.close();
 
     // ---------- 0i) /entrar (401 senha errada): link "Esqueci minha senha" presente ----------
@@ -767,6 +813,26 @@ async function main() {
     // ---------- tarefa 09: tema das aulas (visual da landing) ----------
     fs.mkdirSync(EVIDENCIAS_AULAS_DIR, { recursive: true });
 
+    // ---------- tarefa 10: progresso do aluno (aulas + downloads) ----------
+    // (infra de print declarada aqui porque a screenshot do estado "concluída"
+    // é tirada logo abaixo, ao final da cadeia 1440 que já percorre as 3 aulas.)
+    fs.mkdirSync(EVIDENCIAS_PROGRESSO_DIR, { recursive: true });
+
+    const VIEWPORTS_PROGRESSO = [
+      { nome: "1280", width: 1280, height: 900 },
+      { nome: "390", width: 390, height: 844 },
+    ];
+
+    async function printarAluno(pagina, nomeEstado) {
+      for (const viewport of VIEWPORTS_PROGRESSO) {
+        await pagina.setViewportSize({ width: viewport.width, height: viewport.height });
+        await pagina.screenshot({
+          path: path.join(EVIDENCIAS_PROGRESSO_DIR, `aluno-${nomeEstado}-${viewport.nome}.png`),
+          fullPage: true,
+        });
+      }
+    }
+
     await passo(
       "aulas (1440px): tema + fontes OK, percorre Aula 1→2→3 até o final clicando nos links reais, sem erro no console",
       async () => {
@@ -795,6 +861,26 @@ async function main() {
 
           await pagina.getByRole("link", { name: "Voltar à área do aluno" }).click();
           await pagina.waitForURL(`${baseUrl}/aluno`);
+
+          // tarefa 10: as 3 aulas foram percorridas até o final acima (percorrerAulaXTema),
+          // então /aluno deve mostrar "✓ Concluída" nas 3 (progresso no servidor).
+          for (const arquivo of [
+            "Aula1_O_Pedido_que_Funciona.html",
+            "Aula2_Conserte_a_Resposta.html",
+            "Aula3_Monte_sua_Equipe.html",
+          ]) {
+            const cartao = pagina.locator(`.card[data-aula="${arquivo}"]`);
+            const textoProgresso = await cartao.locator(".texto-progresso").textContent();
+            if (!textoProgresso || !textoProgresso.includes("Concluída")) {
+              throw new Error(`/aluno não mostra "✓ Concluída" para ${arquivo} (veio "${textoProgresso}")`);
+            }
+            const rotuloBotao = await cartao.locator(".btn").textContent();
+            if (rotuloBotao !== "Rever aula") {
+              throw new Error(`botão de ${arquivo} deveria ser "Rever aula", veio "${rotuloBotao}"`);
+            }
+          }
+
+          await printarAluno(pagina, "concluida");
 
           conferirSemErrosNoConsole(errosConsole, "cadeia 1440 (Aula1 → Aula2 → Aula3 → /aluno)");
         } finally {
@@ -834,6 +920,237 @@ async function main() {
         }
       );
     }
+
+    // ---------- tarefa 10: progresso do aluno (continuação — aulas/downloads do próprio aluno) ----------
+
+    const ctxProgresso = await browser.newContext({ reducedMotion: "reduce" });
+    const paginaProgresso = await ctxProgresso.newPage();
+
+    await passo("/entrar com o aluno de progresso → /aluno mostra as 3 aulas 'Não iniciada'", async () => {
+      await entrarComRetentativa(paginaProgresso, ALUNO_PROGRESSO, baseUrl);
+
+      const textoAula1 = await paginaProgresso
+        .locator('.card[data-aula="Aula1_O_Pedido_que_Funciona.html"] .texto-progresso')
+        .textContent();
+      if (!textoAula1 || !textoAula1.includes("Não iniciada")) {
+        throw new Error(`Aula 1 deveria mostrar "Não iniciada", veio "${textoAula1}"`);
+      }
+
+      await printarAluno(paginaProgresso, "nao-iniciada-e-nao-baixado");
+    });
+
+    let totalAula1;
+
+    await passo(
+      'Aula 1: avança até o passo 3 → /aluno mostra "Passo 3 de N"; volta para o passo 2 → continua mostrando 3',
+      async () => {
+        const [aula1] = await Promise.all([
+          ctxProgresso.waitForEvent("page"),
+          paginaProgresso.getByRole("link", { name: "Abrir aula" }).first().click(),
+        ]);
+        await aula1.waitForLoadState();
+
+        totalAula1 = await aula1.evaluate(() => document.querySelectorAll(".step").length - 1);
+
+        await Promise.all([
+          aula1.waitForResponse((r) => r.url().endsWith("/aluno/progresso") && r.request().method() === "POST"),
+          aula1.click("#comecar"), // ir(1)
+        ]);
+        await Promise.all([
+          aula1.waitForResponse((r) => r.url().endsWith("/aluno/progresso") && r.request().method() === "POST"),
+          continuarQuandoLiberado(aula1), // ir(2)
+        ]);
+        await Promise.all([
+          aula1.waitForResponse((r) => r.url().endsWith("/aluno/progresso") && r.request().method() === "POST"),
+          continuarQuandoLiberado(aula1), // ir(3)
+        ]);
+
+        // O Chromium headless não "esconde" mesmo as abas em segundo plano
+        // (document.visibilityState fica sempre "visible"), então bringToFront()
+        // sozinho não dispara o evento aqui como faria num navegador de verdade.
+        // Disparamos o mesmo evento que o script de /aluno escuta, para validar
+        // a lógica de atualização (fetch + troca do cartão) sem depender de
+        // como o Chromium headless simula foco de aba.
+        await paginaProgresso.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+        await paginaProgresso.waitForFunction(
+          () =>
+            document.querySelector('.card[data-aula="Aula1_O_Pedido_que_Funciona.html"] .texto-progresso')
+              .textContent.indexOf("Passo") === 0
+        );
+        const textoPasso3 = await paginaProgresso
+          .locator('.card[data-aula="Aula1_O_Pedido_que_Funciona.html"] .texto-progresso')
+          .textContent();
+        if (textoPasso3 !== `Passo 3 de ${totalAula1}`) {
+          throw new Error(`esperava "Passo 3 de ${totalAula1}" em /aluno, veio "${textoPasso3}"`);
+        }
+
+        await Promise.all([
+          aula1.waitForResponse((r) => r.url().endsWith("/aluno/progresso") && r.request().method() === "POST"),
+          aula1.click("#voltar"), // ir(2) — não pode regredir o que já foi salvo (passo 3)
+        ]);
+
+        // O reload não depende de visibilitychange: é o servidor renderizando
+        // o estado atual direto no HTML, então confirma a persistência de verdade.
+        await paginaProgresso.reload();
+        const textoAposVoltar = await paginaProgresso
+          .locator('.card[data-aula="Aula1_O_Pedido_que_Funciona.html"] .texto-progresso')
+          .textContent();
+        if (textoAposVoltar !== `Passo 3 de ${totalAula1}`) {
+          throw new Error(
+            `depois de "Voltar" na aula, /aluno deveria continuar em "Passo 3 de ${totalAula1}", veio "${textoAposVoltar}"`
+          );
+        }
+
+        await aula1.close();
+      }
+    );
+
+    await passo(
+      "Baixar 'assistente_vendas.txt': '✓ Baixado' aparece na hora, persiste após reload, e outro aluno não vê o check",
+      async () => {
+        const linha = paginaProgresso.locator('.download[data-arquivo="assistente_vendas.txt"]');
+        const checkAntes = await linha.locator(".check-baixado").isVisible();
+        if (checkAntes) throw new Error('"✓ Baixado" já aparecia antes do download');
+
+        await Promise.all([
+          paginaProgresso.waitForEvent("download"),
+          linha.locator(".link-baixar").click(),
+        ]);
+
+        if (!(await linha.locator(".check-baixado").isVisible())) {
+          throw new Error('"✓ Baixado" não apareceu na hora do clique (atualização otimista)');
+        }
+        if ((await linha.locator(".link-baixar").textContent()) !== "Baixar de novo") {
+          throw new Error('link não virou "Baixar de novo" depois do clique');
+        }
+
+        await paginaProgresso.reload();
+        const linhaDepois = paginaProgresso.locator('.download[data-arquivo="assistente_vendas.txt"]');
+        if (!(await linhaDepois.locator(".check-baixado").isVisible())) {
+          throw new Error('"✓ Baixado" não persistiu depois do reload');
+        }
+
+        // estado "em andamento" (Passo 3 de N, da etapa anterior) + "✓ Baixado"
+        // já persistido no reload acima.
+        await printarAluno(paginaProgresso, "em-andamento-e-baixado");
+
+        const ctxOutroAluno = await browser.newContext();
+        const paginaOutroAluno = await ctxOutroAluno.newPage();
+        await entrarComRetentativa(paginaOutroAluno, ALUNO_MANUAL, baseUrl);
+        const linhaOutroAluno = paginaOutroAluno.locator('.download[data-arquivo="assistente_vendas.txt"]');
+        if (await linhaOutroAluno.locator(".check-baixado").isVisible()) {
+          throw new Error("outro aluno também aparece com \"✓ Baixado\" (progresso vazando entre contas)");
+        }
+        await ctxOutroAluno.close();
+      }
+    );
+
+    await passo(
+      "POST /aluno/progresso: sem sessão → redireciona para /entrar; sem Origin válido → 403; corpo inválido → 400",
+      async () => {
+        const paginaAnonima = await browser.newPage();
+        const respSemSessao = await paginaAnonima.request.post(`${baseUrl}/aluno/progresso`, {
+          headers: { "Content-Type": "application/json", Origin: baseUrl },
+          data: { aula: "Aula1_O_Pedido_que_Funciona.html", passo: 1, total: 10 },
+          maxRedirects: 0,
+        });
+        if (respSemSessao.status() !== 302) {
+          throw new Error(`sem sessão: esperava 302 (redirect para /entrar), veio ${respSemSessao.status()}`);
+        }
+        const destino = respSemSessao.headers()["location"] || "";
+        if (!destino.includes("/entrar")) {
+          throw new Error(`sem sessão: redirect não aponta para /entrar (veio "${destino}")`);
+        }
+        await paginaAnonima.close();
+
+        const respOrigemInvalida = await paginaProgresso.request.post(`${baseUrl}/aluno/progresso`, {
+          headers: { "Content-Type": "application/json", Origin: "https://outro-dominio.exemplo" },
+          data: { aula: "Aula1_O_Pedido_que_Funciona.html", passo: 1, total: 10 },
+          maxRedirects: 0,
+        });
+        if (respOrigemInvalida.status() !== 403) {
+          throw new Error(`Origin inválida: esperava 403, veio ${respOrigemInvalida.status()}`);
+        }
+
+        const corposInvalidos = [
+          { aula: "Aula4_Inexistente.html", passo: 1, total: 10 },
+          { aula: "Aula1_O_Pedido_que_Funciona.html", passo: 11, total: 10 },
+          { aula: "Aula1_O_Pedido_que_Funciona.html", passo: 5, total: 31 },
+          { aula: "Aula1_O_Pedido_que_Funciona.html", passo: -1, total: 10 },
+        ];
+        for (const corpo of corposInvalidos) {
+          const resp = await paginaProgresso.request.post(`${baseUrl}/aluno/progresso`, {
+            headers: { "Content-Type": "application/json", Origin: baseUrl },
+            data: corpo,
+          });
+          if (resp.status() !== 400) {
+            throw new Error(`corpo ${JSON.stringify(corpo)} deveria responder 400, veio ${resp.status()}`);
+          }
+        }
+      }
+    );
+
+    await passo(
+      "Aula com POST /aluno/progresso falhando (servidor fora do ar): navegação segue normal, sem erro na página",
+      async () => {
+        const ctx = await browser.newContext({ reducedMotion: "reduce" });
+        const pagina = await ctx.newPage();
+        const errosPagina = [];
+        pagina.on("pageerror", (erro) => errosPagina.push(String((erro && erro.message) || erro)));
+        await ctx.route("**/aluno/progresso", (route) => route.abort());
+
+        await entrarComRetentativa(pagina, ALUNO_PROGRESSO, baseUrl);
+
+        const [aula1] = await Promise.all([
+          ctx.waitForEvent("page"),
+          pagina.getByRole("link", { name: "Abrir aula" }).first().click(),
+        ]);
+        await aula1.waitForLoadState();
+        await aula1.click("#comecar");
+        await continuarQuandoLiberado(aula1);
+
+        const textoPasso = await aula1.locator("#passo").textContent();
+        if (!/^Passo \d+ de \d+$/.test(textoPasso || "")) {
+          throw new Error(`a aula parou de responder depois do POST falho (passo="${textoPasso}")`);
+        }
+        if (errosPagina.length) {
+          throw new Error(`erro não tratado na página da aula com POST falho: ${errosPagina.join(" | ")}`);
+        }
+
+        await ctx.close();
+      }
+    );
+
+    await ctxProgresso.close();
+
+    await passo("/admin mostra o bloco 'Uso do conteúdo' com números coerentes com os testes", async () => {
+      const ctx = await browser.newContext({
+        httpCredentials: { username: ADMIN_USER, password: ADMIN_PASS },
+      });
+      const pagina = await ctx.newPage();
+      await pagina.goto(`${baseUrl}/admin`);
+      const corpo = await pagina.content();
+      if (!corpo.includes("Uso do conteúdo")) {
+        throw new Error("/admin não tem o bloco \"Uso do conteúdo\"");
+      }
+
+      const linhaAula1 = pagina.locator("tr", { hasText: "Aula 1 — O pedido que funciona" });
+      const celulasAula1 = await linhaAula1.locator("td").allTextContents();
+      if (Number(celulasAula1[1]) < 2) {
+        throw new Error(`Aula 1: esperava pelo menos 2 alunos com progresso, veio "${celulasAula1[1]}"`);
+      }
+      if (Number(celulasAula1[2]) < 1) {
+        throw new Error(`Aula 1: esperava pelo menos 1 aluno concluído, veio "${celulasAula1[2]}"`);
+      }
+
+      const linhaVendas = pagina.locator("tr", { hasText: "Assistente de vendas (.txt)" });
+      const celulasVendas = await linhaVendas.locator("td").allTextContents();
+      if (Number(celulasVendas[1]) < 1) {
+        throw new Error(`assistente de vendas: esperava pelo menos 1 download, veio "${celulasVendas[1]}"`);
+      }
+
+      await ctx.close();
+    });
 
     // ---------- c) /comprar → paga no mp-fake → cai sozinho em /aluno ----------
     const ctxCompra = await browser.newContext();

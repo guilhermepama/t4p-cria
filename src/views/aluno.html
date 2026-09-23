@@ -13,7 +13,7 @@
 <style>
   :root{
     --bg:#0b0b0d; --card:#141419; --border:#232329; --text:#f2ede4;
-    --muted:#9b9aa3; --orange:#ee8148;
+    --muted:#9b9aa3; --orange:#ee8148; --green:#4ade80;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   body{
@@ -35,6 +35,11 @@
     display:flex; flex-direction:column; gap:10px;
   }
   .card h3{font-family:'Inter Tight',sans-serif; font-size:16px}
+  .progresso-aula{display:flex; flex-direction:column; gap:6px}
+  .trilho{height:6px; border-radius:999px; background:var(--border); overflow:hidden}
+  .preenchido{height:100%; border-radius:999px; background:linear-gradient(96deg,#f6c49a 10%,var(--orange) 90%)}
+  .texto-progresso{font-size:13.5px; color:var(--muted)}
+  .selo-concluida{color:var(--green); font-weight:600}
   .btn{
     display:inline-flex; align-items:center; justify-content:center;
     border-radius:999px; padding:10px 20px; border:none; cursor:pointer; text-decoration:none;
@@ -47,9 +52,12 @@
     background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px;
   }
   .download span{font-size:14.5px}
+  .download-acoes{display:flex; align-items:center; gap:10px}
+  .check-baixado{color:var(--green); font-weight:600; font-size:13.5px; white-space:nowrap}
   .download a{
     color:var(--orange); text-decoration:none; font-weight:600; font-size:14px; white-space:nowrap;
   }
+  .download a.ja-baixado{color:var(--muted); font-weight:500}
   footer{margin-top:32px; text-align:center; font-size:12.5px; color:var(--muted)}
   footer a{color:var(--orange)}
 </style>
@@ -75,5 +83,63 @@
 
     <footer>Dúvidas? <a href="{{linkWhatsapp}}" target="_blank" rel="noopener">WhatsApp {{whatsappFmt}}</a></footer>
   </div>
+  <script>
+  (function () {
+    "use strict";
+
+    function aplicarProgresso(dados) {
+      document.querySelectorAll(".card[data-aula]").forEach(function (card) {
+        var info = dados.aulas[card.dataset.aula];
+        var texto = card.querySelector(".texto-progresso");
+        var trilho = card.querySelector(".trilho");
+        var preenchido = card.querySelector(".preenchido");
+        var btn = card.querySelector(".btn");
+        if (!info) {
+          texto.textContent = "Não iniciada";
+          if (trilho) trilho.style.display = "none";
+          if (btn) btn.textContent = "Abrir aula";
+          return;
+        }
+        if (trilho) trilho.style.display = "";
+        if (info.concluido) {
+          texto.innerHTML = '<span class="selo-concluida">✓ Concluída</span>';
+          if (preenchido) preenchido.style.width = "100%";
+          if (btn) btn.textContent = "Rever aula";
+        } else {
+          texto.textContent = "Passo " + info.passo + " de " + info.total;
+          if (preenchido) preenchido.style.width = (info.total > 0 ? Math.round((info.passo / info.total) * 100) : 0) + "%";
+          if (btn) btn.textContent = "Abrir aula";
+        }
+      });
+
+      document.querySelectorAll(".download[data-arquivo]").forEach(function (linha) {
+        if (!dados.downloads[linha.dataset.arquivo]) return;
+        var check = linha.querySelector(".check-baixado");
+        var link = linha.querySelector(".link-baixar");
+        check.style.display = "";
+        link.textContent = "Baixar de novo";
+        link.classList.add("ja-baixado");
+      });
+    }
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState !== "visible") return;
+      fetch("/aluno/progresso.json", { credentials: "same-origin" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (dados) { if (dados) aplicarProgresso(dados); })
+        .catch(function () {});
+    });
+
+    document.querySelectorAll(".link-baixar").forEach(function (link) {
+      link.addEventListener("click", function () {
+        var linha = link.closest(".download");
+        var check = linha.querySelector(".check-baixado");
+        check.style.display = "";
+        link.textContent = "Baixar de novo";
+        link.classList.add("ja-baixado");
+      });
+    });
+  })();
+  </script>
 </body>
 </html>

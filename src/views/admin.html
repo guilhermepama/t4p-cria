@@ -87,6 +87,16 @@
     </table>
     <p style="margin-top:14px"><a class="csv" href="/admin/vendas.csv">Baixar CSV de vendas</a></p>
 
+    <h2>Uso do conteúdo</h2>
+    <table>
+      <thead>
+        <tr><th>Item</th><th>Abriram/baixaram</th><th>Concluíram</th><th>% dos alunos ativos</th></tr>
+      </thead>
+      <tbody>
+        {{{linhasUsoConteudo}}}
+      </tbody>
+    </table>
+
     <h2>Cadastrar aluno (PIX direto)</h2>
     <form class="painel" method="POST" action="/admin/alunos">
       <label for="nome">Nome</label>
