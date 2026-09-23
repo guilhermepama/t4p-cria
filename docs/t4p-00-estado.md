@@ -45,6 +45,8 @@ Atualizado em 23/09/2026.
 | 23/09 | Área do aluno no ar por 90 dias, até 24/12/2026 | Decisão do Guilherme |
 | 23/09 | Esqueci a senha = WhatsApp + /admin (sem e-mail) | Link em `/entrar` abre o WhatsApp com mensagem pronta; o Guilherme redefine a senha pelo botão "Nova senha" do /admin e responde por lá (mesma decisão de 22/09 sobre e-mail transacional, agora com caminho de UI) |
 
+| 23/09 | Aulas com o visual da landing (tema escuro fixo); "Aula 1 grátis" removido | Consistência visual com a landing; alinhado à decisão de 23/09 de que não há aula grátis |
+
 ## Pendências de produto (do Guilherme, não do executor)
 
 - Preço para equipes (sugestão: R$ 79/acesso a partir de 3, sem anunciar)

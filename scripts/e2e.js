@@ -136,6 +136,246 @@ async function percorrerAula1(pagina) {
   await continuarQuandoLiberado(pagina); // -> cartão final
 }
 
+// ---------- tarefa 09: tema das aulas (visual da landing) ----------
+// As 3 aulas ganharam um tema escuro sobreposto (mesmo visual da landing),
+// sem tocar na lógica (<script>). As funções abaixo percorrem cada aula até
+// o final (como as de cima), mas também conferem, a cada passo, que 360px
+// não gera scroll horizontal nem quebra a linha "Passo X de Y", e tiram
+// print da abertura + 2 passos quando pedido.
+
+const EVIDENCIAS_AULAS_DIR = path.join(RAIZ, "docs", "claude-bridge", "evidencias", "tarefa-09-aulas");
+
+function contarLinhas(pagina, seletor) {
+  return pagina.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el || !el.textContent || !el.textContent.trim()) return 1;
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    return range.getClientRects().length;
+  }, seletor);
+}
+
+async function conferirPasso(pagina, contexto, largura) {
+  if (largura !== 360) return;
+  const semScrollHorizontal = await pagina.evaluate(
+    () => document.documentElement.scrollWidth <= document.documentElement.clientWidth
+  );
+  if (!semScrollHorizontal) {
+    throw new Error(`scroll horizontal em 360px (${contexto}): documentElement.scrollWidth > clientWidth`);
+  }
+  const linhasPasso = await contarLinhas(pagina, "#passo");
+  if (linhasPasso > 1) {
+    throw new Error(`"Passo X de Y" quebrou linha em 360px (${contexto})`);
+  }
+}
+
+// Abre uma aula já logado como o aluno manual, na viewport pedida, e
+// devolve a página com os erros de console (inclui violação de CSP, que o
+// Chromium também loga como erro no console) coletados ao vivo.
+async function abrirAulaLogado(browser, baseUrl, viewport, arquivo) {
+  const ctx = await browser.newContext({
+    viewport: { width: viewport.width, height: viewport.height },
+    reducedMotion: "reduce",
+  });
+  await ctx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: baseUrl });
+  const pagina = await ctx.newPage();
+
+  const errosConsole = [];
+  pagina.on("console", (msg) => {
+    if (msg.type() === "error") errosConsole.push(msg.text());
+  });
+  pagina.on("pageerror", (erro) => errosConsole.push(String((erro && erro.message) || erro)));
+
+  await pagina.goto(`${baseUrl}/entrar`);
+  await pagina.fill("#email", ALUNO_MANUAL.email);
+  await pagina.fill("#senha", ALUNO_MANUAL.senha);
+  await pagina.click('button:has-text("Entrar")');
+  await pagina.waitForURL(`${baseUrl}/aluno`);
+
+  await pagina.goto(`${baseUrl}/aluno/conteudo/${arquivo}`);
+  await pagina.evaluate(() => document.fonts.ready);
+
+  return { ctx, pagina, errosConsole };
+}
+
+async function conferirTemaEFontes(pagina, contexto) {
+  if ((await pagina.locator("#tema-t4p").count()) === 0) {
+    throw new Error(`${contexto}: não achei <style id="tema-t4p">`);
+  }
+  if ((await pagina.locator("header.topo").count()) === 0) {
+    throw new Error(`${contexto}: não achei <header class="topo">`);
+  }
+  const hrefTopo = await pagina.locator(".topo-link").getAttribute("href");
+  if (hrefTopo !== "/aluno") {
+    throw new Error(`${contexto}: link "Área do aluno" aponta para "${hrefTopo}", esperava "/aluno"`);
+  }
+  // document.fonts.check('16px "<família>"') (peso/estilo padrão: 400 normal) dá falso
+  // negativo aqui: o tema só usa Instrument Serif em itálico e nunca pede Inter Tight no
+  // peso 400 (só 500–800), então esse par nunca é carregado mesmo com as fontes OK — a
+  // rede confirma 200 nos .woff2 e as variantes realmente usadas ficam com status
+  // "loaded". Por isso a checagem aqui é "existe alguma variante carregada da família",
+  // que é o que a validação da tarefa quer dizer com "fontes do Google carregam".
+  const fontes = await pagina.evaluate(() => {
+    const carregouAlgumaVariante = (familia) =>
+      Array.from(document.fonts).some((f) => f.family.replace(/"/g, "") === familia && f.status === "loaded");
+    return {
+      serif: carregouAlgumaVariante("Instrument Serif"),
+      display: carregouAlgumaVariante("Inter Tight"),
+    };
+  });
+  if (!fontes.serif || !fontes.display) {
+    throw new Error(`${contexto}: fontes não carregaram (${JSON.stringify(fontes)})`);
+  }
+}
+
+function conferirSemErrosNoConsole(errosConsole, contexto) {
+  if (errosConsole.length) {
+    throw new Error(`${contexto}: erro(s) no console (inclui possível violação de CSP): ${errosConsole.join(" | ")}`);
+  }
+}
+
+async function percorrerAula1Tema(pagina, opcoes) {
+  const { largura, print, prefixo } = opcoes;
+  async function pos(nome, tirarPrint) {
+    await conferirPasso(pagina, `${prefixo}/${nome}`, largura);
+    if (tirarPrint && print) {
+      await pagina.screenshot({ path: path.join(EVIDENCIAS_AULAS_DIR, `${prefixo}-${nome}.png`) });
+    }
+  }
+
+  await pos("hero", true);
+  await pagina.click("#comecar");
+  await continuarQuandoLiberado(pagina);
+  await continuarQuandoLiberado(pagina);
+  await continuarQuandoLiberado(pagina);
+
+  await pagina.click("#ver-generica");
+  await continuarQuandoLiberado(pagina);
+
+  await pagina.locator('[data-r="1"]').first().click();
+  await pagina.locator("#rodada-2:not(.oculto)").waitFor();
+  await pagina.locator('[data-r="2"]').first().click();
+  await continuarQuandoLiberado(pagina);
+
+  const itensEstagiario = pagina.locator("#lista-estagiario .item");
+  const totalItens = await itensEstagiario.count();
+  for (let i = 0; i < totalItens; i++) await itensEstagiario.nth(i).click();
+  await continuarQuandoLiberado(pagina); // -> s-cafe
+
+  await pos("cafe", true);
+  const letrasCafe = pagina.locator(".letras .letra");
+  const totalLetras = await letrasCafe.count();
+  for (let i = 0; i < totalLetras; i++) await letrasCafe.nth(i).click();
+  await continuarQuandoLiberado(pagina); // -> s-pratica
+
+  const ingredientes = pagina.locator("#ingredientes .btn-linha");
+  const totalIngredientes = await ingredientes.count();
+  for (let i = 0; i < totalIngredientes; i++) await ingredientes.nth(i).click();
+  await pagina.locator("#ver-cafe:not([disabled])").waitFor();
+  await pagina.click("#ver-cafe");
+  await continuarQuandoLiberado(pagina); // -> s-exercicio
+
+  await pos("exercicio", true);
+  await pagina.fill("#f-negocio", "doceria");
+  await pagina.click("#copiar");
+  await pagina.locator("#copiar", { hasText: "Pedido copiado" }).waitFor({ timeout: 3000 });
+
+  await continuarQuandoLiberado(pagina); // -> quiz
+
+  for (const letraCerta of ["C", "F", "A"]) {
+    await pagina.locator(`#quiz-letras .letra[data-q="${letraCerta}"]`).click();
+    const proxima = pagina.locator("#quiz-proxima");
+    if (!(await proxima.evaluate((el) => el.classList.contains("oculto")))) {
+      await proxima.click();
+    }
+  }
+  await continuarQuandoLiberado(pagina); // -> s-final
+  await pos("final", false);
+}
+
+async function percorrerAula2Tema(pagina, opcoes) {
+  const { largura, print, prefixo } = opcoes;
+  async function pos(nome, tirarPrint) {
+    await conferirPasso(pagina, `${prefixo}/${nome}`, largura);
+    if (tirarPrint && print) {
+      await pagina.screenshot({ path: path.join(EVIDENCIAS_AULAS_DIR, `${prefixo}-${nome}.png`) });
+    }
+  }
+
+  await pos("hero", true);
+  await pagina.click("#comecar");
+  await continuarQuandoLiberado(pagina); // i1 -> i2 (s-segunda, trava)
+
+  await pagina.click("#devolver");
+  await continuarQuandoLiberado(pagina); // -> s-caso1
+
+  await pos("caso1", true);
+  await pagina.locator('.diag-letras[data-caso="1"] .letra[data-l="C"]').click();
+  await continuarQuandoLiberado(pagina); // -> s-caso2
+
+  await pagina.locator('.diag-letras[data-caso="2"] .letra[data-l="A"]').click();
+  await continuarQuandoLiberado(pagina); // -> s-caso3
+
+  await pagina.locator('.diag-letras[data-caso="3"] .letra[data-l="F"]').click();
+  await continuarQuandoLiberado(pagina); // -> s-caso4
+
+  await pagina.locator('.diag-letras[data-caso="4"] .letra[data-l="E"]').click();
+  await continuarQuandoLiberado(pagina); // -> s-limites
+
+  const itensLimites = pagina.locator("#lista-limites .item");
+  const totalLimites = await itensLimites.count();
+  for (let i = 0; i < totalLimites; i++) await itensLimites.nth(i).click();
+  await continuarQuandoLiberado(pagina); // -> s-comandos
+
+  await pos("comandos", true);
+  await continuarQuandoLiberado(pagina); // -> s-final
+  await pos("final", false);
+}
+
+async function percorrerAula3Tema(pagina, opcoes) {
+  const { largura, print, prefixo } = opcoes;
+  async function pos(nome, tirarPrint) {
+    await conferirPasso(pagina, `${prefixo}/${nome}`, largura);
+    if (tirarPrint && print) {
+      await pagina.screenshot({ path: path.join(EVIDENCIAS_AULAS_DIR, `${prefixo}-${nome}.png`) });
+    }
+  }
+
+  await pos("hero", true);
+  await pagina.click("#comecar"); // -> s-problema
+
+  const itensSintomas = pagina.locator("#lista-sintomas .item");
+  const totalSintomas = await itensSintomas.count();
+  for (let i = 0; i < totalSintomas; i++) await itensSintomas.nth(i).click();
+  await continuarQuandoLiberado(pagina); // -> s-mesa
+
+  const itensMesas = pagina.locator("#lista-mesas .mesa");
+  const totalMesas = await itensMesas.count();
+  for (let i = 0; i < totalMesas; i++) await itensMesas.nth(i).click();
+  await continuarQuandoLiberado(pagina); // -> s-demo
+
+  await pos("demo", true);
+  await pagina.click("#ver-sem");
+  await pagina.locator("#ver-com:not(.oculto)").waitFor();
+  await pagina.click("#ver-com");
+  await continuarQuandoLiberado(pagina); // -> s-manual
+
+  const itensManual = pagina.locator("#lista-manual .item");
+  const totalManual = await itensManual.count();
+  for (let i = 0; i < totalManual; i++) await itensManual.nth(i).click();
+  await continuarQuandoLiberado(pagina); // -> s-obra
+
+  await pos("obra", true);
+  await pagina.click("#depois");
+  await continuarQuandoLiberado(pagina); // -> s-limites
+
+  const itensVerdades = pagina.locator("#lista-verdades .item");
+  const totalVerdades = await itensVerdades.count();
+  for (let i = 0; i < totalVerdades; i++) await itensVerdades.nth(i).click();
+  await continuarQuandoLiberado(pagina); // -> s-final
+  await pos("final", false);
+}
+
 // Sobe uma instância própria do app (porta/banco à parte), reaproveitando o
 // mesmo mp-fake. Usado só pelo teste de encerramento de vendas, que precisa
 // reiniciar o servidor com um VENDAS_ATE diferente sobre o mesmo banco.
@@ -523,6 +763,77 @@ async function main() {
       await aula1.close();
     });
     await ctxAluno.close();
+
+    // ---------- tarefa 09: tema das aulas (visual da landing) ----------
+    fs.mkdirSync(EVIDENCIAS_AULAS_DIR, { recursive: true });
+
+    await passo(
+      "aulas (1440px): tema + fontes OK, percorre Aula 1→2→3 até o final clicando nos links reais, sem erro no console",
+      async () => {
+        const viewport = { nome: "1440", width: 1440, height: 900 };
+        const { ctx, pagina, errosConsole } = await abrirAulaLogado(
+          browser,
+          baseUrl,
+          viewport,
+          "Aula1_O_Pedido_que_Funciona.html"
+        );
+        try {
+          await conferirTemaEFontes(pagina, "Aula1 (1440)");
+          await percorrerAula1Tema(pagina, { largura: viewport.width, print: true, prefixo: "aula1-1440" });
+
+          await pagina.getByRole("link", { name: "Ir para a Aula 2" }).click();
+          await pagina.waitForURL(/Aula2_Conserte_a_Resposta\.html/);
+          await pagina.evaluate(() => document.fonts.ready);
+          await conferirTemaEFontes(pagina, "Aula2 (1440)");
+          await percorrerAula2Tema(pagina, { largura: viewport.width, print: true, prefixo: "aula2-1440" });
+
+          await pagina.getByRole("link", { name: "Ir para a Aula 3" }).click();
+          await pagina.waitForURL(/Aula3_Monte_sua_Equipe\.html/);
+          await pagina.evaluate(() => document.fonts.ready);
+          await conferirTemaEFontes(pagina, "Aula3 (1440)");
+          await percorrerAula3Tema(pagina, { largura: viewport.width, print: true, prefixo: "aula3-1440" });
+
+          await pagina.getByRole("link", { name: "Voltar à área do aluno" }).click();
+          await pagina.waitForURL(`${baseUrl}/aluno`);
+
+          conferirSemErrosNoConsole(errosConsole, "cadeia 1440 (Aula1 → Aula2 → Aula3 → /aluno)");
+        } finally {
+          await ctx.close();
+        }
+      }
+    );
+
+    const AULAS_TEMA = [
+      { arquivo: "Aula1_O_Pedido_que_Funciona.html", percorrer: percorrerAula1Tema, prefixo: "aula1" },
+      { arquivo: "Aula2_Conserte_a_Resposta.html", percorrer: percorrerAula2Tema, prefixo: "aula2" },
+      { arquivo: "Aula3_Monte_sua_Equipe.html", percorrer: percorrerAula3Tema, prefixo: "aula3" },
+    ];
+
+    for (const aula of AULAS_TEMA) {
+      await passo(
+        `${aula.prefixo}: tema + fontes OK em 390px e 360px, percorrida até o final, sem scroll horizontal nem "Passo X de Y" quebrado em 360px, sem erro no console`,
+        async () => {
+          const viewports = [
+            { nome: "390", width: 390, height: 844, print: true },
+            { nome: "360", width: 360, height: 780, print: false },
+          ];
+          for (const viewport of viewports) {
+            const { ctx, pagina, errosConsole } = await abrirAulaLogado(browser, baseUrl, viewport, aula.arquivo);
+            try {
+              await conferirTemaEFontes(pagina, `${aula.prefixo} (${viewport.nome})`);
+              await aula.percorrer(pagina, {
+                largura: viewport.width,
+                print: viewport.print,
+                prefixo: `${aula.prefixo}-${viewport.nome}`,
+              });
+              conferirSemErrosNoConsole(errosConsole, `${aula.prefixo} (${viewport.nome})`);
+            } finally {
+              await ctx.close();
+            }
+          }
+        }
+      );
+    }
 
     // ---------- c) /comprar → paga no mp-fake → cai sozinho em /aluno ----------
     const ctxCompra = await browser.newContext();
