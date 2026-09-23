@@ -9,7 +9,7 @@ Atualizado em 22/09/2026.
 - Empresa CRIA do Empretec (Sebrae). Sócios: Guilherme Pama (produto/site), Felipe Andrade (marketing), Fernando Saad (administrativo).
 - Operação de 21 a 25/09/2026. Encerramento até sexta 25/09 às 14h.
 - Produto: kit **IA para Negócios** — 3 aulas interativas (HTML), kit PDF com 25 prompts, 3 assistentes (PDF + .txt), Manual de Integração (template + exemplo).
-- **Preço: R$ 97,00.** Meta: 17 vendas.
+- **Preço: R$ 49,90 (preço de lançamento até 25/09; antes R$ 97).** Meta R$ 1.600 → 33 vendas.
 
 ## Decisões
 
@@ -35,6 +35,15 @@ Atualizado em 22/09/2026.
 | 23/09 | Formulários sempre validados em navegador real (Playwright) | Bug de `Origin: null` passou por todos os testes com curl |
 | 23/09 | Tarefas 03 e 04 vão juntas num PR só | A 03 sozinha publicaria um checkout quebrado pelo mesmo bug |
 
+| 23/09 | Volume Mount `/app/data` validado em produção (aluno persiste após redeploy) | Venda por PIX direto + cadastro manual liberada |
+
+| 23/09 | **Checkout PIX automático validado em produção** (PIX real gerado, pago e acesso liberado sozinho) | Venda automática aberta |
+| 23/09 | Webhook de produção validado: notificação simulada do MP chegou com assinatura válida (mp_erro 404 esperado para o id fictício 123456) | Cliente que fecha a página também é liberado |
+
+| 23/09 | Preço de lançamento R$ 49,90 até 25/09, sem preço riscado | "De R$ 99,80" nunca foi praticado (CDC, propaganda enganosa) |
+| 23/09 | Garantia de 7 dias com reembolso integral | Reduz o risco da compra por impulso; estorno já retira o acesso |
+| 23/09 | Área do aluno no ar por 90 dias, até 24/12/2026 | Decisão do Guilherme |
+
 ## Pendências de produto (do Guilherme, não do executor)
 
 - Garantia de 7 dias: sim ou não? (a landing tem um aviso âmbar)
@@ -54,4 +63,9 @@ Atualizado em 22/09/2026.
 
 ### Registro rápido (micro-correções, sem tarefa)
 
+- /admin: e-mail longo invade a coluna do WhatsApp e a tabela ganha rolagem horizontal (registrado 23/09)
+- /pagamento/:token/novo rejeitado não mostra aviso ao aluno (achado da tarefa 04, registrado 23/09)
+- App não avisa quando /app/data não é volume persistente (em 23/09 o banco sumiu num redeploy até criar o Volume Mount no Coolify) — logar aviso na inicialização (registrado 23/09)
+- /comprar mostra o preço como "R$ 97.00" (ponto); formatar como R$ 97,00 (registrado 23/09)
+- eventos: reconsulta do polling grava mp_ignorado "pending" a cada 5 s (poluiu 12 das 50 linhas no teste); eventos não dizem a origem (webhook × polling) — gravar origem e não logar pending repetido (registrado 23/09)
 - favicon e og-image inexistentes (achado da tarefa 01) — criar antes da divulgação (Guilherme: arte)
