@@ -3,3 +3,4 @@ node_modules
 data
 docs
 .git
+scripts/mp-fake.js
