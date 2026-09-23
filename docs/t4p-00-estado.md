@@ -43,7 +43,7 @@ Atualizado em 22/09/2026.
 1. ~~Esqueleto + Dockerfile + landing no ar~~ — feito na tarefa 01, mergeado na main
 2. ~~Login, área do aluno, conteúdo protegido + /admin completo~~ — feito na tarefa 02, aguardando merge
 3. (fundido no item 2)
-4. Checkout PIX + tela de QR + polling + webhook + /privacidade — tarefa 03
+4. ~~Checkout PIX + tela de QR + polling + webhook + /privacidade~~ — feito na tarefa 03, aguardando merge
 5. (fundido no item 4)
 6. Teste real com R$ 1 e go-live com R$ 97
 7. Remoção dos avisos âmbar (depende das decisões de garantia/prazo) + favicon/og-image
