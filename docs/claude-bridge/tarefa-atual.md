@@ -1,6 +1,6 @@
 # Tarefa 10 — Avanço nas aulas e check de download na área do aluno
 
-**Status: AGUARDANDO EXECUÇÃO**
+**Status: CONCLUÍDA**
 
 - Tipo: código (db + rotas + templates + snippet nas aulas + e2e). Sem dependência nova.
 - Data: 23/09/2026
@@ -78,4 +78,33 @@ Validar contra o código real. Se divergir, reporte.
 - Preencher o relatório e mudar o Status.
 
 ## Relatório do executor
+
+- **Status:** CONCLUÍDA
+- **Feito:**
+  - `src/db.js`: tabela `progresso` (`CREATE TABLE IF NOT EXISTS`, aditiva) + `registrarDownload`, `registrarPassoAula` (upsert com `MAX(passo, excluded.passo)` e `concluido = MAX(concluido, excluded.concluido)`, nunca regride), `progressoDoAluno`, `resumoProgresso`, `contarAlunosAtivos`.
+  - `src/server.js`: `POST /aluno/progresso` (whitelist de aula, `0 ≤ passo ≤ total ≤ 30`, rate-limit de 120/min por aluno via `keyGenerator`), `GET /aluno/progresso.json`, download registrado em `GET /aluno/conteudo/:arquivo` antes do `res.download`, cartões de aula/downloads em `/aluno` com o progresso real, bloco "Uso do conteúdo" em `/admin`.
+  - `conteudo/Aula{1,2,3}*.html`: função `salvarProgresso()` + chamada `if (i > 0) salvarProgresso();` no fim de `ir(i)` (10-11 linhas por aula, diff isolado).
+  - `src/views/aluno.html`: barra de progresso, selo "✓ Concluída", "✓ Baixado"/"Baixar de novo", script inline (visibilitychange → `GET /aluno/progresso.json` → atualiza só os cartões; clique em "Baixar" → estado otimista).
+  - `src/views/admin.html`: tabela "Uso do conteúdo" (item | abriram/baixaram | concluíram | % dos alunos ativos), sem nomes de alunos.
+  - `src/views/privacidade.html`: frase sobre o registro de avanço/downloads.
+  - `scripts/e2e.js`: reaproveita `percorrerAula1Tema/2Tema/3Tema` (tarefa 09) para validar "✓ Concluída" ao final da cadeia 1440px; casos novos e dedicados para avanço parcial + não regressão ao voltar, download com check otimista/persistência/isolamento entre alunos, validação 302/403/400 do `POST /aluno/progresso`, POST falhando sem quebrar a navegação, e números do bloco `/admin`. Prints em `docs/claude-bridge/evidencias/tarefa-10-progresso/`.
+  - `docs/t4p-00-estado.md`: decisão do dia + item 8 no backlog.
+- **Validação:**
+  - [✅] Migração idempotente em cópia do banco local: rodei `DB_PATH=<cópia> node -e "require('./src/db')"` duas vezes seguidas — `users`/`orders` intactos (1 e 0, antes e depois), tabela `progresso` criada na 1ª e mantida na 2ª. Testei também `registrarPassoAula` com passo menor depois de maior (fica no maior) e `concluido` permanecendo 1 depois de uma tentativa de regressão.
+  - [✅] Playwright, aluno ativo: teste dedicado avança a Aula 1 até o passo 3 (`#comecar` + 2×`continuarQuandoLiberado`), confere "Passo 3 de {total real, 11}" em `/aluno`, clica "Voltar" (vai para o passo 2) e confere que `/aluno` continua em "Passo 3 de 11" depois de recarregar. A conclusão ("✓ Concluída") é conferida ao final da cadeia 1440px que já percorre Aula 1→2→3 até o fim (reaproveitando `percorrerAulaXTema`, como pedido).
+  - [✅] Download de 1 arquivo (`assistente_vendas.txt`): "✓ Baixado" aparece na hora do clique (`waitForEvent("download")` + checagem síncrona), persiste após `reload()`, e um segundo aluno logado não vê o check no mesmo arquivo.
+  - [✅] `POST /aluno/progresso`: sem sessão → 302 para `/entrar` (`maxRedirects: 0`); `aula` fora da whitelist, `passo > total`, `total > 30` e `passo < 0` → 400 (4 casos); sem Origin válido → 403.
+  - [✅] Aula com o POST falhando (`page.route(...).abort()` em `**/aluno/progresso`): navegação segue normal (passo avança na tela, `#continuar`/`#voltar` continuam funcionando), sem erro de página (`pageerror`) — só a falha de rede, que é engolida pelo `.catch()`.
+  - [✅] Diff dos `<script>` das aulas restrito ao snippet — `git diff conteudo/` mostra só a função `salvarProgresso()` e a linha `if (i > 0) salvarProgresso();` em cada aula (11 linhas cada).
+  - [✅] `/admin` mostra "Uso do conteúdo" com números coerentes: Aula 1 com ≥2 alunos (aluno concluído da 09/10 + aluno de progresso parcial) e ≥1 concluído; `assistente_vendas.txt` com ≥1 download — conferido por asserção no e2e e visualmente no print `admin-uso-do-conteudo.png`.
+  - [✅] Prints do `/aluno` em 1280px e 390px nos 3 estados (não iniciada, em andamento + baixado, concluída) em `docs/claude-bridge/evidencias/tarefa-10-progresso/`.
+  - [✅] `npm run e2e`: **29/29 passos OK** (21 pré-existentes da 05-09 + 8 novos desta tarefa), incluindo os passos de tema da 09 sem alteração de comportamento.
+- **Divergências:**
+  - **Mecanismo de atualização do `/aluno` ao voltar da aba:** implementei a alternativa "melhor" sugerida (`GET /aluno/progresso.json` + atualização só dos cartões via `visibilitychange`), em vez do `location.reload()`. Justificativa: evita o flash de reload toda vez que o aluno volta da aula, e o endpoint já existia por comodidade de reaproveitar `progressoDoAlunoJson` no render inicial. **Achado ao testar:** o Chromium headless usado pelo Playwright nunca marca uma aba em segundo plano como `document.visibilityState === "hidden"` (todas as páginas ficam "visible" o tempo todo, mesmo com `bringToFront()` explícito) — limitação conhecida de navegadores headless, não um bug do app. Para validar a lógica do próprio `<script>` de `/aluno` sem depender desse comportamento do Chromium, o teste dispara manualmente `document.dispatchEvent(new Event("visibilitychange"))` na aba de `/aluno` (comentado no `e2e.js`). Em um navegador real (com abas de verdade), o evento dispara normalmente ao voltar para a aba.
+  - **`express.json({ limit: "1kb" })`:** a tarefa pedia isso "se o JSON ainda não estiver habilitado" — já está (`app.use(express.json())` em `src/server.js`, sem limite explícito, usado também pelo webhook), então não adicionei o limite de 1kb por rota para não introduzir uma exceção de configuração isolada. O corpo aceito por `/aluno/progresso` é validado e minúsculo (`aula`, `passo`, `total`), então o limite padrão do Express (100kb) não é um risco prático aqui.
+  - **Rate limit "por sessão":** usei `keyGenerator: (req) => \`progresso:${req.aluno.id}\`` (por aluno autenticado) em vez de por IP, porque a rota já exige sessão antes do rate-limit (`auth.requireAluno` roda primeiro) e várias contas por trás do mesmo IP/CGNAT não deveriam dividir o mesmo teto de 120/min.
+  - **Novo aluno de teste no e2e (`ALUNO_PROGRESSO`):** precisei cadastrar um 4º aluno via `/admin` para testar "avança até o passo 3 → volta → continua 3" com uma aula nunca tocada (o `ALUNO_MANUAL` já tinha a Aula 1 concluída pelos testes de tema da 09). Isso empurrou o total de logins reais no e2e para além do rate-limit de 10/min de `/entrar` (proteção de segurança que não devo tocar); resolvi no teste com uma função `entrarComRetentativa()` que tenta de novo com espera se receber 429, em vez de alterar o rate-limit de produção.
+- **Achados** (fora do escopo, não corrigidos):
+  - Nenhum achado novo de código. Já registrado: favicon/og-image (item 1 do backlog), selo de prazo (baixa prioridade).
+- **Commit/branch:** branch `tarefa/10-progresso-aluno`, commit `9b5a24d` (a partir de `main` em `12c0759`, com o commit `0a21761` "docs: planejador — tarefa 10" antes). PR: https://github.com/guilhermepama/t4p-cria/pull/10
 
