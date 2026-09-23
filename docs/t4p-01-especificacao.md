@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS orders (
   pago_em TEXT
 );
 CREATE TABLE IF NOT EXISTS sessions (
-  token TEXT PRIMARY KEY,           -- 32 bytes aleatórios, hex
+  token TEXT PRIMARY KEY,           -- SHA-256 do token do cookie (o token em si só existe no cookie)
   user_id INTEGER NOT NULL REFERENCES users(id),
   expira_em TEXT NOT NULL
 );
@@ -73,6 +73,7 @@ Datas em UTC. Na tela, converter para America/Sao_Paulo.
 | GET | `/aluno` | aluno ativo | página com as 3 aulas + downloads |
 | GET | `/aluno/conteudo/:arquivo` | aluno ativo | entrega de arquivo de `conteudo/` com lista branca de nomes |
 | GET | `/admin` | admin (Basic Auth) | vendas, total bruto, pendentes |
+| POST | `/admin/alunos` | admin | cria aluno já ativo + pedido `manual` (fallback PIX direto): nome, e-mail, WhatsApp, senha temporária, valor |
 | POST | `/admin/ativar/:userId` | admin | ativação manual (fallback PIX direto) → pedido `manual` |
 | POST | `/admin/senha/:userId` | admin | define nova senha temporária |
 | GET | `/admin/vendas.csv` | admin | export: pedido, nome, e-mail, WhatsApp, valor, status, pago_em (BRT) |
@@ -116,9 +117,11 @@ Quando o pedido vira `pago`, a página de pagamento cria a sessão do aluno e re
 
 ## 5. Segurança
 
+- CSP com `'unsafe-inline'` em script/style é aceita (a landing e as aulas têm inline; não há conteúdo gerado por usuário renderizado como HTML). Todo dado de usuário exibido em views é escapado.
+- CSRF: POSTs (exceto webhook) exigem `Origin`/`Referer` = `BASE_URL`.
 - helmet (a CSP precisa permitir as fontes do Google usadas pela landing e imagens `data:` para o QR).
 - Cookie de sessão: `httpOnly`, `secure` em produção, `sameSite=lax`, validade de 30 dias.
-- bcrypt com custo 11. Rate-limit de 10 req/min por IP em `/entrar` e `/api/checkout`.
+- Senha: `crypto.scrypt` (N=16384, r=8, p=1, salt 16 bytes, chave 64 bytes), gravada como `scrypt$<salt hex>$<hash hex>`; comparação com `timingSafeEqual`. Rate-limit de 10 req/min por IP em `/entrar` e `/api/checkout`.
 - `app.set('trust proxy', 1)`, porque o app fica atrás do Traefik do Coolify.
 - Lista branca de arquivos em `/aluno/conteudo/:arquivo`, sem montar caminho a partir da entrada do usuário.
 - Nenhum segredo aparece em log. No log, o e-mail vai mascarado (`g***@gmail.com`).
