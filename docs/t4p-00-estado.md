@@ -28,6 +28,9 @@ Atualizado em 22/09/2026.
 | 23/09 | bcrypt trocado por `crypto.scrypt` nativo | Remove dependência nativa com vulnerabilidade transitiva (tar/node-pre-gyp) |
 | 23/09 | CSP com `unsafe-inline` aceita | Landing/aulas usam inline; sem HTML gerado por usuário |
 
+| 23/09 | Checkout e webhook numa tarefa só (03) | Um fluxo só; o teste de R$ 1 precisa dos dois |
+| 23/09 | Sem `notification_url` no pagamento; só o webhook do painel da aplicação T4P | Uma fonte assinada, sem notificações duplicadas |
+
 ## Pendências de produto (do Guilherme, não do executor)
 
 - Garantia de 7 dias: sim ou não? (a landing tem um aviso âmbar)
@@ -40,10 +43,10 @@ Atualizado em 22/09/2026.
 1. ~~Esqueleto + Dockerfile + landing no ar~~ — feito na tarefa 01, mergeado na main
 2. ~~Login, área do aluno, conteúdo protegido + /admin completo~~ — feito na tarefa 02, aguardando merge
 3. (fundido no item 2)
-4. Checkout PIX + tela de QR + polling
-5. Webhook com assinatura + reconsulta
+4. Checkout PIX + tela de QR + polling + webhook + /privacidade — tarefa 03
+5. (fundido no item 4)
 6. Teste real com R$ 1 e go-live com R$ 97
-7. /privacidade + remoção dos avisos âmbar + `LINK_COMPRA`
+7. Remoção dos avisos âmbar (depende das decisões de garantia/prazo) + favicon/og-image
 
 ### Registro rápido (micro-correções, sem tarefa)
 

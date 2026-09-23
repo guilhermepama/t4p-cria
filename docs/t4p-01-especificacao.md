@@ -81,7 +81,7 @@ Datas em UTC. Na tela, converter para America/Sao_Paulo.
 
 \* `/pagamento/:id` e `/api/pedido/:id` usam um **token opaco** do pedido (ex.: 16 bytes hex, coluna extra `token`), nunca o id sequencial, para ninguém enumerar pedidos.
 
-Quando o pedido vira `pago`, a página de pagamento cria a sessão do aluno e redireciona para `/aluno` (o aluno entra direto, sem digitar a senha de novo).
+Quando o pedido vira `pago`, a página de pagamento cria a sessão do aluno e redireciona para `/aluno` **uma única vez** (coluna `orders.login_feito`, e só se `pago_em` for de menos de 2 h). Depois disso, o link do pagamento manda para `/entrar`.
 
 ## 4. Fluxo PIX (Mercado Pago)
 
@@ -95,12 +95,13 @@ Quando o pedido vira `pago`, a página de pagamento cria a sessão do aluno e re
     "description": "T4P · IA para Negócios",
     "payment_method_id": "pix",
     "external_reference": "T4P-<pedido.id>",
-    "notification_url": "${BASE_URL}/webhooks/mp",
     "date_of_expiration": "<agora + 30 min, ISO 8601 com offset -03:00>",
     "payer": { "email": "...", "first_name": "..." }
   }
   ```
 - Da resposta, gravar `id` → `mp_payment_id`, `point_of_interaction.transaction_data.qr_code` → copia-e-cola e `...qr_code_base64` → imagem.
+
+**Notificações:** o corpo do pagamento **não** leva `notification_url`. A notificação vem do webhook configurado no painel da aplicação "T4P" (assinado com `MP_WEBHOOK_SECRET`). A URL base da API sai de `MP_API_URL` (padrão `https://api.mercadopago.com`), o que permite testar contra um servidor falso local.
 
 **Webhook** `POST /webhooks/mp?data.id=<id>&type=payment`:
 
@@ -118,6 +119,7 @@ Quando o pedido vira `pago`, a página de pagamento cria a sessão do aluno e re
 ## 5. Segurança
 
 - CSP com `'unsafe-inline'` em script/style é aceita (a landing e as aulas têm inline; não há conteúdo gerado por usuário renderizado como HTML). Todo dado de usuário exibido em views é escapado.
+- CSV: campos que começam com `= + - @` (ou tab/CR) recebem um `'` antes, para evitar injeção de fórmula no Excel.
 - CSRF: POSTs (exceto webhook) exigem `Origin`/`Referer` = `BASE_URL`.
 - helmet (a CSP precisa permitir as fontes do Google usadas pela landing e imagens `data:` para o QR).
 - Cookie de sessão: `httpOnly`, `secure` em produção, `sameSite=lax`, validade de 30 dias.
