@@ -28,6 +28,11 @@ function sha256(texto) {
   return crypto.createHash("sha256").update(texto).digest("hex");
 }
 
+function tokenHashDaSessao(req) {
+  const token = req.cookies[SESSION_COOKIE];
+  return token ? sha256(token) : null;
+}
+
 function criarSessaoCookie(res, userId) {
   const token = crypto.randomBytes(32).toString("hex");
   const expiraEm = new Date(Date.now() + SESSION_DIAS * 24 * 60 * 60 * 1000);
@@ -129,6 +134,7 @@ module.exports = {
   SESSION_COOKIE,
   hashSenha,
   verificarSenha,
+  tokenHashDaSessao,
   criarSessaoCookie,
   destruirSessaoCookie,
   caminhoRelativoSeguro,

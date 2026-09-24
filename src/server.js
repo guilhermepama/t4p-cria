@@ -706,6 +706,59 @@ app.get("/aluno", auth.requireAluno, (req, res) => {
   );
 });
 
+// ---------- /aluno/senha: o aluno troca a própria senha ----------
+
+const limiteSenha = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `senha:${req.aluno.id}`,
+});
+
+const SENHA_MIN = 8;
+const SENHA_MAX = 200;
+
+function renderSenha(res, { statusCode = 200, erro = "", ok = "" } = {}) {
+  res.status(statusCode).set("Cache-Control", "private, no-store").send(
+    render("senha.html", {
+      mensagemErro: erro ? `<p class="erro" role="alert">${escapeHtml(erro)}</p>` : "",
+      mensagemOk: ok ? `<p class="ok" role="status">${escapeHtml(ok)}</p>` : "",
+      linkWhatsapp: linkWhatsapp("Oi! Preciso de ajuda para trocar a senha do kit IA para Negócios."),
+    })
+  );
+}
+
+app.get("/aluno/senha", auth.requireAluno, (req, res) => {
+  renderSenha(res);
+});
+
+app.post("/aluno/senha", auth.requireAluno, auth.checarOrigem, limiteSenha, (req, res) => {
+  const atual = String(req.body.senhaAtual || "");
+  const nova = String(req.body.senhaNova || "");
+  const confirmacao = String(req.body.senhaConfirmacao || "");
+
+  if (atual.length > SENHA_MAX || !auth.verificarSenha(atual, req.aluno.senha_hash)) {
+    return renderSenha(res, { statusCode: 400, erro: "A senha atual está incorreta." });
+  }
+  if (nova.length < SENHA_MIN) {
+    return renderSenha(res, { statusCode: 400, erro: `A nova senha precisa ter ao menos ${SENHA_MIN} caracteres.` });
+  }
+  if (nova.length > SENHA_MAX) {
+    return renderSenha(res, { statusCode: 400, erro: `A nova senha pode ter no máximo ${SENHA_MAX} caracteres.` });
+  }
+  if (nova !== confirmacao) {
+    return renderSenha(res, { statusCode: 400, erro: "A confirmação não é igual à nova senha." });
+  }
+  if (nova === atual) {
+    return renderSenha(res, { statusCode: 400, erro: "A nova senha precisa ser diferente da atual." });
+  }
+
+  db.trocarSenhaMantendoSessao(req.aluno.id, auth.hashSenha(nova), auth.tokenHashDaSessao(req));
+  db.registrarEvento("aluno_trocou_senha", `user_id=${req.aluno.id}`);
+  renderSenha(res, { ok: "Senha alterada. Nos outros dispositivos, você precisará entrar de novo." });
+});
+
 app.get("/aluno/progresso.json", auth.requireAluno, (req, res) => {
   res.set("Cache-Control", "private, no-store");
   res.json(progressoDoAlunoJson(req.aluno.id));

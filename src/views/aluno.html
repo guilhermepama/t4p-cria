@@ -28,6 +28,9 @@
     border:1px solid var(--border); border-radius:999px; padding:9px 20px; background:transparent;
     color:var(--text); font-family:'Inter Tight',sans-serif; font-weight:600; cursor:pointer;
   }
+  .conta{display:flex; align-items:center; gap:16px}
+  .link-conta{color:var(--muted); text-decoration:none; font-size:14px; font-weight:500}
+  .link-conta:hover{color:var(--orange)}
   .grid{display:grid; gap:14px; grid-template-columns:1fr}
   @media(min-width:640px){ .grid{grid-template-columns:1fr 1fr 1fr} }
   .card{
@@ -109,9 +112,12 @@
   <div class="wrap">
     <header>
       <h1>Olá, {{nome}}</h1>
-      <form method="POST" action="/sair">
-        <button class="sair" type="submit">Sair</button>
-      </form>
+      <div class="conta">
+        <a class="link-conta" href="/aluno/senha">Alterar senha</a>
+        <form method="POST" action="/sair">
+          <button class="sair" type="submit">Sair</button>
+        </form>
+      </div>
     </header>
 
     <details class="boas-vindas" {{boasVindasAberto}}>
