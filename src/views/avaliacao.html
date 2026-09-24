@@ -1,0 +1,18 @@
+<div class="avaliacao" data-etapa="{{etapa}}"{{{atributoHidden}}}>
+  <form class="av-form" novalidate>
+    <h3>{{titulo}}</h3>
+    <div class="escala" role="radiogroup" aria-label="Nota de 1 a 5">
+      <label class="nota"><input type="radio" name="nota" value="1"><span>1</span></label>
+      <label class="nota"><input type="radio" name="nota" value="2"><span>2</span></label>
+      <label class="nota"><input type="radio" name="nota" value="3"><span>3</span></label>
+      <label class="nota"><input type="radio" name="nota" value="4"><span>4</span></label>
+      <label class="nota"><input type="radio" name="nota" value="5"><span>5</span></label>
+    </div>
+    <div class="legenda"><span>1 = não gostei</span><span>5 = gostei muito</span></div>
+    <label class="av-campo"><span>{{rotuloComentario}}</span><textarea name="comentario" maxlength="1000" rows="3" placeholder="{{placeholder}}"></textarea></label>
+    <label class="av-check"><input type="checkbox" name="podeDivulgar"><span>Pode usar meu comentário, com meu primeiro nome, na divulgação da T4P.</span></label>
+    <p class="av-erro" role="alert" hidden>Não deu para enviar agora. Tente de novo em instantes.</p>
+    <button type="submit" class="btn av-enviar" disabled>Enviar avaliação</button>
+  </form>
+  <p class="av-ok" role="status" hidden>Obrigado! Sua avaliação foi registrada.</p>
+</div>

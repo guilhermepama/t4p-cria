@@ -48,6 +48,8 @@ Atualizado em 23/09/2026.
 | 23/09 | Aulas com o visual da landing (tema escuro fixo); "Aula 1 grátis" removido | Consistência visual com a landing; alinhado à decisão de 23/09 de que não há aula grátis |
 | 23/09 | Progresso do aluno no servidor (aulas + downloads), sem retomar passo | Aluno vê o próprio avanço em `/aluno`; Guilherme vê o uso real no `/admin` para o pitch de impacto e o balanço do Empretec. Sem "continuar de onde parou" porque as travas e o exercício final das aulas dependem do estado da própria página |
 | 23/09 | Boas-vindas no topo do `/aluno` (`<details>` aberto até iniciar a 1ª aula), sem estado novo no banco | Quem chega pela primeira vez não sabe por onde começar nem o que precisa; o estado aberto/fechado vem do progresso que já existe (`progressoDoAluno`), sem tabela ou coluna nova |
+| 23/09 | Avaliação do curso (intermediária no fim da Aula 1, final no fim da Aula 3), nota 1–5 + comentário opcional + autorização de divulgação | Saber o que os alunos acham e ter depoimento real (só com autorização e primeiro nome) para o pitch de impacto e a divulgação; tabela `avaliacoes` (uma resposta por aluno/etapa, reenvio sobrescreve); resumo, comentários e CSV no /admin |
+| 23/09 | Avaliação do curso (intermediária no fim da Aula 1, final no fim da Aula 3), nota 1–5 + comentário opcional + autorização de divulgação | Saber o que os alunos acham e ter depoimento real (só com autorização e primeiro nome) para o pitch de impacto e a divulgação; tabela `avaliacoes` (uma resposta por aluno/etapa, reenvio sobrescreve); resumo, comentários e CSV no /admin
 
 ## Pendências de produto (do Guilherme, não do executor)
 

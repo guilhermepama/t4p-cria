@@ -60,6 +60,16 @@ CREATE TABLE IF NOT EXISTS progresso (
   atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (user_id, item)
 );
+CREATE TABLE IF NOT EXISTS avaliacoes (
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  etapa TEXT NOT NULL CHECK (etapa IN ('intermediaria', 'final')),
+  nota INTEGER NOT NULL CHECK (nota BETWEEN 1 AND 5),
+  comentario TEXT NOT NULL DEFAULT '',
+  pode_divulgar INTEGER NOT NULL DEFAULT 0,
+  criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+  atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, etapa)
+);
 `);
 
 function migrar() {
@@ -317,6 +327,63 @@ function resumoProgresso() {
     .all();
 }
 
+const salvarAvaliacaoStmt = db.prepare(
+  `INSERT INTO avaliacoes (user_id, etapa, nota, comentario, pode_divulgar)
+   VALUES (@userId, @etapa, @nota, @comentario, @podeDivulgar)
+   ON CONFLICT(user_id, etapa) DO UPDATE SET
+     nota = excluded.nota,
+     comentario = excluded.comentario,
+     pode_divulgar = excluded.pode_divulgar,
+     atualizado_em = datetime('now')`
+);
+
+function salvarAvaliacao(userId, etapa, nota, comentario, podeDivulgar) {
+  salvarAvaliacaoStmt.run({
+    userId,
+    etapa,
+    nota,
+    comentario,
+    podeDivulgar: podeDivulgar ? 1 : 0,
+  });
+}
+
+function avaliacoesDoAluno(userId) {
+  const etapas = db.prepare("SELECT etapa FROM avaliacoes WHERE user_id = ?").all(userId).map((l) => l.etapa);
+  return { intermediaria: etapas.includes("intermediaria"), final: etapas.includes("final") };
+}
+
+function resumoAvaliacoes() {
+  const linhas = db
+    .prepare("SELECT etapa, nota, COUNT(*) AS n FROM avaliacoes GROUP BY etapa, nota")
+    .all();
+  const resumo = {};
+  for (const etapa of ["intermediaria", "final"]) {
+    const distribuicao = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let respostas = 0;
+    let soma = 0;
+    for (const l of linhas) {
+      if (l.etapa !== etapa) continue;
+      distribuicao[l.nota] = l.n;
+      respostas += l.n;
+      soma += l.nota * l.n;
+    }
+    resumo[etapa] = { respostas, media: respostas ? soma / respostas : null, distribuicao };
+  }
+  return resumo;
+}
+
+function listarAvaliacoes() {
+  return db
+    .prepare(
+      `SELECT users.nome, users.email, avaliacoes.etapa, avaliacoes.nota, avaliacoes.comentario,
+         avaliacoes.pode_divulgar, avaliacoes.criado_em, avaliacoes.atualizado_em
+       FROM avaliacoes
+       JOIN users ON users.id = avaliacoes.user_id
+       ORDER BY avaliacoes.atualizado_em DESC, users.id DESC`
+    )
+    .all();
+}
+
 function contarAlunosAtivos() {
   return db.prepare("SELECT COUNT(*) AS n FROM users WHERE ativo = 1").get().n;
 }
@@ -364,5 +431,9 @@ module.exports = {
   registrarPassoAula,
   progressoDoAluno,
   resumoProgresso,
+  salvarAvaliacao,
+  avaliacoesDoAluno,
+  resumoAvaliacoes,
+  listarAvaliacoes,
   contarAlunosAtivos,
 };

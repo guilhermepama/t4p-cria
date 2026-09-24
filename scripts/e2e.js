@@ -1244,6 +1244,363 @@ async function main() {
     });
     await ctxEventos.close();
 
+    // ---------- tarefa 13: avaliação do curso ----------
+    const EVIDENCIAS_AVALIACAO_DIR = path.join(RAIZ, "docs", "claude-bridge", "evidencias", "tarefa-13-avaliacao");
+    fs.mkdirSync(EVIDENCIAS_AVALIACAO_DIR, { recursive: true });
+    const AULA1_ARQ = "Aula1_O_Pedido_que_Funciona.html";
+    const AULA3_ARQ = "Aula3_Monte_sua_Equipe.html";
+    const AUTH_ADMIN = "Basic " + Buffer.from(`${ADMIN_USER}:${ADMIN_PASS}`).toString("base64");
+    const TEXTO_OBRIGADO = "Obrigado! Sua avaliação foi registrada.";
+    const TEXTO_FALHA = "Não deu para enviar agora. Tente de novo em instantes.";
+    const ALUNO_AVAL = {
+      nome: "Aluno Avaliacao E2E",
+      email: `aluno.avaliacao.${SUFIXO}@exemplo.com`,
+      whatsapp: "11999990005",
+      senha: "senha-avaliacao-e2e-1234",
+      valor: "49,90",
+    };
+    const ALUNO_AVAL2 = {
+      nome: "Aluno Avaliacao Dois E2E",
+      email: `aluno.avaliacao2.${SUFIXO}@exemplo.com`,
+      whatsapp: "11999990006",
+      senha: "senha-avaliacao2-e2e-1234",
+      valor: "49,90",
+    };
+
+    const ctxAdminAv = await browser.newContext({
+      httpCredentials: { username: ADMIN_USER, password: ADMIN_PASS },
+    });
+    const paginaAdminAv = await ctxAdminAv.newPage();
+
+    async function abrirAlunoLogado(aluno, viewport) {
+      const ctx = await browser.newContext({ viewport, reducedMotion: "reduce" });
+      const pagina = await ctx.newPage();
+      const errosConsole = [];
+      pagina.on("console", (msg) => {
+        if (msg.type() === "error") errosConsole.push(msg.text());
+      });
+      pagina.on("pageerror", (erro) => errosConsole.push(String((erro && erro.message) || erro)));
+      await entrarComRetentativa(pagina, aluno, baseUrl);
+      return { ctx, pagina, errosConsole };
+    }
+
+    async function esperarConcluida(pagina, arquivo) {
+      for (let i = 0; i < 40; i++) {
+        const concluida = await pagina.evaluate(async (arq) => {
+          const r = await fetch("/aluno/progresso.json", { credentials: "same-origin" });
+          const d = await r.json();
+          return Boolean(d.aulas[arq] && d.aulas[arq].concluido);
+        }, arquivo);
+        if (concluida) return;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      throw new Error(`${arquivo} não ficou concluída no servidor`);
+    }
+
+    async function printarAvaliacao(pagina, seletor, nome, opcoes = {}) {
+      for (const [rotulo, largura, altura] of [
+        ["1280", 1280, 900],
+        ["390", 390, 844],
+      ]) {
+        await pagina.setViewportSize({ width: largura, height: altura });
+        if (seletor) await pagina.locator(seletor).first().scrollIntoViewIfNeeded();
+        await pagina.screenshot({
+          path: path.join(EVIDENCIAS_AVALIACAO_DIR, `${nome}-${rotulo}.png`),
+          fullPage: Boolean(opcoes.fullPage),
+        });
+      }
+      await pagina.setViewportSize({ width: 1280, height: 900 });
+    }
+
+    async function cadastrarAlunoManual(aluno) {
+      await paginaAdminAv.goto(`${baseUrl}/admin`);
+      await paginaAdminAv.fill("#nome", aluno.nome);
+      await paginaAdminAv.fill("#email", aluno.email);
+      await paginaAdminAv.fill("#whatsapp", aluno.whatsapp);
+      await paginaAdminAv.fill("#senha", aluno.senha);
+      await paginaAdminAv.fill("#valor", aluno.valor);
+      await paginaAdminAv.click('button:has-text("Cadastrar aluno")');
+      await paginaAdminAv.waitForURL(`${baseUrl}/admin`);
+    }
+
+    async function preencherEEnviar(bloco, { nota, comentario, divulgar }) {
+      await bloco.locator(`input[name="nota"][value="${nota}"]`).check();
+      if (comentario) await bloco.locator("textarea").fill(comentario);
+      if (divulgar) await bloco.locator('input[name="podeDivulgar"]').check();
+      await bloco.locator(".av-enviar").click();
+    }
+
+    function postAvaliacao(pagina, corpo) {
+      return pagina.evaluate(async (c) => {
+        const r = await fetch("/aluno/avaliacao", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(c),
+          credentials: "same-origin",
+        });
+        return r.status;
+      }, corpo);
+    }
+
+    async function adminHtml() {
+      return (await fetch(`${baseUrl}/admin`, { headers: { Authorization: AUTH_ADMIN } })).text();
+    }
+
+    await passo("avaliação: cadastra os alunos de teste (tarefa 13)", async () => {
+      await cadastrarAlunoManual(ALUNO_AVAL);
+      await cadastrarAlunoManual(ALUNO_AVAL2);
+    });
+
+    // ---- ALUNO_AVAL: Aula 1 → avaliação intermediária dentro da aula ----
+    const alunoAval = await abrirAlunoLogado(ALUNO_AVAL, { width: 1280, height: 900 });
+    let paginaAula1Aval;
+
+    await passo(
+      "avaliação: fim da Aula 1 mostra o bloco; 'Enviar' desabilitado sem nota; nota 4 + comentário + autorização → 'Obrigado!'",
+      async () => {
+        paginaAula1Aval = await alunoAval.ctx.newPage();
+        paginaAula1Aval.on("pageerror", (erro) => alunoAval.errosConsole.push(String(erro.message || erro)));
+        await paginaAula1Aval.goto(`${baseUrl}/aluno/conteudo/${AULA1_ARQ}`);
+        await paginaAula1Aval.evaluate(() => document.fonts.ready);
+        await percorrerAula1Tema(paginaAula1Aval, { largura: 1280, print: false, prefixo: "aval-aula1" });
+
+        const bloco = paginaAula1Aval.locator('.avaliacao[data-etapa="intermediaria"]');
+        await bloco.waitFor({ state: "visible" });
+        const titulo = await bloco.locator("h3").textContent();
+        if (titulo !== "O que você está achando do curso até aqui?") throw new Error(`título inesperado: ${titulo}`);
+        if (!(await bloco.locator(".av-enviar").isDisabled())) throw new Error("'Enviar' deveria estar desabilitado sem nota");
+        const legenda = await bloco.locator(".legenda").textContent();
+        if (!legenda.includes("1 = não gostei") || !legenda.includes("5 = gostei muito")) throw new Error(`legenda: ${legenda}`);
+        await printarAvaliacao(paginaAula1Aval, '.avaliacao[data-etapa="intermediaria"]', "aula1-antes");
+
+        await bloco.locator('input[name="nota"][value="4"]').check();
+        if (await bloco.locator(".av-enviar").isDisabled()) throw new Error("'Enviar' deveria habilitar após escolher nota");
+        await preencherEEnviar(bloco, { nota: 4, comentario: "Ajudou bastante a pedir melhor.", divulgar: true });
+        await bloco.locator(".av-ok", { hasText: TEXTO_OBRIGADO }).waitFor({ state: "visible" });
+        if (await bloco.locator(".av-form").isVisible()) throw new Error("formulário deveria sumir após o envio");
+        await printarAvaliacao(paginaAula1Aval, '.avaliacao[data-etapa="intermediaria"]', "aula1-depois");
+
+        const links = await paginaAula1Aval.getByRole("link", { name: "Ir para a Aula 2" }).count();
+        if (links !== 1) throw new Error("link 'Ir para a Aula 2' sumiu");
+      }
+    );
+
+    await passo("avaliação: /admin mostra a resposta da Aula 1 com '✓ pode divulgar' e a média", async () => {
+      const html = await adminHtml();
+      if (!html.includes("Ajudou bastante a pedir melhor.")) throw new Error("comentário não aparece no /admin");
+      if (!html.includes("✓ pode divulgar")) throw new Error("'✓ pode divulgar' não aparece no /admin");
+      if (!/Aula 1 \(intermediária\)<\/td><td>1<\/td><td>4,0<\/td><td>1:0 · 2:0 · 3:0 · 4:1 · 5:0<\/td>/.test(html)) {
+        throw new Error("resumo da Aula 1 no /admin não bate (1 resposta, média 4,0, 4:1)");
+      }
+    });
+
+    await passo("avaliação: reenvio da mesma etapa com nota 5 sobrescreve (continua 1 resposta) e o XSS sai como texto", async () => {
+      const status = await postAvaliacao(paginaAula1Aval, {
+        etapa: "intermediaria",
+        nota: 5,
+        comentario: "<img src=x onerror=alert(1)>",
+        podeDivulgar: true,
+      });
+      if (status !== 204) throw new Error(`reenvio respondeu ${status}`);
+
+      const html = await adminHtml();
+      if (!/Aula 1 \(intermediária\)<\/td><td>1<\/td><td>5,0<\/td><td>1:0 · 2:0 · 3:0 · 4:0 · 5:1<\/td>/.test(html)) {
+        throw new Error("após o reenvio deveria ter 1 resposta, média 5,0");
+      }
+      if (html.includes("<img src=x")) throw new Error("comentário não foi escapado no HTML do /admin");
+
+      let dialogo = false;
+      paginaAdminAv.on("dialog", async (d) => {
+        dialogo = true;
+        await d.dismiss();
+      });
+      await paginaAdminAv.goto(`${baseUrl}/admin`);
+      await paginaAdminAv.locator("td", { hasText: "<img src=x onerror=alert(1)>" }).first().waitFor();
+      if ((await paginaAdminAv.locator('img[src="x"]').count()) !== 0) throw new Error("o <img> foi renderizado no /admin");
+      if (dialogo) throw new Error("o comentário executou script no /admin");
+    });
+
+    // ---- ALUNO_AVAL: Aula 3 → avaliação final dentro da aula ----
+    await passo("avaliação: fim da Aula 3 mostra a avaliação final e grava como 'final'", async () => {
+      const pagina = await alunoAval.ctx.newPage();
+      pagina.on("pageerror", (erro) => alunoAval.errosConsole.push(String(erro.message || erro)));
+      await pagina.goto(`${baseUrl}/aluno/conteudo/${AULA3_ARQ}`);
+      await pagina.evaluate(() => document.fonts.ready);
+      await percorrerAula3Tema(pagina, { largura: 1280, print: false, prefixo: "aval-aula3" });
+
+      const bloco = pagina.locator('.avaliacao[data-etapa="final"]');
+      await bloco.waitFor({ state: "visible" });
+      if ((await bloco.locator("h3").textContent()) !== "Que nota você dá para o curso?") throw new Error("título final inesperado");
+      const rotulo = await bloco.locator(".av-campo span").textContent();
+      if (rotulo !== "O que você já usou ou vai usar no seu negócio? (opcional)") throw new Error(`rótulo final: ${rotulo}`);
+      await printarAvaliacao(pagina, '.avaliacao[data-etapa="final"]', "aula3-final");
+      await preencherEEnviar(bloco, { nota: 5, comentario: '=HYPERLINK("http://x")', divulgar: false });
+      await bloco.locator(".av-ok", { hasText: TEXTO_OBRIGADO }).waitFor({ state: "visible" });
+      await printarAvaliacao(pagina, '.avaliacao[data-etapa="final"]', "aula3-final-enviada");
+
+      const html = await adminHtml();
+      if (!/Aula 3 \(final\)<\/td><td>1<\/td><td>5,0<\/td>/.test(html)) throw new Error("resumo da etapa final não bate no /admin");
+      await pagina.close();
+    });
+
+    await passo("avaliação: /aluno de quem respondeu as duas etapas não mostra cartão", async () => {
+      await alunoAval.pagina.goto(`${baseUrl}/aluno`);
+      const visiveis = await alunoAval.pagina.locator(".avaliacao:visible").count();
+      if (visiveis !== 0) throw new Error(`esperava 0 cartões, veio ${visiveis}`);
+    });
+
+    await passo("avaliação: /admin — bloco 'Avaliações' (prints)", async () => {
+      await paginaAdminAv.goto(`${baseUrl}/admin`);
+      await printarAvaliacao(paginaAdminAv, "h2:has-text('Avaliações')", "admin-avaliacoes");
+    });
+
+    await passo("avaliação: /admin/avaliacoes.csv exige Basic Auth, tem BOM, colunas certas e neutraliza fórmula", async () => {
+      const semAuth = await fetch(`${baseUrl}/admin/avaliacoes.csv`);
+      if (semAuth.status !== 401) throw new Error(`sem auth deveria dar 401, deu ${semAuth.status}`);
+      const resp = await fetch(`${baseUrl}/admin/avaliacoes.csv`, { headers: { Authorization: AUTH_ADMIN } });
+      const bytes = Buffer.from(await resp.arrayBuffer());
+      if (!(bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf)) throw new Error("CSV sem BOM");
+      const linhas = bytes.subarray(3).toString("utf8").split("\r\n");
+      if (linhas[0] !== "data;etapa;nota;nome;email;comentario;pode_divulgar") throw new Error(`cabeçalho: ${linhas[0]}`);
+      const linhaFinal = linhas.find((l) => l.includes('"final"'));
+      if (!linhaFinal || !linhaFinal.includes(`"'=HYPERLINK(""http://x"")"`)) {
+        throw new Error(`comentário com "=" não foi neutralizado: ${linhaFinal}`);
+      }
+      if (!linhaFinal.endsWith('"não"')) throw new Error("pode_divulgar da etapa final deveria ser 'não'");
+      const linhaInter = linhas.find((l) => l.includes('"intermediaria"'));
+      if (!linhaInter || !linhaInter.endsWith('"sim"')) throw new Error("pode_divulgar da intermediária deveria ser 'sim'");
+      if (!resp.headers.get("content-disposition").includes("avaliacoes.csv")) throw new Error("nome do arquivo");
+    });
+
+    await passo("avaliação: POST /aluno/avaliacao valida sessão, Origin, etapa, nota e tamanho do comentário", async () => {
+      const corpoOk = { etapa: "intermediaria", nota: 3, comentario: "ok", podeDivulgar: false };
+      const semSessao = await fetch(`${baseUrl}/aluno/avaliacao`, {
+        method: "POST",
+        redirect: "manual",
+        headers: { "Content-Type": "application/json", Origin: baseUrl },
+        body: JSON.stringify(corpoOk),
+      });
+      if (![302, 401].includes(semSessao.status)) throw new Error(`sem sessão deu ${semSessao.status}`);
+
+      const semOrigin = await alunoAval.ctx.request.post(`${baseUrl}/aluno/avaliacao`, { data: corpoOk });
+      if (semOrigin.status() !== 403) throw new Error(`sem Origin deveria dar 403, deu ${semOrigin.status()}`);
+
+      const casos = [
+        ["etapa inválida", { ...corpoOk, etapa: "outra" }],
+        ["nota 0", { ...corpoOk, nota: 0 }],
+        ["nota 6", { ...corpoOk, nota: 6 }],
+        ['nota "4" (string)', { ...corpoOk, nota: "4" }],
+        ["nota 3.5", { ...corpoOk, nota: 3.5 }],
+        ["comentário com 1001 caracteres", { ...corpoOk, comentario: "a".repeat(1001) }],
+        ["comentário não-string", { ...corpoOk, comentario: 123 }],
+        ["podeDivulgar não-booleano", { ...corpoOk, podeDivulgar: "sim" }],
+      ];
+      for (const [nome, corpo] of casos) {
+        const r = await alunoAval.ctx.request.post(`${baseUrl}/aluno/avaliacao`, {
+          data: corpo,
+          headers: { Origin: baseUrl },
+        });
+        if (r.status() !== 400) throw new Error(`${nome}: esperava 400, veio ${r.status()}`);
+      }
+      const limite = await alunoAval.ctx.request.post(`${baseUrl}/aluno/avaliacao`, {
+        data: { etapa: "intermediaria", nota: 5, comentario: "b".repeat(1000), podeDivulgar: true },
+        headers: { Origin: baseUrl },
+      });
+      if (limite.status() !== 204) throw new Error(`1000 caracteres deveria ser aceito, veio ${limite.status()}`);
+    });
+
+    await passo("avaliação: ALUNO_AVAL sem erro de console", async () => {
+      conferirSemErrosNoConsole(alunoAval.errosConsole, "avaliação (ALUNO_AVAL)");
+    });
+    await alunoAval.ctx.close();
+
+    // ---- ALUNO_AVAL2: só Aula 1 concluída → cartão intermediário no /aluno + falha de rede ----
+    const alunoAval2 = await abrirAlunoLogado(ALUNO_AVAL2, { width: 1280, height: 900 });
+
+    await passo("avaliação: /aluno com Aula 1 concluída e sem resposta mostra só o cartão intermediário (prints)", async () => {
+      const aula1 = await alunoAval2.ctx.newPage();
+      aula1.on("pageerror", (erro) => alunoAval2.errosConsole.push(String(erro.message || erro)));
+      await aula1.goto(`${baseUrl}/aluno/conteudo/${AULA1_ARQ}`);
+      await aula1.evaluate(() => document.fonts.ready);
+      await percorrerAula1Tema(aula1, { largura: 1280, print: false, prefixo: "aval2-aula1" });
+      await esperarConcluida(aula1, AULA1_ARQ);
+
+      const pagina = alunoAval2.pagina;
+      await pagina.reload();
+      const visiveis = pagina.locator(".avaliacao:visible");
+      if ((await visiveis.count()) !== 1) throw new Error("esperava exatamente 1 cartão visível");
+      if ((await visiveis.first().getAttribute("data-etapa")) !== "intermediaria") throw new Error("cartão deveria ser o intermediário");
+      await printarAvaliacao(pagina, ".avaliacao:visible", "aluno-cartao-intermediario", { fullPage: true });
+    });
+
+    await passo(
+      "avaliação: POST falhando (abort) → mensagem de falha, valores preservados, aula segue navegável, sem pageerror",
+      async () => {
+        const pagina = alunoAval2.ctx.pages().find((p) => p.url().includes(AULA1_ARQ));
+        await pagina.route("**/aluno/avaliacao", (rota) => rota.abort());
+        const bloco = pagina.locator('.avaliacao[data-etapa="intermediaria"]');
+        await bloco.scrollIntoViewIfNeeded();
+        await preencherEEnviar(bloco, { nota: 2, comentario: "Faltou exemplo.", divulgar: true });
+        await bloco.locator(".av-erro", { hasText: TEXTO_FALHA }).waitFor({ state: "visible" });
+        if ((await bloco.locator("textarea").inputValue()) !== "Faltou exemplo.") throw new Error("comentário não foi preservado");
+        if (!(await bloco.locator('input[name="nota"][value="2"]').isChecked())) throw new Error("nota não foi preservada");
+        if (!(await bloco.locator('input[name="podeDivulgar"]').isChecked())) throw new Error("autorização não foi preservada");
+        if (await bloco.locator(".av-enviar").isDisabled()) throw new Error("'Enviar' deveria voltar a habilitar");
+        await printarAvaliacao(pagina, '.avaliacao[data-etapa="intermediaria"]', "aula1-falha");
+
+        const linkAula2 = pagina.getByRole("link", { name: "Ir para a Aula 2" });
+        if (!(await linkAula2.isVisible())) throw new Error("'Ir para a Aula 2' sumiu");
+        if (!(await pagina.locator("#refazer").isVisible())) throw new Error("'Refazer a aula' sumiu");
+
+        // tenta de novo com a rede de volta
+        await pagina.unroute("**/aluno/avaliacao");
+        await bloco.locator(".av-enviar").click();
+        await bloco.locator(".av-ok", { hasText: TEXTO_OBRIGADO }).waitFor({ state: "visible" });
+
+        await linkAula2.click();
+        await pagina.waitForURL(/Aula2_Conserte_a_Resposta\.html/);
+      }
+    );
+
+    await passo("avaliação: depois de responder, o cartão do /aluno some após reload; sem erro de console", async () => {
+      const pagina = alunoAval2.pagina;
+      await pagina.reload();
+      if ((await pagina.locator(".avaliacao:visible").count()) !== 0) throw new Error("cartão voltou depois de responder");
+      conferirSemErrosNoConsole(alunoAval2.errosConsole, "avaliação (ALUNO_AVAL2)");
+    });
+    await alunoAval2.ctx.close();
+
+    // ---- ALUNO_MANUAL: Aulas 1 e 3 concluídas, sem resposta → só o cartão final ----
+    await passo("avaliação: /aluno com Aula 3 concluída e sem 'final' mostra só o cartão final; enviar → agradece e não volta", async () => {
+      const { ctx, pagina, errosConsole } = await abrirAlunoLogado(ALUNO_MANUAL, { width: 1280, height: 900 });
+      try {
+        const visiveis = pagina.locator(".avaliacao:visible");
+        if ((await visiveis.count()) !== 1) throw new Error(`esperava 1 cartão visível, veio ${await visiveis.count()}`);
+        if ((await visiveis.first().getAttribute("data-etapa")) !== "final") throw new Error("cartão deveria ser o final");
+        await printarAvaliacao(pagina, ".avaliacao:visible", "aluno-cartao-final", { fullPage: true });
+
+        const bloco = pagina.locator('.avaliacao[data-etapa="final"]');
+        await preencherEEnviar(bloco, { nota: 4, comentario: "", divulgar: false });
+        await bloco.locator(".av-ok", { hasText: TEXTO_OBRIGADO }).waitFor({ state: "visible" });
+        // voltar à aba não pode esconder o agradecimento
+        await pagina.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+        await new Promise((r) => setTimeout(r, 500));
+        if (!(await bloco.locator(".av-ok").isVisible())) throw new Error("agradecimento sumiu ao voltar à aba");
+
+        await pagina.reload();
+        if ((await pagina.locator(".avaliacao:visible").count()) !== 0) throw new Error("cartão voltou após o reload");
+        conferirSemErrosNoConsole(errosConsole, "avaliação (cartão final)");
+      } finally {
+        await ctx.close();
+      }
+    });
+
+    await passo("avaliação: /privacidade cita as avaliações do curso", async () => {
+      const html = await (await fetch(`${baseUrl}/privacidade`)).text();
+      if (!html.includes("avaliações do curso") || !html.includes("primeiro nome")) throw new Error("texto de privacidade ausente");
+    });
+    await ctxAdminAv.close();
+
     // ---------- f) encerramento automático das vendas (VENDAS_ATE) ----------
     await passo(
       "VENDAS_ATE no passado: /comprar responde 410, nada é gravado, e o pedido criado antes continua sendo processado",

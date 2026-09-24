@@ -80,6 +80,27 @@
   .boas-vindas ol li::marker{color:var(--orange); font-weight:700}
   .boas-vindas ul{margin-top:6px}
   .boas-vindas a{color:var(--orange)}
+/* ---------- avaliação do curso ---------- */
+.avaliacao { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-top: 32px; }
+.avaliacao[hidden] { display: none; }
+.avaliacao [hidden] { display: none !important; }
+.avaliacao h3 { font-family: 'Inter Tight', sans-serif; font-size: 1.15rem; line-height: 1.2; margin: 0 0 14px; color: var(--text); }
+.avaliacao .escala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; position: relative; }
+.avaliacao .nota { display: block; position: relative; cursor: pointer; }
+.avaliacao .nota input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.avaliacao .nota span { display: flex; align-items: center; justify-content: center; min-height: 50px; border: 1.5px solid var(--border); border-radius: 12px; font-weight: 700; font-size: 1.05rem; color: var(--text); background: transparent; }
+.avaliacao .nota input:checked + span { background: var(--orange); color: #1a1006; border-color: transparent; }
+.avaliacao .nota input:focus-visible + span { outline: 2px solid var(--orange); outline-offset: 2px; }
+.avaliacao .legenda { display: flex; justify-content: space-between; gap: 12px; font-size: .84rem; color: var(--muted); margin: 8px 0 16px; }
+.avaliacao .av-campo { display: block; margin-bottom: 14px; }
+.avaliacao .av-campo span { display: block; font-size: .88rem; color: var(--muted); margin-bottom: 5px; }
+.avaliacao textarea { font-family: inherit; width: 100%; min-height: 84px; resize: vertical; border: 1.5px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text); padding: 12px 14px; font-size: 1rem; }
+.avaliacao textarea:focus { outline: none; border-color: var(--orange); }
+.avaliacao .av-check { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; color: var(--muted); margin-bottom: 16px; cursor: pointer; }
+.avaliacao .av-check input { margin-top: 4px; flex: none; width: 18px; height: 18px; accent-color: var(--orange); }
+.avaliacao .av-erro { color: #e07b6a; font-size: .92rem; margin: 0 0 12px; }
+.avaliacao .av-enviar { width: 100%; }
+.avaliacao .av-ok { margin: 0; font-weight: 600; color: var(--green); }
 </style>
 </head>
 <body>
@@ -127,6 +148,11 @@
         <p>Seu acesso vale até 24/12/2026. Travou em algum passo? <a href="{{linkWhatsappAulas}}" target="_blank" rel="noopener">Chame no WhatsApp</a></p>
       </div>
     </details>
+
+    <div id="cartoes-avaliacao">
+{{{cartaoIntermediariaHtml}}}
+{{{cartaoFinalHtml}}}
+    </div>
 
     <h2>Suas aulas</h2>
     <div class="grid">
@@ -179,11 +205,18 @@
       });
     }
 
+    function aplicarAvaliacao(dados) {
+      document.querySelectorAll(".avaliacao[data-etapa]").forEach(function (bloco) {
+        if (bloco.getAttribute("data-enviado")) return;
+        bloco.hidden = bloco.getAttribute("data-etapa") !== dados.cartaoAvaliacao;
+      });
+    }
+
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState !== "visible") return;
       fetch("/aluno/progresso.json", { credentials: "same-origin" })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (dados) { if (dados) aplicarProgresso(dados); })
+        .then(function (dados) { if (dados) { aplicarProgresso(dados); aplicarAvaliacao(dados); } })
         .catch(function () {});
     });
 
@@ -196,6 +229,43 @@
         link.classList.add("ja-baixado");
       });
     });
+
+    // ---------- avaliação do curso (isolada: não interfere na navegação da aula) ----------
+    (function () {
+      document.querySelectorAll(".avaliacao[data-etapa]").forEach(function (bloco) {
+        var form = bloco.querySelector(".av-form");
+        var botao = form.querySelector(".av-enviar");
+        var erro = form.querySelector(".av-erro");
+        var ok = bloco.querySelector(".av-ok");
+        function falhou() { erro.hidden = false; botao.disabled = false; }
+        form.addEventListener("change", function () {
+          botao.disabled = !form.querySelector('input[name="nota"]:checked');
+        });
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var marcada = form.querySelector('input[name="nota"]:checked');
+          if (!marcada) return;
+          botao.disabled = true;
+          erro.hidden = true;
+          fetch("/aluno/avaliacao", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              etapa: bloco.getAttribute("data-etapa"),
+              nota: Number(marcada.value),
+              comentario: form.elements.comentario.value,
+              podeDivulgar: form.elements.podeDivulgar.checked
+            }),
+            credentials: "same-origin"
+          }).then(function (r) {
+            if (r.status !== 204) return falhou();
+            form.hidden = true;
+            ok.hidden = false;
+            bloco.setAttribute("data-enviado", "1");
+          }).catch(falhou);
+        });
+      });
+    })();
   })();
   </script>
 </body>
