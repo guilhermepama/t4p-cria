@@ -1,6 +1,6 @@
 # Tarefa 16 — Aluno troca a própria senha em /aluno/senha
 
-**Status: AGUARDANDO EXECUÇÃO**
+**Status: CONCLUÍDA**
 
 - Tipo: revisão + push + PR de uma implementação já feita fora do fluxo normal (pelo planejador, a pedido direto do Guilherme, por causa do prazo de sexta).
 - Data: 24/09/2026
@@ -55,4 +55,14 @@ Aluno troca a própria senha pelo painel `/aluno` (não pelo `/admin`, que é Ba
 
 ## Relatório do executor
 
-(preencher)
+- **Status:** CONCLUÍDA
+- **Feito:** revisei `git show 5b3fcc0` inteiro (db.js, auth.js, server.js, senha.html, aluno.html, e2e, spec) — sem bugs; nenhuma alteração de código. Push e PR abertos: https://github.com/guilhermepama/t4p-cria/pull/17
+- **Validação:**
+  - ✅ diff vs main: só os arquivos listados (+ evidências da tarefa 16 e docs do bridge).
+  - ✅ `npm run e2e`: 54/54 OK, incluindo os 6 passos "senha:".
+  - ✅ Achados 429 / cartão final: não reproduzem aqui (ambos ✅ na suíte completa), então não são bug desta tarefa; provavelmente efeito do ambiente restrito do planejador. Não rodei a suíte na main. Fontes carregaram (passos de aula ✅).
+  - ✅ Teste manual: coberto pelo e2e em navegador real (Playwright): 2 dispositivos, troca, outro dispositivo derrubado, senha antiga rejeitada, nova entra. Não fiz clique manual à parte.
+- **Divergências:** nenhuma.
+- **Achados:** o e2e regrava PNGs de evidências de tarefas antigas (34 arquivos ficam modificados no git após rodar); descartei com git checkout para não poluir o PR.
+- **Commit/branch:** tarefa/16-trocar-senha, 5b3fcc0 (implementação) + f5d7003 (docs); este relatório vai em commit seguinte.
+
