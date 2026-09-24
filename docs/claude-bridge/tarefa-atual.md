@@ -1,6 +1,6 @@
 # Tarefa 14 — Avaliação com estrelas no lugar dos botões 1–5
 
-**Status: AGUARDANDO EXECUÇÃO**
+**Status: CONCLUÍDA**
 
 - Tipo: visual do formulário de avaliação (HTML/CSS + JS mínimo). Sem migração, sem rota nova, sem dependência.
 - Data: 23/09/2026
@@ -59,4 +59,17 @@ Validar contra o código real. Se divergir, reporte.
 
 ## Relatório do executor
 
-(a preencher)
+- **Status:** CONCLUÍDA
+- **Feito:** os 5 radios `name="nota"` ficam; o `<span>N</span>` virou SVG de estrela inline (`aria-hidden`) e cada input ganhou `aria-label` "1 estrela"…"5 estrelas". CSS novo (`.escala` flex, estrela 40px / 36px ≤400px, toque ≥44px, vazia só contorno `--muted`, cheia `--coral` nas aulas e `--orange` no /aluno, foco visível, transição 120ms, `prefers-reduced-motion`). JS mínimo dentro da IIFE existente: classe `cheia` até a nota, hover só em `(hover: hover)` e volta à nota ao sair, texto "N de 5" com `aria-live="polite"`. Legenda: "1 estrela = não gostei" / "5 estrelas = gostei muito". Arquivos: `conteudo/Aula1_…html`, `conteudo/Aula3_…html`, `src/views/avaliacao.html` (HTML) e `src/views/aluno.html` (CSS/JS), `scripts/e2e.js`.
+- **Validação:**
+  - ✅ `git diff 64e14f5 -- src/server.js src/db.js` → vazio (0 linhas).
+  - ✅ 4ª estrela → 4 cheias, "4 de 5", Enviar habilitado; envio grava nota=4 (passo e2e do /admin confere).
+  - ✅ 2ª estrela → 2 cheias; hover em desktop pré-visualiza (3 e 5) e volta à nota escolhida ao sair (passo e2e "estrelas").
+  - ✅ Teclado: setas mudam a nota, preenchimento acompanha, `outline-style` do foco ≠ none.
+  - ✅ `getByRole('radio', { name: '4 estrelas' })` acha as 5 opções (checado nas aulas).
+  - ✅ 360 px sem rolagem horizontal (/aluno) e `tap()` com `hasTouch` pinta 4 e habilita Enviar. Nas aulas o CSS é o mesmo, mas 360 px foi medido só no /aluno.
+  - ✅ Prints 1280/390 em `docs/claude-bridge/evidencias/tarefa-14-estrelas/` (aulas 1 e 3: antes, 4 estrelas, enviada, falha; /aluno: cartões intermediário/final e 4 estrelas).
+  - ✅ `npm run e2e` → 45/45 (ajustei o seletor da legenda e usei `getByRole`; 1 passo novo para hover/teclado/360/toque). PNGs antigos regravados pelo e2e foram revertidos.
+- **Divergências:** nenhuma no mecanismo. `src/views/aluno.html` só tem CSS/JS (o HTML das estrelas vem de `avaliacao.html`). `.check()` nos radios usa `force: true` no e2e porque o SVG cobre o input transparente.
+- **Achados:** nenhum.
+- **Commit/branch:** `tarefa/13-avaliacao` — commits de docs `645bbee` e o das estrelas (hash no push).

@@ -1,14 +1,15 @@
 <div class="avaliacao" data-etapa="{{etapa}}"{{{atributoHidden}}}>
   <form class="av-form" novalidate>
     <h3>{{titulo}}</h3>
-    <div class="escala" role="radiogroup" aria-label="Nota de 1 a 5">
-      <label class="nota"><input type="radio" name="nota" value="1"><span>1</span></label>
-      <label class="nota"><input type="radio" name="nota" value="2"><span>2</span></label>
-      <label class="nota"><input type="radio" name="nota" value="3"><span>3</span></label>
-      <label class="nota"><input type="radio" name="nota" value="4"><span>4</span></label>
-      <label class="nota"><input type="radio" name="nota" value="5"><span>5</span></label>
+    <div class="escala" role="radiogroup" aria-label="Nota de 1 a 5 estrelas">
+      <label class="nota"><input type="radio" name="nota" value="1" aria-label="1 estrela"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
+      <label class="nota"><input type="radio" name="nota" value="2" aria-label="2 estrelas"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
+      <label class="nota"><input type="radio" name="nota" value="3" aria-label="3 estrelas"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
+      <label class="nota"><input type="radio" name="nota" value="4" aria-label="4 estrelas"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
+      <label class="nota"><input type="radio" name="nota" value="5" aria-label="5 estrelas"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
+      <span class="av-valor" aria-live="polite"></span>
     </div>
-    <div class="legenda"><span>1 = não gostei</span><span>5 = gostei muito</span></div>
+    <div class="legenda"><span>1 estrela = não gostei</span><span>5 estrelas = gostei muito</span></div>
     <label class="av-campo"><span>{{rotuloComentario}}</span><textarea name="comentario" maxlength="1000" rows="3" placeholder="{{placeholder}}"></textarea></label>
     <label class="av-check"><input type="checkbox" name="podeDivulgar"><span>Pode usar meu comentário, com meu primeiro nome, na divulgação da T4P.</span></label>
     <p class="av-erro" role="alert" hidden>Não deu para enviar agora. Tente de novo em instantes.</p>

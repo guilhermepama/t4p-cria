@@ -1370,11 +1370,20 @@ async function main() {
         if (titulo !== "O que você está achando do curso até aqui?") throw new Error(`título inesperado: ${titulo}`);
         if (!(await bloco.locator(".av-enviar").isDisabled())) throw new Error("'Enviar' deveria estar desabilitado sem nota");
         const legenda = await bloco.locator(".legenda").textContent();
-        if (!legenda.includes("1 = não gostei") || !legenda.includes("5 = gostei muito")) throw new Error(`legenda: ${legenda}`);
+        if (!legenda.includes("1 estrela = não gostei") || !legenda.includes("5 estrelas = gostei muito")) throw new Error(`legenda: ${legenda}`);
         await printarAvaliacao(paginaAula1Aval, '.avaliacao[data-etapa="intermediaria"]', "aula1-antes");
 
-        await bloco.locator('input[name="nota"][value="4"]').check();
+        if ((await bloco.getByRole("radio", { name: /estrelas?$/ }).count()) !== 5) throw new Error("as 5 estrelas deveriam ser radios acessíveis");
+        await bloco.getByRole("radio", { name: "4 estrelas" }).check({ force: true });
         if (await bloco.locator(".av-enviar").isDisabled()) throw new Error("'Enviar' deveria habilitar após escolher nota");
+        if ((await bloco.locator(".nota.cheia").count()) !== 4) throw new Error("deveria haver 4 estrelas cheias");
+        if ((await bloco.locator(".av-valor").textContent()) !== "4 de 5") throw new Error("texto '4 de 5' ausente");
+        await bloco.getByRole("radio", { name: "2 estrelas" }).check({ force: true });
+        if ((await bloco.locator(".nota.cheia").count()) !== 2) throw new Error("deveria haver 2 estrelas cheias");
+        await bloco.getByRole("radio", { name: "4 estrelas" }).check({ force: true });
+        await bloco.locator(".nota").nth(3).click();
+        await paginaAula1Aval.mouse.move(5, 5);
+        await printarAvaliacao(paginaAula1Aval, '.avaliacao[data-etapa="intermediaria"]', "aula1-4-estrelas");
         await preencherEEnviar(bloco, { nota: 4, comentario: "Ajudou bastante a pedir melhor.", divulgar: true });
         await bloco.locator(".av-ok", { hasText: TEXTO_OBRIGADO }).waitFor({ state: "visible" });
         if (await bloco.locator(".av-form").isVisible()) throw new Error("formulário deveria sumir após o envio");
@@ -1434,6 +1443,9 @@ async function main() {
       const rotulo = await bloco.locator(".av-campo span").textContent();
       if (rotulo !== "O que você já usou ou vai usar no seu negócio? (opcional)") throw new Error(`rótulo final: ${rotulo}`);
       await printarAvaliacao(pagina, '.avaliacao[data-etapa="final"]', "aula3-final");
+      await bloco.locator(".nota").nth(3).click();
+      await pagina.mouse.move(5, 5);
+      await printarAvaliacao(pagina, '.avaliacao[data-etapa="final"]', "aula3-final-4-estrelas");
       await preencherEEnviar(bloco, { nota: 5, comentario: '=HYPERLINK("http://x")', divulgar: false });
       await bloco.locator(".av-ok", { hasText: TEXTO_OBRIGADO }).waitFor({ state: "visible" });
       await printarAvaliacao(pagina, '.avaliacao[data-etapa="final"]', "aula3-final-enviada");
@@ -1531,6 +1543,51 @@ async function main() {
       if ((await visiveis.count()) !== 1) throw new Error("esperava exatamente 1 cartão visível");
       if ((await visiveis.first().getAttribute("data-etapa")) !== "intermediaria") throw new Error("cartão deveria ser o intermediário");
       await printarAvaliacao(pagina, ".avaliacao:visible", "aluno-cartao-intermediario", { fullPage: true });
+    });
+
+    await passo("avaliação: estrelas — hover, teclado, foco visível, 360 px sem rolagem horizontal, toque e prints com 4 estrelas", async () => {
+      const pagina = alunoAval2.pagina;
+      const bloco = pagina.locator('.avaliacao[data-etapa="intermediaria"]');
+      const cheias = () => bloco.locator(".nota.cheia").count();
+      await bloco.scrollIntoViewIfNeeded();
+      // hover pré-visualiza e volta ao sair
+      await bloco.locator(".nota").nth(2).hover();
+      if ((await cheias()) !== 3) throw new Error("hover na 3ª estrela deveria pintar 3");
+      await pagina.mouse.move(5, 5);
+      if ((await cheias()) !== 0) throw new Error("ao sair da escala sem nota, deveria voltar a 0");
+      // teclado: setas mudam a nota e o preenchimento acompanha; foco visível
+      await bloco.getByRole("radio", { name: "1 estrela" }).focus();
+      await pagina.keyboard.press("ArrowRight");
+      await pagina.keyboard.press("ArrowRight");
+      if (!(await bloco.getByRole("radio", { name: "3 estrelas" }).isChecked())) throw new Error("setas deveriam marcar 3 estrelas");
+      if ((await cheias()) !== 3) throw new Error("preenchimento deveria acompanhar o teclado (3)");
+      const contorno = await bloco.locator(".nota").nth(2).locator("svg").evaluate((el) => getComputedStyle(el).outlineStyle);
+      if (contorno === "none") throw new Error("foco por teclado sem contorno visível");
+      // hover com nota escolhida: pré-visualiza e volta para a escolhida
+      await bloco.locator(".nota").nth(4).hover();
+      if ((await cheias()) !== 5) throw new Error("hover na 5ª deveria pintar 5");
+      await pagina.mouse.move(5, 5);
+      if ((await cheias()) !== 3) throw new Error("ao sair deveria voltar para a nota escolhida (3)");
+      // 4 estrelas por clique + prints
+      await bloco.locator(".nota").nth(3).click();
+      if ((await cheias()) !== 4 || (await bloco.locator(".av-valor").textContent()) !== "4 de 5") throw new Error("4 estrelas / '4 de 5' esperados");
+      await pagina.mouse.move(5, 5);
+      await printarAvaliacao(pagina, ".avaliacao:visible", "aluno-cartao-4-estrelas", { fullPage: true });
+      // 360 px sem rolagem horizontal
+      await pagina.setViewportSize({ width: 360, height: 800 });
+      const estouro = await pagina.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      if (estouro > 0) throw new Error("rolagem horizontal em 360 px: " + estouro + "px");
+      await pagina.setViewportSize({ width: 1280, height: 900 });
+      // toque
+      const ctxToque = await pagina.context().browser().newContext({ hasTouch: true, viewport: { width: 390, height: 844 }, storageState: await pagina.context().storageState() });
+      const toque = await ctxToque.newPage();
+      await toque.goto(`${baseUrl}/aluno`);
+      const blocoT = toque.locator('.avaliacao[data-etapa="intermediaria"]');
+      await blocoT.locator(".nota").nth(3).tap();
+      if ((await blocoT.locator(".nota.cheia").count()) !== 4) throw new Error("toque na 4ª estrela deveria pintar 4");
+      if (await blocoT.locator(".av-enviar").isDisabled()) throw new Error("'Enviar' deveria habilitar após toque");
+      await ctxToque.close();
+      await pagina.reload();
     });
 
     await passo(
