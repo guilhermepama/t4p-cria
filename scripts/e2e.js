@@ -1369,8 +1369,7 @@ async function main() {
         const titulo = await bloco.locator("h3").textContent();
         if (titulo !== "O que você está achando do curso até aqui?") throw new Error(`título inesperado: ${titulo}`);
         if (!(await bloco.locator(".av-enviar").isDisabled())) throw new Error("'Enviar' deveria estar desabilitado sem nota");
-        const legenda = await bloco.locator(".legenda").textContent();
-        if (!legenda.includes("1 estrela = não gostei") || !legenda.includes("5 estrelas = gostei muito")) throw new Error(`legenda: ${legenda}`);
+        if ((await bloco.locator(".legenda").count()) !== 0) throw new Error("a legenda deveria ter sido removida");
         await printarAvaliacao(paginaAula1Aval, '.avaliacao[data-etapa="intermediaria"]', "aula1-antes");
 
         if ((await bloco.getByRole("radio", { name: /estrelas?$/ }).count()) !== 5) throw new Error("as 5 estrelas deveriam ser radios acessíveis");
