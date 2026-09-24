@@ -1655,7 +1655,6 @@ async function main() {
       const html = await (await fetch(`${baseUrl}/privacidade`)).text();
       if (!html.includes("avaliações do curso") || !html.includes("primeiro nome")) throw new Error("texto de privacidade ausente");
     });
-    await ctxAdminAv.close();
 
     // ---------- f) encerramento automático das vendas (VENDAS_ATE) ----------
     await passo(
@@ -1797,6 +1796,93 @@ async function main() {
         }
       }
     );
+
+    // ---------- tarefa 15: registros de teste (users.is_teste) ficam fora dos relatórios ----------
+    const ALUNO_TESTE = {
+      nome: "Zeta Teste Oculto E2E",
+      email: `zeta.teste.oculto.${SUFIXO}@exemplo.com`,
+      whatsapp: "11999990007",
+      senha: "senha-teste-oculto-1234",
+      valor: "49,90",
+    };
+    const alunoTeste = { ctx: null };
+    const reTotal = /<div class="valor">(\d+)<\/div><div class="rotulo">Pedidos pagos/;
+    const reSoma = /<div class="valor">(R\$[^<]+)<\/div><div class="rotulo">Total em vendas/;
+
+    await passo("teste oculto: aluno de teste aparece no /admin antes de ser marcado", async () => {
+      await cadastrarAlunoManual(ALUNO_TESTE);
+      const sessao = await abrirAlunoLogado(ALUNO_TESTE, { width: 1280, height: 900 });
+      alunoTeste.ctx = sessao.ctx;
+      const cab = { Origin: baseUrl };
+      const prog = await sessao.ctx.request.post(`${baseUrl}/aluno/progresso`, {
+        data: { aula: "Aula1_O_Pedido_que_Funciona.html", passo: 1, total: 1 },
+        headers: cab,
+      });
+      if (prog.status() !== 204) throw new Error(`progresso deu ${prog.status()}`);
+      const av = await sessao.ctx.request.post(`${baseUrl}/aluno/avaliacao`, {
+        data: { etapa: "final", nota: 1, comentario: "comentario-do-teste-oculto", podeDivulgar: false },
+        headers: cab,
+      });
+      if (av.status() !== 204) throw new Error(`avaliação deu ${av.status()}`);
+      const html = await adminHtml();
+      if (!html.includes(ALUNO_TESTE.email)) throw new Error("aluno ainda não marcado deveria aparecer no /admin");
+    });
+
+    await passo("teste oculto: is_teste=1 some de lista, totais, CSVs, uso do conteúdo e avaliações; nada é apagado", async () => {
+      const antes = await adminHtml();
+      const totalAntes = Number(antes.match(reTotal)[1]);
+      const somaAntes = antes.match(reSoma)[1];
+      const csvAntes = await (await fetch(`${baseUrl}/admin/avaliacoes.csv`, { headers: { Authorization: AUTH_ADMIN } })).text();
+      if (!csvAntes.includes("comentario-do-teste-oculto")) throw new Error("avaliação deveria estar no CSV antes de marcar");
+
+      // fixture: marca direto no arquivo do banco de teste (o app só marca os e-mails de produção no boot)
+      const Database = require("better-sqlite3");
+      const conn = new Database(dbPath);
+      try {
+        const info = conn.prepare("UPDATE users SET is_teste = 1 WHERE email = ?").run(ALUNO_TESTE.email);
+        if (info.changes !== 1) throw new Error(`marcou ${info.changes} linhas`);
+      } finally {
+        conn.close();
+      }
+
+      const html = await adminHtml();
+      if (html.includes(`<td>${ALUNO_TESTE.email}</td>`) || html.includes(ALUNO_TESTE.nome) || html.includes("comentario-do-teste-oculto")) {
+        throw new Error("registro de teste ainda aparece no /admin");
+      }
+      if (Number(html.match(reTotal)[1]) !== totalAntes - 1) throw new Error("total de pagos não caiu em 1");
+      if (html.match(reSoma)[1] === somaAntes) throw new Error("soma em R$ não mudou");
+      for (const csv of ["vendas.csv", "avaliacoes.csv"]) {
+        const txt = await (await fetch(`${baseUrl}/admin/${csv}`, { headers: { Authorization: AUTH_ADMIN } })).text();
+        if (txt.includes(ALUNO_TESTE.email)) throw new Error(`${csv} ainda tem o registro de teste`);
+      }
+      const comTestes = await (await fetch(`${baseUrl}/admin?testes=1`, { headers: { Authorization: AUTH_ADMIN } })).text();
+      if (!comTestes.includes(`<td>${ALUNO_TESTE.email}</td>`)) throw new Error("?testes=1 deveria mostrar o registro");
+      if (Number(comTestes.match(reTotal)[1]) !== totalAntes) throw new Error("?testes=1 deveria voltar ao total anterior");
+
+      const conn2 = new Database(dbPath, { readonly: true });
+      try {
+        const n = conn2.prepare("SELECT COUNT(*) AS n FROM users WHERE email = ?").get(ALUNO_TESTE.email).n;
+        const o = conn2
+          .prepare("SELECT COUNT(*) AS n FROM orders JOIN users ON users.id = orders.user_id WHERE users.email = ?")
+          .get(ALUNO_TESTE.email).n;
+        if (n !== 1 || o !== 1) throw new Error("linhas do teste foram removidas do banco");
+      } finally {
+        conn2.close();
+      }
+    });
+
+    await passo("teste oculto: comprador de teste ainda loga e acessa /aluno", async () => {
+      const pagina = await alunoTeste.ctx.newPage();
+      await pagina.goto(`${baseUrl}/aluno`);
+      if (!pagina.url().endsWith("/aluno")) throw new Error(`redirecionou para ${pagina.url()}`);
+      await pagina.close();
+      const novo = await abrirAlunoLogado(ALUNO_TESTE, { width: 1280, height: 900 });
+      await novo.pagina.goto(`${baseUrl}/aluno`);
+      if (!novo.pagina.url().endsWith("/aluno")) throw new Error(`novo login foi para ${novo.pagina.url()}`);
+      await novo.ctx.close();
+      await alunoTeste.ctx.close();
+      await ctxAdminAv.close();
+    });
   } finally {
     if (browser) await browser.close();
     appProcess.kill();
