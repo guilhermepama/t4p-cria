@@ -85,12 +85,15 @@
 .avaliacao[hidden] { display: none; }
 .avaliacao [hidden] { display: none !important; }
 .avaliacao h3 { font-family: 'Inter Tight', sans-serif; font-size: 1.15rem; line-height: 1.2; margin: 0 0 14px; color: var(--text); }
-.avaliacao .escala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; position: relative; }
-.avaliacao .nota { display: block; position: relative; cursor: pointer; }
-.avaliacao .nota input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
-.avaliacao .nota span { display: flex; align-items: center; justify-content: center; min-height: 50px; border: 1.5px solid var(--border); border-radius: 12px; font-weight: 700; font-size: 1.05rem; color: var(--text); background: transparent; }
-.avaliacao .nota input:checked + span { background: var(--orange); color: #1a1006; border-color: transparent; }
-.avaliacao .nota input:focus-visible + span { outline: 2px solid var(--orange); outline-offset: 2px; }
+.avaliacao .escala { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.avaliacao .nota { display: block; position: relative; cursor: pointer; padding: 2px; line-height: 0; }
+.avaliacao .nota input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.avaliacao .nota svg { width: 40px; height: 40px; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linejoin: round; border-radius: 8px; transition: fill .12s, stroke .12s; }
+.avaliacao .nota.cheia svg { fill: var(--orange); stroke: var(--orange); }
+.avaliacao .nota input:focus-visible + svg { outline: 2px solid var(--orange); outline-offset: 1px; }
+.avaliacao .av-valor { font-size: .92rem; color: var(--muted); margin-left: 6px; min-height: 1.2em; }
+@media (max-width: 400px) { .avaliacao .nota { padding: 4px 2px; } .avaliacao .nota svg { width: 36px; height: 36px; } }
+@media (prefers-reduced-motion: reduce) { .avaliacao .nota svg { transition: none; } }
 .avaliacao .legenda { display: flex; justify-content: space-between; gap: 12px; font-size: .84rem; color: var(--muted); margin: 8px 0 16px; }
 .avaliacao .av-campo { display: block; margin-bottom: 14px; }
 .avaliacao .av-campo span { display: block; font-size: .88rem; color: var(--muted); margin-bottom: 5px; }
@@ -238,9 +241,20 @@
         var erro = form.querySelector(".av-erro");
         var ok = bloco.querySelector(".av-ok");
         function falhou() { erro.hidden = false; botao.disabled = false; }
+        var estrelas = form.querySelectorAll(".nota");
+        var valor = form.querySelector(".av-valor");
+        function notaAtual() { var m = form.querySelector('input[name="nota"]:checked'); return m ? Number(m.value) : 0; }
+        function pintar(n) { estrelas.forEach(function (el, k) { el.classList.toggle("cheia", k < n); }); }
         form.addEventListener("change", function () {
-          botao.disabled = !form.querySelector('input[name="nota"]:checked');
+                  var n = notaAtual();
+                  botao.disabled = !n;
+                  pintar(n);
+                  valor.textContent = n ? n + " de 5" : "";
         });
+        if (window.matchMedia && window.matchMedia("(hover: hover)").matches) {
+                  estrelas.forEach(function (el, k) { el.addEventListener("mouseenter", function () { pintar(k + 1); }); });
+                  form.querySelector(".escala").addEventListener("mouseleave", function () { pintar(notaAtual()); });
+        }
         form.addEventListener("submit", function (e) {
           e.preventDefault();
           var marcada = form.querySelector('input[name="nota"]:checked');

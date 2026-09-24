@@ -351,12 +351,15 @@ body.is-hero::after {
 .avaliacao { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 22px; padding: 22px; margin-top: 28px; }
 .avaliacao [hidden] { display: none !important; }
 .avaliacao h3 { font-size: 1.3rem; line-height: 1.2; margin: 0 0 14px; color: var(--ink); }
-.avaliacao .escala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; position: relative; }
-.avaliacao .nota { display: block; position: relative; cursor: pointer; }
-.avaliacao .nota input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
-.avaliacao .nota span { display: flex; align-items: center; justify-content: center; min-height: 50px; border: 1.5px solid var(--line); border-radius: 12px; font-weight: 700; font-size: 1.05rem; color: var(--ink); background: transparent; }
-.avaliacao .nota input:checked + span { background: var(--coral); color: var(--on-coral); border-color: transparent; }
-.avaliacao .nota input:focus-visible + span { outline: 2px solid var(--coral); outline-offset: 2px; }
+.avaliacao .escala { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.avaliacao .nota { display: block; position: relative; cursor: pointer; padding: 2px; line-height: 0; }
+.avaliacao .nota input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.avaliacao .nota svg { width: 40px; height: 40px; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linejoin: round; border-radius: 8px; transition: fill .12s, stroke .12s; }
+.avaliacao .nota.cheia svg { fill: var(--coral); stroke: var(--coral); }
+.avaliacao .nota input:focus-visible + svg { outline: 2px solid var(--coral); outline-offset: 1px; }
+.avaliacao .av-valor { font-size: .92rem; color: var(--muted); margin-left: 6px; min-height: 1.2em; }
+@media (max-width: 400px) { .avaliacao .nota { padding: 4px 2px; } .avaliacao .nota svg { width: 36px; height: 36px; } }
+@media (prefers-reduced-motion: reduce) { .avaliacao .nota svg { transition: none; } }
 .avaliacao .legenda { display: flex; justify-content: space-between; gap: 12px; font-size: .84rem; color: var(--muted); margin: 8px 0 16px; }
 .avaliacao .av-campo { display: block; margin-bottom: 14px; }
 .avaliacao .av-campo span { display: block; font-size: .88rem; color: var(--muted); margin-bottom: 5px; }
@@ -572,14 +575,15 @@ body.is-hero::after {
     <div class="avaliacao" data-etapa="final">
       <form class="av-form" novalidate>
         <h3>Que nota você dá para o curso?</h3>
-        <div class="escala" role="radiogroup" aria-label="Nota de 1 a 5">
-          <label class="nota"><input type="radio" name="nota" value="1"><span>1</span></label>
-          <label class="nota"><input type="radio" name="nota" value="2"><span>2</span></label>
-          <label class="nota"><input type="radio" name="nota" value="3"><span>3</span></label>
-          <label class="nota"><input type="radio" name="nota" value="4"><span>4</span></label>
-          <label class="nota"><input type="radio" name="nota" value="5"><span>5</span></label>
+        <div class="escala" role="radiogroup" aria-label="Nota de 1 a 5 estrelas">
+          <label class="nota"><input type="radio" name="nota" value="1" aria-label="1 estrela"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
+          <label class="nota"><input type="radio" name="nota" value="2" aria-label="2 estrelas"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
+          <label class="nota"><input type="radio" name="nota" value="3" aria-label="3 estrelas"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
+          <label class="nota"><input type="radio" name="nota" value="4" aria-label="4 estrelas"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
+          <label class="nota"><input type="radio" name="nota" value="5" aria-label="5 estrelas"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
+          <span class="av-valor" aria-live="polite"></span>
         </div>
-        <div class="legenda"><span>1 = não gostei</span><span>5 = gostei muito</span></div>
+        <div class="legenda"><span>1 estrela = não gostei</span><span>5 estrelas = gostei muito</span></div>
         <label class="av-campo"><span>O que você já usou ou vai usar no seu negócio? (opcional)</span><textarea name="comentario" maxlength="1000" rows="3" placeholder="Ex.: montei o assistente de vendas e respondi os clientes do WhatsApp com ele"></textarea></label>
         <label class="av-check"><input type="checkbox" name="podeDivulgar"><span>Pode usar meu comentário, com meu primeiro nome, na divulgação da T4P.</span></label>
         <p class="av-erro" role="alert" hidden>Não deu para enviar agora. Tente de novo em instantes.</p>
@@ -730,9 +734,20 @@ body.is-hero::after {
       var erro = form.querySelector(".av-erro");
       var ok = bloco.querySelector(".av-ok");
       function falhou() { erro.hidden = false; botao.disabled = false; }
+      var estrelas = form.querySelectorAll(".nota");
+      var valor = form.querySelector(".av-valor");
+      function notaAtual() { var m = form.querySelector('input[name="nota"]:checked'); return m ? Number(m.value) : 0; }
+      function pintar(n) { estrelas.forEach(function (el, k) { el.classList.toggle("cheia", k < n); }); }
       form.addEventListener("change", function () {
-        botao.disabled = !form.querySelector('input[name="nota"]:checked');
+              var n = notaAtual();
+              botao.disabled = !n;
+              pintar(n);
+              valor.textContent = n ? n + " de 5" : "";
       });
+      if (window.matchMedia && window.matchMedia("(hover: hover)").matches) {
+              estrelas.forEach(function (el, k) { el.addEventListener("mouseenter", function () { pintar(k + 1); }); });
+              form.querySelector(".escala").addEventListener("mouseleave", function () { pintar(notaAtual()); });
+      }
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         var marcada = form.querySelector('input[name="nota"]:checked');
