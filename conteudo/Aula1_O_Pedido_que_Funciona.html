@@ -485,6 +485,26 @@ body.is-hero::after {
   .app { max-width: 780px; }
   .barra-in { max-width: 780px; }
 }
+/* ---------- avaliação do curso ---------- */
+.avaliacao { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 22px; padding: 22px; margin-top: 28px; }
+.avaliacao [hidden] { display: none !important; }
+.avaliacao h3 { font-size: 1.3rem; line-height: 1.2; margin: 0 0 14px; color: var(--ink); }
+.avaliacao .escala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; position: relative; }
+.avaliacao .nota { display: block; position: relative; cursor: pointer; }
+.avaliacao .nota input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.avaliacao .nota span { display: flex; align-items: center; justify-content: center; min-height: 50px; border: 1.5px solid var(--line); border-radius: 12px; font-weight: 700; font-size: 1.05rem; color: var(--ink); background: transparent; }
+.avaliacao .nota input:checked + span { background: var(--coral); color: var(--on-coral); border-color: transparent; }
+.avaliacao .nota input:focus-visible + span { outline: 2px solid var(--coral); outline-offset: 2px; }
+.avaliacao .legenda { display: flex; justify-content: space-between; gap: 12px; font-size: .84rem; color: var(--muted); margin: 8px 0 16px; }
+.avaliacao .av-campo { display: block; margin-bottom: 14px; }
+.avaliacao .av-campo span { display: block; font-size: .88rem; color: var(--muted); margin-bottom: 5px; }
+.avaliacao textarea { width: 100%; min-height: 84px; resize: vertical; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); padding: 12px 14px; font-size: 1rem; }
+.avaliacao textarea:focus { outline: none; border-color: var(--coral); }
+.avaliacao .av-check { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; color: var(--muted); margin-bottom: 16px; cursor: pointer; }
+.avaliacao .av-check input { margin-top: 4px; flex: none; width: 18px; height: 18px; accent-color: var(--coral); }
+.avaliacao .av-erro { color: var(--erro, var(--coral)); font-size: .92rem; margin: 0 0 12px; }
+.avaliacao .av-enviar { width: 100%; }
+.avaliacao .av-ok { margin: 0; font-weight: 600; color: var(--ok, var(--ink)); }
 </style>
 </head>
 <body class="is-hero">
@@ -765,6 +785,24 @@ body.is-hero::after {
       <li>Não cole dados pessoais de clientes, como CPF, telefone ou endereço.</li>
       <li>A última palavra é sua: revise e ajuste o texto ao seu jeito de falar.</li>
     </ol>
+    <div class="avaliacao" data-etapa="intermediaria">
+      <form class="av-form" novalidate>
+        <h3>O que você está achando do curso até aqui?</h3>
+        <div class="escala" role="radiogroup" aria-label="Nota de 1 a 5">
+          <label class="nota"><input type="radio" name="nota" value="1"><span>1</span></label>
+          <label class="nota"><input type="radio" name="nota" value="2"><span>2</span></label>
+          <label class="nota"><input type="radio" name="nota" value="3"><span>3</span></label>
+          <label class="nota"><input type="radio" name="nota" value="4"><span>4</span></label>
+          <label class="nota"><input type="radio" name="nota" value="5"><span>5</span></label>
+        </div>
+        <div class="legenda"><span>1 = não gostei</span><span>5 = gostei muito</span></div>
+        <label class="av-campo"><span>Quer contar mais? (opcional)</span><textarea name="comentario" maxlength="1000" rows="3" placeholder="O que ajudou, o que ficou confuso, o que faltou…"></textarea></label>
+        <label class="av-check"><input type="checkbox" name="podeDivulgar"><span>Pode usar meu comentário, com meu primeiro nome, na divulgação da T4P.</span></label>
+        <p class="av-erro" role="alert" hidden>Não deu para enviar agora. Tente de novo em instantes.</p>
+        <button type="submit" class="btn av-enviar" disabled>Enviar avaliação</button>
+      </form>
+      <p class="av-ok" role="status" hidden>Obrigado! Sua avaliação foi registrada.</p>
+    </div>
     <div class="oferta">
       <h3>Próxima: Aula 2 — Conserte a resposta</h3>
       <p>O seu novo contratado tem três diferenças de uma pessoa. Hoje você resolveu a primeira: ele não pergunta. Na próxima aula, a segunda: ele não sabe quando erra.</p>
@@ -1187,6 +1225,43 @@ body.is-hero::after {
   restaurar();
   montarPedido();
   atualizarBarra();
+
+// ---------- avaliação do curso (isolada: não interfere na navegação da aula) ----------
+  (function () {
+    document.querySelectorAll(".avaliacao[data-etapa]").forEach(function (bloco) {
+      var form = bloco.querySelector(".av-form");
+      var botao = form.querySelector(".av-enviar");
+      var erro = form.querySelector(".av-erro");
+      var ok = bloco.querySelector(".av-ok");
+      function falhou() { erro.hidden = false; botao.disabled = false; }
+      form.addEventListener("change", function () {
+        botao.disabled = !form.querySelector('input[name="nota"]:checked');
+      });
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var marcada = form.querySelector('input[name="nota"]:checked');
+        if (!marcada) return;
+        botao.disabled = true;
+        erro.hidden = true;
+        fetch("/aluno/avaliacao", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            etapa: bloco.getAttribute("data-etapa"),
+            nota: Number(marcada.value),
+            comentario: form.elements.comentario.value,
+            podeDivulgar: form.elements.podeDivulgar.checked
+          }),
+          credentials: "same-origin"
+        }).then(function (r) {
+          if (r.status !== 204) return falhou();
+          form.hidden = true;
+          ok.hidden = false;
+          bloco.setAttribute("data-enviado", "1");
+        }).catch(falhou);
+      });
+    });
+  })();
 })();
 </script>
 </body>

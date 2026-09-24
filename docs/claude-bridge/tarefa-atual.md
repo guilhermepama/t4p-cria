@@ -1,6 +1,6 @@
 # Tarefa 13 — Avaliação do curso (fim da Aula 1 e fim da Aula 3)
 
-**Status: AGUARDANDO EXECUÇÃO**
+**Status: CONCLUÍDA**
 
 - Tipo: código (db + rotas + snippet nas aulas 1 e 3 + /aluno + /admin + e2e). Sem dependência nova.
 - Data: 23/09/2026
@@ -105,4 +105,31 @@ Validar contra o código real. Se divergir, reporte.
 
 ## Relatório do executor
 
-(a preencher)
+- **Status:** CONCLUÍDA
+- **Feito:**
+  - `src/db.js`: tabela `avaliacoes` (`CREATE TABLE IF NOT EXISTS`, só aditiva) + `salvarAvaliacao` (upsert), `avaliacoesDoAluno`, `resumoAvaliacoes`, `listarAvaliacoes`.
+  - `src/server.js`: `POST /aluno/avaliacao` (requireAluno + checarOrigem + 20/min por aluno, validação estrita, 204); `progressoDoAlunoJson` ganhou `avaliacoes` e `cartaoAvaliacao`; bloco "Avaliações" no /admin; `GET /admin/avaliacoes.csv` (BOM + `\r\n`, `protegerCsv`); textos das duas etapas num só lugar.
+  - `src/views/avaliacao.html` (formulário único, usado no /aluno), `aluno.html` (cartões + JS), `admin.html`, `privacidade.html`.
+  - `conteudo/Aula1*.html` e `Aula3*.html`: só acréscimos (+75 linhas cada, 0 removidas): CSS `.avaliacao` no fim do `<style id="tema-t4p">`, bloco HTML antes do `.oferta`, IIFE isolada no fim do `<script>` existente. Diff: `git diff main -- conteudo/`.
+  - `scripts/e2e.js`: 16 passos novos. `docs/t4p-00-estado.md`: decisão registrada.
+- **Validação:**
+  - ✅ Migração idempotente: cópia do `data/t4p.db` (só tinha 1 usuário, sem pedidos/progresso), subiu 2× sem erro, contagens iguais, `avaliacoes` criada (`{"users":1,"orders":0,"progresso":0,"avaliacoes_tabela":1,"avaliacoes":0}` nas duas). O banco local é pequeno; a garantia real é o `IF NOT EXISTS`, sem `ALTER`.
+  - ✅ Aula 1: bloco na tela final, "Enviar" desabilitado sem nota, nota 4 + comentário + autorização → "Obrigado!"; /admin mostra a resposta com "✓ pode divulgar" e resumo 1 resposta · média 4,0 · `4:1`.
+  - ✅ Reenvio com nota 5 → continua 1 resposta, média 5,0, `5:1`.
+  - ✅ Aula 3 → avaliação final aparece e grava como `final`.
+  - ✅ /aluno: Aula 1 concluída sem resposta → só o cartão intermediário; após responder e recarregar, some; Aula 3 concluída sem `final` → só o cartão final (agradecimento não some ao voltar à aba; não volta após reload); quem respondeu as duas → 0 cartões.
+  - ✅ POST: sem sessão → 302/401; sem Origin → 403; etapa inválida, nota 0/6/"4"/3.5, comentário de 1001 caracteres, comentário não-string, podeDivulgar não-booleano → 400; 1000 caracteres → 204.
+  - ✅ POST abortado (`page.route().abort()`): mensagem de falha, valores preservados, botão volta a habilitar, "Ir para a Aula 2" e "Refazer a aula" seguem na tela e a navegação funciona, sem `pageerror`; reenvio com a rede de volta funciona.
+  - ✅ `<img src=x onerror=alert(1)>` aparece como texto no /admin (HTML escapado, sem `<img>` no DOM, sem diálogo).
+  - ✅ `avaliacoes.csv`: 401 sem auth; bytes EF BB BF, cabeçalho `data;etapa;nota;nome;email;comentario;pode_divulgar`, `\r\n`, comentário `=HYPERLINK(...)` sai com `'` na frente.
+  - ✅ Prints 1280 e 390 em `docs/claude-bridge/evidencias/tarefa-13-avaliacao/` (aula1 antes/depois/falha, aula3 final/enviada, cartão intermediário e final no /aluno, bloco no /admin).
+  - ✅ `npm run e2e`: `44/44 passos OK`.
+- **Divergências:**
+  - `progressoDoAlunoJson` devolve também `cartaoAvaliacao` (`"final" | "intermediaria" | null`), calculado no servidor: a regra do cartão fica num lugar só e o cliente apenas alterna `hidden`. Renderizei os dois cartões no servidor com `hidden` (como sugerido): sem flash e sem montar formulário no JS.
+  - O cartão que acabou de enviar fica marcado `data-enviado` e o `visibilitychange` não o esconde, para o agradecimento não sumir sozinho ao voltar à aba.
+  - Data no /admin e no CSV = `atualizado_em` (último envio), já que o reenvio sobrescreve. No CSV, `pode_divulgar` sai como `sim`/`não`.
+  - O formulário usa `<label>` envolvendo cada input (sem ids), para existir duas vezes no /aluno sem id duplicado.
+- **Achados:**
+  - O e2e regrava vários PNGs de evidências de tarefas antigas (05, 08, 09, 10) a cada execução; reverti com `git checkout` para não poluir o diff.
+  - `git pull` na `main` local não tem upstream configurado (usei `git merge --ff-only origin/main`).
+- **Commit/branch:** `tarefa/13-avaliacao`; hash e link do PR no commit seguinte de docs.

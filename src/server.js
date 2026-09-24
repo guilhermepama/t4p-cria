@@ -617,7 +617,34 @@ function progressoDoAlunoJson(userId) {
       downloads[linha.item] = Boolean(linha.concluido);
     }
   }
-  return { aulas, downloads };
+  const avaliacoes = db.avaliacoesDoAluno(userId);
+  const aula1Concluida = Boolean(aulas[AULAS[0].arquivo]?.concluido);
+  const aula3Concluida = Boolean(aulas[AULAS[2].arquivo]?.concluido);
+  let cartaoAvaliacao = null;
+  if (aula3Concluida && !avaliacoes.final) cartaoAvaliacao = "final";
+  else if (aula1Concluida && !avaliacoes.intermediaria && !avaliacoes.final) cartaoAvaliacao = "intermediaria";
+  return { aulas, downloads, avaliacoes, cartaoAvaliacao };
+}
+
+const AVALIACAO_TEXTOS = {
+  intermediaria: {
+    titulo: "O que você está achando do curso até aqui?",
+    rotuloComentario: "Quer contar mais? (opcional)",
+    placeholder: "O que ajudou, o que ficou confuso, o que faltou…",
+  },
+  final: {
+    titulo: "Que nota você dá para o curso?",
+    rotuloComentario: "O que você já usou ou vai usar no seu negócio? (opcional)",
+    placeholder: "Ex.: montei o assistente de vendas e respondi os clientes do WhatsApp com ele",
+  },
+};
+
+function avaliacaoHtml(etapa, oculto) {
+  return render("avaliacao.html", {
+    etapa,
+    ...AVALIACAO_TEXTOS[etapa],
+    atributoHidden: oculto ? " hidden" : "",
+  });
 }
 
 function cartaoAulaHtml(a, info) {
@@ -667,6 +694,8 @@ app.get("/aluno", auth.requireAluno, (req, res) => {
       nome: req.aluno.nome,
       aulasHtml,
       downloadsHtml,
+      cartaoIntermediariaHtml: avaliacaoHtml("intermediaria", progresso.cartaoAvaliacao !== "intermediaria"),
+      cartaoFinalHtml: avaliacaoHtml("final", progresso.cartaoAvaliacao !== "final"),
       caminhoAulasHtml: CAMINHO_AULAS_HTML,
       boasVindasAberto: iniciouAlguma ? "" : "open",
       resumoBoasVindas: iniciouAlguma ? "Como funciona o curso" : "Comece por aqui",
@@ -703,6 +732,31 @@ app.post("/aluno/progresso", auth.requireAluno, auth.checarOrigem, limiteProgres
   res.status(204).end();
 });
 
+const limiteAvaliacao = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `avaliacao:${req.aluno.id}`,
+});
+
+app.post("/aluno/avaliacao", auth.requireAluno, auth.checarOrigem, limiteAvaliacao, (req, res) => {
+  const { etapa, nota, comentario, podeDivulgar } = req.body || {};
+
+  if (etapa !== "intermediaria" && etapa !== "final") return res.status(400).end();
+  if (!Number.isInteger(nota) || nota < 1 || nota > 5) return res.status(400).end();
+  if (comentario !== undefined && comentario !== null && typeof comentario !== "string") {
+    return res.status(400).end();
+  }
+  if (podeDivulgar !== undefined && typeof podeDivulgar !== "boolean") return res.status(400).end();
+
+  const texto = (comentario || "").trim();
+  if (texto.length > 1000) return res.status(400).end();
+
+  db.salvarAvaliacao(req.aluno.id, etapa, nota, texto, podeDivulgar === true);
+  res.status(204).end();
+});
+
 app.get("/aluno/conteudo/:arquivo", auth.requireAluno, (req, res) => {
   const arquivo = req.params.arquivo;
   const tipo = ARQUIVOS_PERMITIDOS.get(arquivo);
@@ -719,6 +773,57 @@ app.get("/aluno/conteudo/:arquivo", auth.requireAluno, (req, res) => {
 });
 
 // ---------- /admin ----------
+
+const ETAPAS_ROTULO = {
+  intermediaria: "Aula 1 (intermediária)",
+  final: "Aula 3 (final)",
+};
+
+function blocoAvaliacoesAdmin() {
+  const resumo = db.resumoAvaliacoes();
+  const linhasResumo = Object.keys(ETAPAS_ROTULO)
+    .map((etapa) => {
+      const r = resumo[etapa];
+      const media = r.media == null ? "—" : r.media.toFixed(1).replace(".", ",");
+      const dist = [1, 2, 3, 4, 5].map((n) => `${n}:${r.distribuicao[n]}`).join(" · ");
+      return `<tr><td>${escapeHtml(ETAPAS_ROTULO[etapa])}</td><td>${r.respostas}</td><td>${media}</td><td>${dist}</td></tr>`;
+    })
+    .join("\n");
+
+  const comentarios = db.listarAvaliacoes().filter((a) => a.comentario);
+  const linhasComentarios = comentarios.length
+    ? comentarios
+        .map(
+          (a) => `<tr>
+      <td>${escapeHtml(formatarBRT(a.atualizado_em))}</td>
+      <td>${escapeHtml(ETAPAS_ROTULO[a.etapa] || a.etapa)}</td>
+      <td>${a.nota}</td>
+      <td>${escapeHtml(a.nome)}</td>
+      <td>${escapeHtml(a.comentario)}${a.pode_divulgar ? ' <span class="status-pago">✓ pode divulgar</span>' : ""}</td>
+    </tr>`
+        )
+        .join("\n")
+    : '<tr><td colspan="5">Nenhum comentário ainda.</td></tr>';
+
+  return `<h2>Avaliações</h2>
+    <table>
+      <thead>
+        <tr><th>Etapa</th><th>Respostas</th><th>Média</th><th>Notas 1–5</th></tr>
+      </thead>
+      <tbody>
+        ${linhasResumo}
+      </tbody>
+    </table>
+    <table style="margin-top:18px">
+      <thead>
+        <tr><th>Data</th><th>Etapa</th><th>Nota</th><th>Nome</th><th>Comentário</th></tr>
+      </thead>
+      <tbody>
+        ${linhasComentarios}
+      </tbody>
+    </table>
+    <p style="margin-top:14px"><a class="csv" href="/admin/avaliacoes.csv">Baixar avaliações (CSV)</a></p>`;
+}
 
 function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
   const resumo = db.resumoVendas();
@@ -789,6 +894,7 @@ function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
 
   res.status(statusCode).send(
     render("admin.html", {
+      blocoAvaliacoes: blocoAvaliacoesAdmin(),
       mensagemErro: mensagemErro ? `<p class="erro">${escapeHtml(mensagemErro)}</p>` : "",
       totalPagos: String(resumo.total_pagos),
       somaFormatada: formatarBRL(resumo.soma),
@@ -874,6 +980,31 @@ app.get("/admin/vendas.csv", auth.requireAdmin, (req, res) => {
   const csv = "﻿" + cabecalho + "\r\n" + corpo + "\r\n";
   res.set("Content-Type", "text/csv; charset=utf-8");
   res.set("Content-Disposition", 'attachment; filename="vendas.csv"');
+  res.send(csv);
+});
+
+app.get("/admin/avaliacoes.csv", auth.requireAdmin, (req, res) => {
+  const cabecalho = "data;etapa;nota;nome;email;comentario;pode_divulgar";
+  const corpo = db
+    .listarAvaliacoes()
+    .map((a) =>
+      [
+        formatarBRT(a.atualizado_em),
+        a.etapa,
+        a.nota,
+        protegerCsv(a.nome),
+        protegerCsv(a.email),
+        protegerCsv(a.comentario),
+        a.pode_divulgar ? "sim" : "não",
+      ]
+        .map((campo) => `"${String(campo).replace(/"/g, '""')}"`)
+        .join(";")
+    )
+    .join("\r\n");
+
+  const csv = "﻿" + cabecalho + "\r\n" + (corpo ? corpo + "\r\n" : "");
+  res.set("Content-Type", "text/csv; charset=utf-8");
+  res.set("Content-Disposition", 'attachment; filename="avaliacoes.csv"');
   res.send(csv);
 });
 
