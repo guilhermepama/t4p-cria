@@ -1907,6 +1907,142 @@ async function main() {
       await celularSenha.ctx.close();
     });
 
+    // ---------- tarefa 17: gerador de pedido como ferramenta (/aluno + Ferramenta_Gerador_de_Pedido.html) ----------
+    const EVIDENCIAS_GERADOR_DIR = path.join(RAIZ, "docs", "claude-bridge", "evidencias", "tarefa-17-gerador");
+    fs.mkdirSync(EVIDENCIAS_GERADOR_DIR, { recursive: true });
+    const ALUNO_GERADOR = {
+      nome: "Aluno Gerador E2E",
+      email: `aluno.gerador.${SUFIXO}@exemplo.com`,
+      whatsapp: "11999990008",
+      senha: "senha-gerador-e2e-1234",
+      valor: "49,90",
+    };
+    const ARQ_GERADOR = "Ferramenta_Gerador_de_Pedido.html";
+    let alunoGerador;
+    const postsProgressoGerador = [];
+
+    await passo("gerador: cartão no /aluno, link abre a ferramenta em nova aba e sem sessão não entrega", async () => {
+      await cadastrarAlunoManual(ALUNO_GERADOR);
+      alunoGerador = await abrirAlunoLogado(ALUNO_GERADOR, { width: 390, height: 844 });
+      const pag = alunoGerador.pagina;
+      const cartao = pag.locator(`.card[data-ferramenta="${ARQ_GERADOR}"]`);
+      if ((await cartao.count()) !== 1) throw new Error("cartão do gerador ausente no /aluno");
+      if ((await pag.locator(".card[data-aula]").count()) !== 3) throw new Error("cartões de aula deixaram de ser 3");
+      const link = cartao.locator("a.btn");
+      const href = await link.getAttribute("href");
+      if (href !== `/aluno/conteudo/${ARQ_GERADOR}`) throw new Error(`href inesperado: ${href}`);
+      if ((await link.getAttribute("target")) !== "_blank") throw new Error("link não abre em nova aba");
+      await cartao.scrollIntoViewIfNeeded();
+      await pag.screenshot({ path: path.join(EVIDENCIAS_GERADOR_DIR, "aluno-cartao-390.png") });
+
+      const ctxAnon = await browser.newContext();
+      const respAnon = await ctxAnon.request.get(`${baseUrl}/aluno/conteudo/${ARQ_GERADOR}`, { maxRedirects: 0 });
+      await ctxAnon.close();
+      if (respAnon.status() !== 302) throw new Error(`sem sessão devolveu ${respAnon.status()}, esperado 302`);
+      const estatico = await alunoGerador.ctx.request.get(`${baseUrl}/conteudo/${ARQ_GERADOR}`, { maxRedirects: 0 });
+      if (estatico.status() === 200) throw new Error("/conteudo/ serviu a ferramenta estaticamente");
+    });
+
+    await passo("gerador: abre a ferramenta, prévia muda ao preencher e ao escolher 'Outra coisa'", async () => {
+      const pag = alunoGerador.pagina;
+      const [nova] = await Promise.all([
+        alunoGerador.ctx.waitForEvent("page"),
+        pag.locator(`.card[data-ferramenta="${ARQ_GERADOR}"] a.btn`).click(),
+      ]);
+      nova.on("console", (msg) => {
+        if (msg.type() === "error") alunoGerador.errosConsole.push(msg.text());
+      });
+      nova.on("pageerror", (erro) => alunoGerador.errosConsole.push(String((erro && erro.message) || erro)));
+      nova.on("request", (r) => {
+        if (r.url().includes("/aluno/progresso") && r.method() === "POST") postsProgressoGerador.push(r.url());
+      });
+      await nova.waitForLoadState("load");
+      if (!nova.url().endsWith(`/aluno/conteudo/${ARQ_GERADOR}`)) throw new Error(`abriu ${nova.url()}`);
+      alunoGerador.ferramenta = nova;
+      const previa = () => nova.locator("#previa").innerText();
+      const antes = await previa();
+      if (!antes.includes("[tipo de negócio]")) throw new Error("prévia vazia deveria ter marcadores");
+      await nova.fill("#f-negocio", "doceria");
+      await nova.fill("#f-produto", "bolo de pote");
+      const depois = await previa();
+      if (!depois.includes("doceria") || !depois.includes("bolo de pote")) throw new Error(`prévia não refletiu campos: ${depois}`);
+      await nova.click('#chips-acao .chip[data-acao="legendas"]');
+      if (!(await previa()).includes("Crie 3 legendas")) throw new Error("ação 'legendas' não entrou na prévia");
+      await nova.click('#chips-acao .chip[data-acao="outra"]');
+      if (await nova.locator("#campo-acao-outra").isHidden()) throw new Error("campo de 'Outra coisa' não apareceu");
+      await nova.fill("#f-acao-outra", "Escreva um aviso de feriado");
+      await nova.fill("#f-formato-extra", "em tópicos");
+      const final = await previa();
+      if (!final.includes("Escreva um aviso de feriado.")) throw new Error(`'Outra coisa' fora da prévia: ${final}`);
+      if (!final.includes("Formato: em tópicos.")) throw new Error(`detalhe extra fora do Formato: ${final}`);
+      if (final.includes("Crie 3 legendas")) throw new Error("ação anterior continuou na prévia");
+      await nova.reload();
+      if (!(await previa()).includes("Escreva um aviso de feriado.")) throw new Error("recarregar não manteve o preenchido");
+    });
+
+    await passo("gerador: 'Limpar tudo' zera e não volta a puxar a Aula 1; restauração a partir de ia-negocios-aula1", async () => {
+      const nova = alunoGerador.ferramenta;
+      await nova.click("#limpar");
+      const vazio = await nova.locator("#previa").innerText();
+      if (!vazio.includes("[tipo de negócio]") || vazio.includes("doceria")) throw new Error(`limpar não zerou: ${vazio}`);
+      const aula1 = (extra) =>
+        JSON.stringify({ acao: null, formatos: [], "f-negocio": "", "f-cidade": "", "f-cliente": "", "f-produto": "", "f-exemplo": "", ...extra });
+      // Aula 1 preenchida com o gerador já "limpo": não pode voltar a puxar
+      await nova.evaluate(
+        (v) => localStorage.setItem("ia-negocios-aula1", v),
+        aula1({ acao: "promocao", formatos: ["tom acolhedor"], "f-negocio": "padaria da Aula 1", "f-cidade": "Olímpia", "f-cliente": "vizinhos", "f-produto": "pão de queijo" })
+      );
+      await nova.reload();
+      if ((await nova.locator("#previa").innerText()).includes("padaria da Aula 1")) throw new Error("voltou a puxar a Aula 1 depois de Limpar tudo");
+      if (await nova.locator("#msg-restaurado").isVisible()) throw new Error("aviso de restauração apareceu após Limpar tudo");
+      // primeira abertura de verdade: sem chave própria, com a da Aula 1
+      await nova.evaluate(() => localStorage.removeItem("ia-negocios-gerador"));
+      await nova.reload();
+      const prev = await nova.locator("#previa").innerText();
+      if (!prev.includes("padaria da Aula 1") || !prev.includes("Sugira 3 ideias de promoção para pão de queijo") || !prev.includes("tom acolhedor")) {
+        throw new Error(`restauração da Aula 1 incompleta: ${prev}`);
+      }
+      if (!(await nova.locator("#msg-restaurado").isVisible())) throw new Error("aviso 'Trouxemos o que você preencheu na Aula 1' ausente");
+      await nova.screenshot({ path: path.join(EVIDENCIAS_GERADOR_DIR, "gerador-restaurado-390.png"), fullPage: true });
+      // abrir vazio (sem interagir) não pode impedir de trazer a Aula 1 numa visita seguinte
+      await nova.evaluate(() => {
+        localStorage.removeItem("ia-negocios-gerador");
+        localStorage.removeItem("ia-negocios-aula1");
+      });
+      await nova.reload();
+      await nova.evaluate((v) => localStorage.setItem("ia-negocios-aula1", v), aula1({ "f-negocio": "loja depois" }));
+      await nova.reload();
+      if (!(await nova.locator("#previa").innerText()).includes("loja depois")) throw new Error("abrir vazio impediu de trazer a Aula 1 depois");
+    });
+
+    await passo("gerador: sem scroll horizontal (360/390/1280), prints, sem erro de console e sem progresso gravado", async () => {
+      const nova = alunoGerador.ferramenta;
+      await nova.fill("#f-negocio", "doceria");
+      await nova.fill("#f-produto", "bolo de pote com recheio bem longo para testar quebra de linha");
+      await nova.click('#chips-acao .chip[data-acao="outra"]');
+      await nova.fill("#f-acao-outra", "Escreva um aviso bem comprido sobre o funcionamento no feriado prolongado");
+      for (const [w, h] of [[360, 800], [390, 844], [1280, 900]]) {
+        await nova.setViewportSize({ width: w, height: h });
+        const largura = await nova.evaluate(() => document.documentElement.scrollWidth);
+        if (largura > w) throw new Error(`scroll horizontal em ${w}px (${largura}px)`);
+        if (w !== 360) await nova.screenshot({ path: path.join(EVIDENCIAS_GERADOR_DIR, `gerador-${w}.png`), fullPage: true });
+      }
+      const pag = alunoGerador.pagina;
+      await pag.setViewportSize({ width: 360, height: 800 });
+      await pag.goto(`${baseUrl}/aluno`);
+      const larguraAluno = await pag.evaluate(() => document.documentElement.scrollWidth);
+      if (larguraAluno > 360) throw new Error(`scroll horizontal no /aluno em 360px (${larguraAluno}px)`);
+      await pag.setViewportSize({ width: 1280, height: 900 });
+      await pag.locator(`.card[data-ferramenta="${ARQ_GERADOR}"]`).scrollIntoViewIfNeeded();
+      await pag.screenshot({ path: path.join(EVIDENCIAS_GERADOR_DIR, "aluno-cartao-1280.png") });
+      if (postsProgressoGerador.length) throw new Error(`ferramenta gravou progresso: ${postsProgressoGerador.join(", ")}`);
+      const prog = await pag.evaluate(async () => (await fetch("/aluno/progresso.json", { credentials: "same-origin" })).json());
+      if (JSON.stringify(prog).includes("Ferramenta_Gerador")) throw new Error("progresso.json cita a ferramenta");
+      const relevantes = alunoGerador.errosConsole.filter((e) => !/fonts\.(googleapis|gstatic)|ERR_(INTERNET|NAME|CONNECTION)/i.test(e));
+      if (relevantes.length) throw new Error(`erros de console: ${relevantes.join(" | ")}`);
+      await alunoGerador.ctx.close();
+    });
+
     // ---------- tarefa 15: registros de teste (users.is_teste) ficam fora dos relatórios ----------
     const ALUNO_TESTE = {
       nome: "Zeta Teste Oculto E2E",

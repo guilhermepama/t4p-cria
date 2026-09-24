@@ -1,6 +1,6 @@
 # Tarefa 17 — Gerador de pedido como ferramenta, com atalho no /aluno
 
-**Status: AGUARDANDO EXECUÇÃO**
+**Status: CONCLUÍDA**
 
 - Tipo: revisão + e2e + push + PR de uma implementação já feita pelo planejador (a pedido direto do Guilherme, mesmo esquema da tarefa 16).
 - Data: 24/09/2026
@@ -45,4 +45,15 @@ Verificação do planejador (Playwright, 390 e 1280, app local com banco novo): 
 
 ## Relatório do executor
 
-(preencher)
+- **Status:** CONCLUÍDA
+- **Feito:** revisão do commit 38789fd; correção de 1 bug em `conteudo/Ferramenta_Gerador_de_Pedido.html` (a página gravava o estado vazio ao carregar, então quem abrisse o gerador antes de preencher a Aula 1 nunca receberia os dados dela; agora só grava após ação do aluno, flag `pronto`); 4 passos "gerador:" em `scripts/e2e.js`; prints em `docs/claude-bridge/evidencias/tarefa-17-gerador/`.
+- **Validação:**
+  - ✅ diff vs origin/main: só ferramenta, server.js, aluno.html, spec, e2e, evidências e docs do bridge.
+  - ✅ `npm run e2e`: 58/58 passos OK (inclui 4 "gerador:"; cartões `.card[data-aula]` seguem 3).
+  - ✅ Sem progresso: o e2e captura POSTs a /aluno/progresso vindos da ferramenta (0) e confere que progresso.json não cita a ferramenta; /admin "Uso do conteúdo" depende só desse endpoint.
+  - ⏳ Teste manual no celular (copiar e colar no ChatGPT): fica com o Guilherme.
+  - Cobertos no e2e: cartão + href + target=_blank; sem sessão 302; /conteudo/ estático não serve; prévia muda ao preencher/"Outra coisa"/detalhe extra; recarregar mantém; restauração da Aula 1 + aviso; "Limpar tudo" não volta a puxar; sem scroll horizontal 360/390/1280; sem erro de console (ignorando só bloqueio de Google Fonts).
+- **Divergências:** nenhuma além do bug corrigido.
+- **Achados:** o e2e regrava PNGs de tarefas antigas a cada execução (descartei com git checkout); há arquivos não versionados de tarefa 13 (`*-4-estrelas-*.png`) e `docs/claude-bridge/anexos/` que não commitei.
+- **Commit/branch:** tarefa/17-gerador-de-pedido, PR: ver abaixo.
+

@@ -664,7 +664,9 @@ body.is-hero::after {
     return plano;
   }
 
+  var pronto = false; // só grava depois de uma ação do aluno: abrir a página vazia não pode impedir de trazer a Aula 1 depois
   function salvar() {
+    if (!pronto) return;
     try {
       var dados = { acao: acao, formatos: formatos };
       campos.forEach(function (id) { dados[id] = $(id).value; });
@@ -759,12 +761,13 @@ body.is-hero::after {
     formatos = [];
     $("msg-restaurado").classList.add("oculto");
     $("msg-copia").textContent = "Funciona também no Gemini, no Claude ou na IA que você já usa.";
-    montarPedido(); // salva o estado vazio: não volta a puxar a Aula 1
+    montarPedido(); // salva o estado vazio (pronto já é true): não volta a puxar a Aula 1
     $("f-negocio").focus();
   });
 
   restaurar();
   montarPedido();
+  pronto = true;
 })();
 </script>
 </body>
