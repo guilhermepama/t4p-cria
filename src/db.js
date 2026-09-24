@@ -77,8 +77,19 @@ function migrar() {
   if (!colunasOrders.includes("login_feito")) {
     db.exec("ALTER TABLE orders ADD COLUMN login_feito INTEGER NOT NULL DEFAULT 0");
   }
+  const colunasUsers = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+  if (!colunasUsers.includes("is_teste")) {
+    db.exec("ALTER TABLE users ADD COLUMN is_teste INTEGER NOT NULL DEFAULT 0");
+  }
 }
 migrar();
+
+// Registros de teste (checkout PIX + webhook validados): ficam no banco, mas fora dos relatórios do /admin.
+const EMAILS_TESTE = ["guilhermepama1+teste@gmail.com", "guilhermepama1+pix@gmail.com"];
+db.prepare(
+  `UPDATE users SET is_teste = 1
+   WHERE is_teste = 0 AND email IN (${EMAILS_TESTE.map(() => "?").join(", ")}) COLLATE NOCASE`
+).run(...EMAILS_TESTE);
 
 db.prepare("DELETE FROM sessions WHERE expira_em <= datetime('now')").run();
 
@@ -264,7 +275,7 @@ function listarEventosRecentes(limite = 50) {
     .all(limite);
 }
 
-function listarAlunosComPedidos() {
+function listarAlunosComPedidos({ incluirTestes = false } = {}) {
   return db
     .prepare(
       `SELECT
@@ -273,9 +284,10 @@ function listarAlunosComPedidos() {
          orders.expira_em
        FROM users
        LEFT JOIN orders ON orders.user_id = users.id
+       WHERE ? OR users.is_teste = 0
        ORDER BY users.id DESC, orders.id DESC`
     )
-    .all();
+    .all(incluirTestes ? 1 : 0);
 }
 
 const registrarDownloadStmt = db.prepare(
@@ -315,16 +327,18 @@ function progressoDoAluno(userId) {
   return mapa;
 }
 
-function resumoProgresso() {
+function resumoProgresso({ incluirTestes = false } = {}) {
   return db
     .prepare(
       `SELECT item, tipo,
          COUNT(DISTINCT user_id) AS alunos,
          COALESCE(SUM(concluido), 0) AS concluidos
        FROM progresso
+       JOIN users ON users.id = progresso.user_id
+       WHERE ? OR users.is_teste = 0
        GROUP BY item, tipo`
     )
-    .all();
+    .all(incluirTestes ? 1 : 0);
 }
 
 const salvarAvaliacaoStmt = db.prepare(
@@ -352,10 +366,15 @@ function avaliacoesDoAluno(userId) {
   return { intermediaria: etapas.includes("intermediaria"), final: etapas.includes("final") };
 }
 
-function resumoAvaliacoes() {
+function resumoAvaliacoes({ incluirTestes = false } = {}) {
   const linhas = db
-    .prepare("SELECT etapa, nota, COUNT(*) AS n FROM avaliacoes GROUP BY etapa, nota")
-    .all();
+    .prepare(
+      `SELECT etapa, nota, COUNT(*) AS n FROM avaliacoes
+       JOIN users ON users.id = avaliacoes.user_id
+       WHERE ? OR users.is_teste = 0
+       GROUP BY etapa, nota`
+    )
+    .all(incluirTestes ? 1 : 0);
   const resumo = {};
   for (const etapa of ["intermediaria", "final"]) {
     const distribuicao = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -372,32 +391,37 @@ function resumoAvaliacoes() {
   return resumo;
 }
 
-function listarAvaliacoes() {
+function listarAvaliacoes({ incluirTestes = false } = {}) {
   return db
     .prepare(
       `SELECT users.nome, users.email, avaliacoes.etapa, avaliacoes.nota, avaliacoes.comentario,
          avaliacoes.pode_divulgar, avaliacoes.criado_em, avaliacoes.atualizado_em
        FROM avaliacoes
        JOIN users ON users.id = avaliacoes.user_id
+       WHERE ? OR users.is_teste = 0
        ORDER BY avaliacoes.atualizado_em DESC, users.id DESC`
     )
-    .all();
+    .all(incluirTestes ? 1 : 0);
 }
 
-function contarAlunosAtivos() {
-  return db.prepare("SELECT COUNT(*) AS n FROM users WHERE ativo = 1").get().n;
+function contarAlunosAtivos({ incluirTestes = false } = {}) {
+  return db
+    .prepare("SELECT COUNT(*) AS n FROM users WHERE ativo = 1 AND (? OR is_teste = 0)")
+    .get(incluirTestes ? 1 : 0).n;
 }
 
-function resumoVendas() {
+function resumoVendas({ incluirTestes = false } = {}) {
   return db
     .prepare(
       `SELECT
          COUNT(CASE WHEN status IN ('pago', 'manual') THEN 1 END) AS total_pagos,
          COALESCE(SUM(CASE WHEN status IN ('pago', 'manual') THEN valor END), 0) AS soma,
          COUNT(CASE WHEN status = 'pendente' THEN 1 END) AS pendentes
-       FROM orders`
+       FROM orders
+       JOIN users ON users.id = orders.user_id
+       WHERE ? OR users.is_teste = 0`
     )
-    .get();
+    .get(incluirTestes ? 1 : 0);
 }
 
 module.exports = {

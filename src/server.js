@@ -779,8 +779,8 @@ const ETAPAS_ROTULO = {
   final: "Aula 3 (final)",
 };
 
-function blocoAvaliacoesAdmin() {
-  const resumo = db.resumoAvaliacoes();
+function blocoAvaliacoesAdmin(opcoes) {
+  const resumo = db.resumoAvaliacoes(opcoes);
   const linhasResumo = Object.keys(ETAPAS_ROTULO)
     .map((etapa) => {
       const r = resumo[etapa];
@@ -790,7 +790,7 @@ function blocoAvaliacoesAdmin() {
     })
     .join("\n");
 
-  const comentarios = db.listarAvaliacoes().filter((a) => a.comentario);
+  const comentarios = db.listarAvaliacoes(opcoes).filter((a) => a.comentario);
   const linhasComentarios = comentarios.length
     ? comentarios
         .map(
@@ -825,9 +825,10 @@ function blocoAvaliacoesAdmin() {
     <p style="margin-top:14px"><a class="csv" href="/admin/avaliacoes.csv">Baixar avaliações (CSV)</a></p>`;
 }
 
-function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
-  const resumo = db.resumoVendas();
-  const alunos = db.listarAlunosComPedidos();
+function renderAdmin(res, { statusCode = 200, mensagemErro = "", incluirTestes = false } = {}) {
+  const opcoes = { incluirTestes };
+  const resumo = db.resumoVendas(opcoes);
+  const alunos = db.listarAlunosComPedidos(opcoes);
   const eventos = db.listarEventosRecentes(50);
 
   const linhasAlunos = alunos.length
@@ -871,8 +872,8 @@ function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
         .join("\n")
     : "<div>Nenhum evento registrado ainda.</div>";
 
-  const alunosAtivos = db.contarAlunosAtivos();
-  const resumoPorItem = new Map(db.resumoProgresso().map((r) => [r.item, r]));
+  const alunosAtivos = db.contarAlunosAtivos(opcoes);
+  const resumoPorItem = new Map(db.resumoProgresso(opcoes).map((r) => [r.item, r]));
 
   function linhaUso(item, titulo, tipo) {
     const r = resumoPorItem.get(item);
@@ -894,7 +895,7 @@ function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
 
   res.status(statusCode).send(
     render("admin.html", {
-      blocoAvaliacoes: blocoAvaliacoesAdmin(),
+      blocoAvaliacoes: blocoAvaliacoesAdmin(opcoes),
       mensagemErro: mensagemErro ? `<p class="erro">${escapeHtml(mensagemErro)}</p>` : "",
       totalPagos: String(resumo.total_pagos),
       somaFormatada: formatarBRL(resumo.soma),
@@ -903,12 +904,15 @@ function renderAdmin(res, { statusCode = 200, mensagemErro = "" } = {}) {
       linhasEventos,
       linhasUsoConteudo,
       preco: precoAtual().toFixed(2),
+      linkTestes: incluirTestes
+        ? '<a class="csv" href="/admin">Ocultar registros de teste</a>'
+        : '<a class="csv" href="/admin?testes=1">Mostrar registros de teste</a>',
     })
   );
 }
 
 app.get("/admin", auth.requireAdmin, (req, res) => {
-  renderAdmin(res);
+  renderAdmin(res, { incluirTestes: req.query.testes === "1" });
 });
 
 app.post("/admin/alunos", auth.requireAdmin, auth.checarOrigem, (req, res) => {
