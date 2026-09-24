@@ -489,7 +489,7 @@ body.is-hero::after {
 .avaliacao { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 22px; padding: 22px; margin-top: 28px; }
 .avaliacao [hidden] { display: none !important; }
 .avaliacao h3 { font-size: 1.3rem; line-height: 1.2; margin: 0 0 14px; color: var(--ink); }
-.avaliacao .escala { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.avaliacao .escala { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 16px; }
 .avaliacao .nota { display: block; position: relative; cursor: pointer; padding: 2px; line-height: 0; }
 .avaliacao .nota input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .avaliacao .nota svg { width: 40px; height: 40px; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linejoin: round; border-radius: 8px; transition: fill .12s, stroke .12s; }
@@ -498,7 +498,6 @@ body.is-hero::after {
 .avaliacao .av-valor { font-size: .92rem; color: var(--muted); margin-left: 6px; min-height: 1.2em; }
 @media (max-width: 400px) { .avaliacao .nota { padding: 4px 2px; } .avaliacao .nota svg { width: 36px; height: 36px; } }
 @media (prefers-reduced-motion: reduce) { .avaliacao .nota svg { transition: none; } }
-.avaliacao .legenda { display: flex; justify-content: space-between; gap: 12px; font-size: .84rem; color: var(--muted); margin: 8px 0 16px; }
 .avaliacao .av-campo { display: block; margin-bottom: 14px; }
 .avaliacao .av-campo span { display: block; font-size: .88rem; color: var(--muted); margin-bottom: 5px; }
 .avaliacao textarea { width: 100%; min-height: 84px; resize: vertical; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); padding: 12px 14px; font-size: 1rem; }
@@ -799,7 +798,6 @@ body.is-hero::after {
           <label class="nota"><input type="radio" name="nota" value="5" aria-label="5 estrelas"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5l2.94 6.06 6.66.9-4.84 4.66 1.2 6.62L12 17.53 6.04 20.74l1.2-6.62L2.4 9.46l6.66-.9z"/></svg></label>
           <span class="av-valor" aria-live="polite"></span>
         </div>
-        <div class="legenda"><span>1 estrela = não gostei</span><span>5 estrelas = gostei muito</span></div>
         <label class="av-campo"><span>Quer contar mais? (opcional)</span><textarea name="comentario" maxlength="1000" rows="3" placeholder="O que ajudou, o que ficou confuso, o que faltou…"></textarea></label>
         <label class="av-check"><input type="checkbox" name="podeDivulgar"><span>Pode usar meu comentário, com meu primeiro nome, na divulgação da T4P.</span></label>
         <p class="av-erro" role="alert" hidden>Não deu para enviar agora. Tente de novo em instantes.</p>
