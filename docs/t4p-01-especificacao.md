@@ -73,6 +73,7 @@ Datas em UTC. Na tela, converter para America/Sao_Paulo.
 | GET/POST | `/entrar`, `/sair` | público | login por e-mail + senha (rate-limit), logout |
 | GET | `/aluno` | aluno ativo | página com as 3 aulas + downloads |
 | GET | `/aluno/conteudo/:arquivo` | aluno ativo | entrega de arquivo de `conteudo/` com lista branca de nomes |
+| GET/POST | `/aluno/senha` | aluno ativo | troca de senha: exige a atual, valida a nova (8–200 caracteres, confirmação igual, diferente da atual), encerra as sessões dos outros dispositivos e mantém a atual |
 | GET | `/admin` | admin (Basic Auth) | vendas, total bruto, pendentes |
 | POST | `/admin/alunos` | admin | cria aluno já ativo + pedido `manual` (fallback PIX direto): nome, e-mail, WhatsApp, senha temporária, valor |
 | POST | `/admin/ativar/:userId` | admin | ativação manual (fallback PIX direto) → pedido `manual` |
@@ -124,6 +125,7 @@ Quando o pedido vira `pago`, a página de pagamento cria a sessão do aluno e re
 - CSRF: POSTs (exceto webhook) exigem `Origin`/`Referer` = `BASE_URL`.
 - helmet (a CSP precisa permitir as fontes do Google usadas pela landing e imagens `data:` para o QR).
 - Cookie de sessão: `httpOnly`, `secure` em produção, `sameSite=lax`, validade de 30 dias.
+- Troca de senha pelo próprio aluno (`/aluno/senha`) apaga as sessões dos outros dispositivos, mantendo só a atual.
 - Senha: `crypto.scrypt` (N=16384, r=8, p=1, salt 16 bytes, chave 64 bytes), gravada como `scrypt$<salt hex>$<hash hex>`; comparação com `timingSafeEqual`. Rate-limit de 10 req/min por IP em `/entrar` e `/api/checkout`.
 - `trust proxy` vem de `TRUST_PROXY` (padrão `2`): a requisição passa por Cloudflare → Traefik → app.
 - `Referrer-Policy: same-origin` (helmet `referrerPolicy`). Com o padrão `no-referrer`, o navegador manda `Origin: null` nos POSTs e a checagem CSRF bloqueia tudo.

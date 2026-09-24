@@ -1,48 +1,58 @@
-# Tarefa 15 — Tirar a legenda das estrelas
+# Tarefa 16 — Aluno troca a própria senha em /aluno/senha
 
-**Status: CONCLUÍDA**
+**Status: AGUARDANDO EXECUÇÃO**
 
-- Tipo: remoção de texto/CSS no formulário de avaliação. Sem servidor, sem banco, sem dependência.
+- Tipo: revisão + push + PR de uma implementação já feita fora do fluxo normal (pelo planejador, a pedido direto do Guilherme, por causa do prazo de sexta).
 - Data: 24/09/2026
-- Base: tarefa 14 concluída na `tarefa/13-avaliacao`, PR ainda não mergeado.
-- **Branch:** continue na `tarefa/13-avaliacao` (mesmo PR). Primeiro commit: `docs: planejador — tarefa 15` (esta tarefa + `concluidas/14-estrelas.md`).
-- ⚠️ Produção vendendo até sexta 25/09 às 14h. Não tocar checkout, webhook, /pagamento, VENDAS_ATE, CSVs, navegação das aulas.
+- Base: `main` (`36c0928`, já com as tarefas 13/14/15 mergeadas).
+- **Branch:** `tarefa/16-trocar-senha`, já criada a partir da `origin/main` atualizada. Já existe 1 commit nela: `5b3fcc0 feat: aluno altera a própria senha em /aluno/senha`.
+- ⚠️ Produção vendendo até sexta 25/09 às 14h. Não tocar checkout, webhook, /pagamento, VENDAS_ATE, CSVs, navegação das aulas — exceto para investigar os achados abaixo, se precisar.
+
+## Contexto (divergência de processo)
+
+Esta tarefa foi implementada e commitada pelo planejador diretamente (sessão Cowork, sem `git push`/`gh` disponíveis no ambiente onde rodou), a pedido do Guilherme, para não perder o prazo de sexta. **Isso não é o normal — o esperado é o executor implementar.** Revise como se a tarefa fosse sua, não confie cegamente no diff.
 
 ## Decisão do Guilherme
 
-Remover a linha `1 estrela = não gostei` / `5 estrelas = gostei muito` nas 3 superfícies. As estrelas e o texto `N de 5` ficam.
+Aluno troca a própria senha pelo painel `/aluno` (não pelo `/admin`, que é Basic Auth e não tem sessão de aluno). Ao trocar: a sessão atual continua ativa, as sessões de outros dispositivos são encerradas.
 
-## O que mudar
+## O que já foi feito (revisar)
 
-1. Remover o `<div class="legenda">…</div>` em:
-   - `conteudo/Aula1_O_Pedido_que_Funciona.html`
-   - `conteudo/Aula3_Monte_sua_Equipe.html`
-   - `src/views/avaliacao.html`
-2. Remover a regra `.avaliacao .legenda { … }` do CSS das duas aulas e de `src/views/aluno.html`.
-3. Espaçamento: a legenda dava ~16px entre as estrelas e o campo de comentário. Garantir esse respiro (ex.: `margin-bottom: 16px` na `.escala` ou no bloco que contém estrelas + `N de 5`). Nada mais muda de layout.
-4. `scripts/e2e.js`: trocar a checagem da legenda (≈ linha 1372) por uma que confirme que `.legenda` **não existe** no bloco.
+- `src/db.js`: `trocarSenhaMantendoSessao(userId, senhaHash, tokenHashAtual)` — troca a senha e apaga as outras sessões do usuário numa transação.
+- `src/auth.js`: `tokenHashDaSessao(req)` — expõe o hash do token da sessão atual (para não derrubá-la).
+- `src/server.js`: `GET/POST /aluno/senha`, atrás de `requireAluno` + `checarOrigem` + rate-limit próprio (10/15min por aluno). Valida senha atual, nova com 8–200 caracteres, confirmação igual à nova, nova ≠ atual. Registra evento `aluno_trocou_senha`.
+- `src/views/senha.html`: tela nova, visual igual ao `/entrar`.
+- `src/views/aluno.html`: link "Alterar senha" no cabeçalho, ao lado de "Sair".
+- `scripts/e2e.js`: 6 passos novos cobrindo o fluxo (login em 2 dispositivos, exige sessão, CSRF, validações, troca com sucesso derruba o outro dispositivo, senha antiga não entra mais, prints 390/1280).
+- `docs/t4p-01-especificacao.md`: linha da rota `/aluno/senha` + nota de segurança sobre invalidar sessões na troca.
+
+## O que falta (seu trabalho)
+
+1. Revisar `git show 5b3fcc0` inteiro. Se achar algo errado, corrija — é bug desta tarefa, não "achado fora do escopo".
+2. Rodar `npm run e2e` completo **nesta máquina** (rede real — o ambiente onde rodei bloqueia o Google Fonts, o que já explica parte das falhas abaixo). Esperado: tudo verde, incluindo os 6 passos novos de "senha:".
+3. Investigar os 2 achados abaixo antes de decidir se são bug desta tarefa ou pré-existentes.
+4. `git push -u origin tarefa/16-trocar-senha`.
+5. Abrir o PR para `main` (sem merge — o merge é do Guilherme). Descrição do PR: o que mudou + link para esta tarefa.
+6. Preencher o relatório e mudar o Status.
+
+## Achados a investigar (do meu e2e, rodado em ambiente com rede restrita)
+
+- `avaliação: ALUNO_AVAL sem erro de console` falhou com 3× `429 Too Many Requests`. Pode ser rate-limit de `/aluno/avaliacao` ou `/aluno/progresso` estourado pela ordem dos testes (os 6 passos novos de senha rodam antes e mudam o tempo). Rode a suíte na `main` (sem esta tarefa) para comparar: se falhar lá também, é pré-existente — registre em Achados e não corrija; se só falhar aqui, é bug desta tarefa.
+- `avaliação: /aluno com Aula 3 concluída e sem 'final' mostra só o cartão final` falhou em "cartão deveria ser o final". Mesma investigação.
+- As falhas de fonte ("fontes não carregaram") no meu ambiente são quase certamente rede bloqueada (Google Fonts), não bug — mas confirme que ficam verdes na sua máquina antes de assumir isso.
 
 ## Validação
 
-- [ ] `git diff` restrito aos 5 arquivos acima; `src/server.js` e `src/db.js` intocados.
-- [ ] Nenhuma ocorrência de `1 estrela = não gostei` nem de `.legenda` em `conteudo/` e `src/views/` (`grep`).
-- [ ] Prints 390 px das aulas 1 e 3 e do cartão no /aluno mostrando estrelas → comentário com espaçamento correto, em `docs/claude-bridge/evidencias/tarefa-15-sem-legenda/`.
-- [ ] `npm run e2e` verde. Reverter PNGs antigos regravados, como nas anteriores.
+- [ ] `git diff main...tarefa/16-trocar-senha --stat`: só os arquivos listados acima.
+- [ ] `npm run e2e`: 100% verde (contando os 6 novos de "senha:").
+- [ ] Achados 429 / cartão final resolvidos ou confirmados como pré-existentes (não desta tarefa).
+- [ ] Teste manual rápido no navegador: trocar a senha, confirmar que o outro dispositivo desloga e a senha antiga não entra mais.
 
 ## Entrega
 
-- Commit(s) na `tarefa/13-avaliacao` + push. Sem merge.
-- Preencher o relatório e mudar o Status.
+- Push da `tarefa/16-trocar-senha` + abrir PR para `main` (sem merge).
+- Preencher o relatório e mudar o Status. Colocar o link do PR no relatório.
 
 ## Relatório do executor
 
-- **Status:** CONCLUÍDA
-- **Feito:** removido o `<div class="legenda">` das aulas 1 e 3 e de `src/views/avaliacao.html`; removida a regra `.avaliacao .legenda` das duas aulas e de `src/views/aluno.html`; `.escala` ganhou `margin-bottom: 16px` (o respiro que a legenda dava). `scripts/e2e.js`: a checagem da legenda agora confirma que `.legenda` não existe.
-- **Validação:**
-  - ✅ `git diff --stat`: só os 5 arquivos da tarefa (server.js e db.js intocados).
-  - ✅ `grep` por `.legenda`/"estrela = " em `conteudo/` e `src/views/`: nenhuma ocorrência (restam só "legendas" de Instagram, texto sem relação).
-  - ✅ Prints 390 px (aulas 1 e 3, cartão no /aluno; sem escolha e com 4 estrelas) em `docs/claude-bridge/evidencias/tarefa-15-sem-legenda/`; espaçamento estrelas → comentário conferido no print.
-  - ✅ `npm run e2e`: 45/45; PNGs antigos regravados foram revertidos.
-- **Divergências:** nenhuma.
-- **Achados:** nenhum.
-- **Commit/branch:** `tarefa/13-avaliacao` (PR #14).
+(preencher)
