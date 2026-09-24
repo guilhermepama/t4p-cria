@@ -55,5 +55,5 @@ Verificação do planejador (Playwright, 390 e 1280, app local com banco novo): 
   - Cobertos no e2e: cartão + href + target=_blank; sem sessão 302; /conteudo/ estático não serve; prévia muda ao preencher/"Outra coisa"/detalhe extra; recarregar mantém; restauração da Aula 1 + aviso; "Limpar tudo" não volta a puxar; sem scroll horizontal 360/390/1280; sem erro de console (ignorando só bloqueio de Google Fonts).
 - **Divergências:** nenhuma além do bug corrigido.
 - **Achados:** o e2e regrava PNGs de tarefas antigas a cada execução (descartei com git checkout); há arquivos não versionados de tarefa 13 (`*-4-estrelas-*.png`) e `docs/claude-bridge/anexos/` que não commitei.
-- **Commit/branch:** tarefa/17-gerador-de-pedido, PR: ver abaixo.
+- **Commit/branch:** tarefa/17-gerador-de-pedido, PR: https://github.com/guilhermepama/t4p-cria/pull/18
 
