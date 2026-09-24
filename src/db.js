@@ -177,6 +177,16 @@ function trocarSenha(userId, senhaHash) {
   db.prepare("UPDATE users SET senha_hash = ? WHERE id = ?").run(senhaHash, userId);
 }
 
+const trocarSenhaMantendoSessaoStmt = db.transaction((userId, senhaHash, tokenHashAtual) => {
+  db.prepare("UPDATE users SET senha_hash = ? WHERE id = ?").run(senhaHash, userId);
+  db.prepare("DELETE FROM sessions WHERE user_id = ? AND token != ?").run(userId, tokenHashAtual);
+});
+
+// Troca a senha do aluno e derruba as sessões dos outros dispositivos, mantendo só a atual.
+function trocarSenhaMantendoSessao(userId, senhaHash, tokenHashAtual) {
+  trocarSenhaMantendoSessaoStmt(userId, senhaHash, tokenHashAtual);
+}
+
 function criarUsuarioInativo(nome, email, whatsapp, senhaHash) {
   const info = db
     .prepare(
@@ -436,6 +446,7 @@ module.exports = {
   criarAlunoManual,
   ativarAluno,
   trocarSenha,
+  trocarSenhaMantendoSessao,
   criarUsuarioInativo,
   atualizarUsuarioParaCompra,
   buscarPedidoPorToken,

@@ -1797,6 +1797,116 @@ async function main() {
       }
     );
 
+    // ---------- tarefa 16: aluno troca a própria senha em /aluno/senha ----------
+    const EVIDENCIAS_SENHA_DIR = path.join(RAIZ, "docs", "claude-bridge", "evidencias", "tarefa-16-trocar-senha");
+    fs.mkdirSync(EVIDENCIAS_SENHA_DIR, { recursive: true });
+    const ALUNO_SENHA = {
+      nome: "Aluno Senha E2E",
+      email: `aluno.senha.${SUFIXO}@exemplo.com`,
+      whatsapp: "11999990007",
+      senha: "senha-antiga-e2e-1234",
+      valor: "49,90",
+    };
+    const SENHA_NOVA = "senha-nova-e2e-5678";
+    let notebookSenha;
+    let celularSenha;
+
+    async function enviarFormSenha(pagina, atual, nova, confirmacao, semValidacaoHtml) {
+      await pagina.goto(`${baseUrl}/aluno/senha`);
+      if (semValidacaoHtml) await pagina.evaluate(() => { document.getElementById("form-senha").noValidate = true; });
+      await pagina.fill("#senhaAtual", atual);
+      await pagina.fill("#senhaNova", nova);
+      await pagina.fill("#senhaConfirmacao", confirmacao);
+      const respPromise = pagina.waitForResponse(
+        (r) => r.url() === `${baseUrl}/aluno/senha` && r.request().method() === "POST"
+      );
+      await pagina.click('button:has-text("Salvar nova senha")');
+      return respPromise;
+    }
+
+    await passo("senha: dois dispositivos logados e link 'Alterar senha' no /aluno", async () => {
+      await cadastrarAlunoManual(ALUNO_SENHA);
+      notebookSenha = await abrirAlunoLogado(ALUNO_SENHA, { width: 1280, height: 900 });
+      celularSenha = await abrirAlunoLogado(ALUNO_SENHA, { width: 390, height: 844 });
+      const link = notebookSenha.pagina.locator('a.link-conta:has-text("Alterar senha")');
+      if ((await link.count()) !== 1) throw new Error("link 'Alterar senha' ausente no /aluno");
+      await link.click();
+      await notebookSenha.pagina.waitForURL(`${baseUrl}/aluno/senha`);
+    });
+
+    await passo("senha: /aluno/senha exige login e POST sem Origin é barrado", async () => {
+      const ctxAnon = await browser.newContext();
+      const pagAnon = await ctxAnon.newPage();
+      await pagAnon.goto(`${baseUrl}/aluno/senha`);
+      if (!pagAnon.url().startsWith(`${baseUrl}/entrar`)) throw new Error(`anônimo foi para ${pagAnon.url()}`);
+      await ctxAnon.close();
+      const resp = await notebookSenha.ctx.request.post(`${baseUrl}/aluno/senha`, {
+        form: { senhaAtual: ALUNO_SENHA.senha, senhaNova: SENHA_NOVA, senhaConfirmacao: SENHA_NOVA },
+        maxRedirects: 0,
+      });
+      if (resp.status() !== 403) throw new Error(`POST sem Origin devolveu ${resp.status()}, esperado 403`);
+    });
+
+    await passo("senha: erros de validação (atual errada, curta, confirmação diferente, igual à atual)", async () => {
+      const pag = notebookSenha.pagina;
+      const casos = [
+        [["errada-errada-1", SENHA_NOVA, SENHA_NOVA, false], "A senha atual está incorreta."],
+        [[ALUNO_SENHA.senha, "curta", "curta", true], "ao menos 8 caracteres"],
+        [[ALUNO_SENHA.senha, SENHA_NOVA, SENHA_NOVA + "x", false], "A confirmação não é igual"],
+        [[ALUNO_SENHA.senha, ALUNO_SENHA.senha, ALUNO_SENHA.senha, false], "diferente da atual"],
+      ];
+      for (const [args, trecho] of casos) {
+        const resp = await enviarFormSenha(pag, ...args);
+        if (resp.status() !== 400) throw new Error(`"${trecho}": status ${resp.status()}, esperado 400`);
+        const texto = await pag.locator(".erro").innerText();
+        if (!texto.includes(trecho)) throw new Error(`erro exibido "${texto}" não contém "${trecho}"`);
+      }
+    });
+
+    await passo("senha: troca com sucesso mantém este dispositivo logado e derruba o outro", async () => {
+      const resp = await enviarFormSenha(notebookSenha.pagina, ALUNO_SENHA.senha, SENHA_NOVA, SENHA_NOVA, false);
+      if (resp.status() !== 200) throw new Error(`troca devolveu ${resp.status()}`);
+      const ok = await notebookSenha.pagina.locator(".ok").innerText();
+      if (!ok.includes("Senha alterada")) throw new Error(`mensagem de sucesso inesperada: ${ok}`);
+      await notebookSenha.pagina.screenshot({ path: path.join(EVIDENCIAS_SENHA_DIR, "sucesso-1280.png") });
+      await notebookSenha.pagina.goto(`${baseUrl}/aluno`);
+      if (!notebookSenha.pagina.url().endsWith("/aluno")) throw new Error("dispositivo atual perdeu a sessão");
+      await celularSenha.pagina.goto(`${baseUrl}/aluno`);
+      if (!celularSenha.pagina.url().startsWith(`${baseUrl}/entrar`)) {
+        throw new Error(`outro dispositivo continuou logado: ${celularSenha.pagina.url()}`);
+      }
+    });
+
+    await passo("senha: senha antiga não entra mais e a nova entra", async () => {
+      const ctx = await browser.newContext();
+      const pag = await ctx.newPage();
+      await pag.goto(`${baseUrl}/entrar`);
+      await pag.fill("#email", ALUNO_SENHA.email);
+      await pag.fill("#senha", ALUNO_SENHA.senha);
+      const respPromise = pag.waitForResponse((r) => r.url() === `${baseUrl}/entrar` && r.request().method() === "POST");
+      await pag.click('button:has-text("Entrar")');
+      const resp = await respPromise;
+      if (resp.status() !== 401) throw new Error(`senha antiga devolveu ${resp.status()}, esperado 401`);
+      await ctx.close();
+      const novo = await abrirAlunoLogado({ ...ALUNO_SENHA, senha: SENHA_NOVA }, { width: 1280, height: 900 });
+      await novo.ctx.close();
+    });
+
+    await passo("senha: prints da tela (390 e 1280) e sem scroll horizontal", async () => {
+      const pag = celularSenha.pagina;
+      await entrarComRetentativa(pag, { ...ALUNO_SENHA, senha: SENHA_NOVA }, baseUrl);
+      await pag.screenshot({ path: path.join(EVIDENCIAS_SENHA_DIR, "aluno-header-390.png") });
+      await enviarFormSenha(pag, "errada-errada-1", SENHA_NOVA, SENHA_NOVA, false);
+      await pag.screenshot({ path: path.join(EVIDENCIAS_SENHA_DIR, "erro-390.png") });
+      const larguraDoc = await pag.evaluate(() => document.documentElement.scrollWidth);
+      if (larguraDoc > 390) throw new Error(`scroll horizontal em 390px (${larguraDoc}px)`);
+      await pag.goto(`${baseUrl}/aluno`);
+      const larguraAluno = await pag.evaluate(() => document.documentElement.scrollWidth);
+      if (larguraAluno > 390) throw new Error(`scroll horizontal no /aluno em 390px (${larguraAluno}px)`);
+      await notebookSenha.ctx.close();
+      await celularSenha.ctx.close();
+    });
+
     // ---------- tarefa 15: registros de teste (users.is_teste) ficam fora dos relatórios ----------
     const ALUNO_TESTE = {
       nome: "Zeta Teste Oculto E2E",
