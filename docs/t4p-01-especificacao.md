@@ -72,7 +72,7 @@ Datas em UTC. Na tela, converter para America/Sao_Paulo.
 | POST | `/webhooks/mp` | MP | valida assinatura, reconsulta, ativa. Responde 200 rápido |
 | GET/POST | `/entrar`, `/sair` | público | login por e-mail + senha (rate-limit), logout |
 | GET | `/aluno` | aluno ativo | página com as 3 aulas + downloads |
-| GET | `/aluno/conteudo/:arquivo` | aluno ativo | entrega de arquivo de `conteudo/` com lista branca de nomes |
+| GET | `/aluno/conteudo/:arquivo` | aluno ativo | entrega de arquivo de `conteudo/` com lista branca de nomes (aulas, ferramentas e downloads) |
 | GET/POST | `/aluno/senha` | aluno ativo | troca de senha: exige a atual, valida a nova (8–200 caracteres, confirmação igual, diferente da atual), encerra as sessões dos outros dispositivos e mantém a atual |
 | GET | `/admin` | admin (Basic Auth) | vendas, total bruto, pendentes |
 | POST | `/admin/alunos` | admin | cria aluno já ativo + pedido `manual` (fallback PIX direto): nome, e-mail, WhatsApp, senha temporária, valor |
