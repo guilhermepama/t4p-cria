@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IA para Negócios · Gerador de pedido</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F6F0E6;
+  --card: #FFFCF7;
+  --ink: #1E1B18;
+  --muted: #6B635A;
+  --line: #E2D6C3;
+  --hero: #0E3B3A;
+  --on-hero: #F6F0E6;
+  --on-hero-muted: #A9C4BE;
+  --teal: #0E3B3A;
+  --coral: #C9472B;
+  --coral-deco: #E0543A;
+  --on-coral: #FFFFFF;
+  --coral-soft: #F6DDD3;
+  --prompt: #E3ECE8;
+  --ph: #B23E25;
+  --coffee: #4A2C1E;
+  --crema: #EAD8BA;
+  --ok: #1F6B4A;
+
+  --serif: "DM Serif Display", Georgia, "Times New Roman", serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0B2827; --card: #113634; --ink: #F2EADD; --muted: #A7BEB9; --line: #25524E;
+    --hero: #08201F; --teal: #7FB3A8; --coral: #EE6A4C; --on-coral: #0B2827; --coral-soft: #4A2A20;
+    --prompt: #0E302E; --ph: #F4927A; --ok: #7ED3A6;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0B2827; --card: #113634; --ink: #F2EADD; --muted: #A7BEB9; --line: #25524E;
+  --hero: #08201F; --teal: #7FB3A8; --coral: #EE6A4C; --on-coral: #0B2827; --coral-soft: #4A2A20;
+  --prompt: #0E302E; --ph: #F4927A; --ok: #7ED3A6;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); -webkit-text-size-adjust: 100%; }
+body {
+  min-height: 100%; margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 1.0625rem/1.55 var(--sans); -webkit-font-smoothing: antialiased;
+  transition: background-color .4s ease;
+}
+body.is-hero { background: var(--hero); }
+img, svg { max-width: 100%; }
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--coral-deco); outline-offset: 3px; border-radius: 6px; }
+
+.app { max-width: 560px; margin: 0 auto; }
+.step { display: none; padding: 32px 22px 140px; }
+.step.is-active { display: block; animation: entra .35s ease both; }
+.hero.is-active { display: flex; }
+@keyframes entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+h1, h2 { font-family: var(--serif); font-weight: 400; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.75rem, 6.4vw, 2.2rem); line-height: 1.12; color: var(--teal); }
+h2:focus { outline: none; }
+p { margin: 0 0 1em; }
+.lead { font-size: 1.1rem; }
+.muted { color: var(--muted); }
+.small { font-size: .88rem; }
+.stack > * + * { margin-top: 18px; }
+
+/* ---------- botões ---------- */
+.btn {
+  appearance: none; border: 0; border-radius: 999px; min-height: 50px; padding: 0 24px;
+  background: var(--coral); color: var(--on-coral); font-weight: 600; font-size: 1rem;
+  cursor: pointer; transition: transform .12s ease, opacity .2s ease;
+}
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .32; cursor: not-allowed; transform: none; }
+.btn-linha {
+  appearance: none; background: transparent; border: 1.5px solid var(--line); border-radius: 999px;
+  min-height: 48px; padding: 0 18px; font-weight: 600; font-size: .95rem; cursor: pointer; color: var(--ink);
+}
+.btn-linha:disabled { opacity: .55; cursor: default; }
+.btn-texto { appearance: none; background: none; border: 0; padding: 12px 6px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.btn-texto:disabled { visibility: hidden; }
+a.btn, a.btn-linha { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+
+/* ---------- abertura ---------- */
+.hero { color: var(--on-hero); padding-top: 44px; flex-direction: column; min-height: 100vh; min-height: 100dvh; padding-bottom: 0; overflow: hidden; }
+.hero .marca { font-weight: 600; font-size: .95rem; color: var(--on-hero-muted); margin-bottom: 28px; }
+.hero h1 { font-size: clamp(3rem, 13vw, 4.4rem); line-height: .98; color: var(--on-hero); margin-bottom: 22px; }
+.hero .lead { color: var(--on-hero); opacity: .9; max-width: 30ch; margin-bottom: 28px; }
+.hero .btn { background: var(--coral-deco); color: #fff; align-self: flex-start; font-size: 1.05rem; padding: 0 30px; min-height: 56px; }
+.hero .nota { margin-top: 14px; font-size: .88rem; color: var(--on-hero-muted); }
+.xicara-hero { margin-top: auto; align-self: flex-end; width: min(86vw, 400px); margin-right: -26%; margin-bottom: -22%; }
+.xicara-hero .brilho { transform-origin: 148px 152px; animation: brilha 1.1s .35s cubic-bezier(.2,.9,.3,1.3) both; }
+.xicara-hero .brilho-2 { transform-origin: 204px 112px; animation: brilha .8s .9s cubic-bezier(.2,.9,.3,1.3) both; }
+@keyframes brilha { from { transform: scale(0) rotate(-45deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ---------- introdução ---------- */
+.pense {
+  background: var(--hero); color: var(--on-hero); border-radius: 18px; padding: 18px 20px; margin: 22px 0;
+  border: 1px solid color-mix(in srgb, var(--on-hero) 16%, transparent);
+}
+.pense .rotulo-pense { display: block; font-size: .82rem; font-weight: 600; color: var(--on-hero-muted); margin-bottom: 6px; }
+.pense p { margin: 0; font-size: 1.05rem; line-height: 1.5; }
+.cracha-linha { display: flex; gap: 18px; align-items: center; }
+.cracha-linha p { margin: 0; }
+.cracha { display: block; width: 112px; flex: none; }
+.onde { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 0; padding: 0; list-style: none; }
+.onde li { border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: .9rem; background: var(--card); }
+.teclado { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 16px; margin: 20px 0 14px; }
+.teclado .msg { font-size: 1.15rem; min-height: 1.6em; padding: 4px 2px 14px; }
+.teclado .msg .nova-palavra { color: var(--coral-deco); font-weight: 600; }
+.sugestoes { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--prompt); border-radius: 12px; overflow: hidden; }
+.sugestoes span { text-align: center; padding: 10px 4px; font-size: .95rem; color: var(--muted); }
+.sugestoes span + span { border-left: 1px solid var(--line); }
+.sugestoes span.top { color: var(--ink); font-weight: 600; }
+.sugestoes-rotulo { font-size: .78rem; color: var(--muted); margin: 0 0 6px; }
+.duas-colunas { display: grid; gap: 14px; margin: 18px 0 4px; }
+.coluna { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; }
+.coluna h3 { font-family: var(--serif); font-weight: 400; font-size: 1.35rem; margin: 0 0 8px; color: var(--teal); }
+.coluna ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.coluna li { display: grid; grid-template-columns: 14px 1fr; gap: 10px; font-size: .97rem; line-height: 1.45; }
+.coluna li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; margin-top: .5em; background: var(--coral-deco); }
+.coluna.cuidado li::before { background: transparent; border: 2px solid var(--muted); width: 6px; height: 6px; }
+.coluna li b { font-weight: 600; }
+
+.foto { margin: 22px 0 0; }
+.foto img { display: block; width: 100%; height: auto; border-radius: 18px; }
+.foto figcaption { font-size: .78rem; color: var(--muted); margin-top: 6px; }
+
+/* ---------- pedido e resposta ---------- */
+.rotulo { display: block; font-size: .84rem; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+.pedido {
+  font-family: var(--mono); font-size: .94rem; line-height: 1.6; white-space: pre-wrap;
+  background: var(--prompt); border-left: 3px solid var(--teal); border-radius: 4px 14px 14px 4px;
+  padding: 14px 16px; margin: 0;
+}
+.pedido .ph { color: var(--ph); font-weight: 500; }
+.resposta {
+  background: var(--card); border: 1px solid var(--line); border-radius: 20px 20px 20px 6px;
+  padding: 16px 18px; white-space: pre-wrap; min-height: 3.2em; cursor: default;
+}
+.resposta.digitando::after { content: "▍"; color: var(--coral-deco); animation: pisca .8s steps(1) infinite; }
+@keyframes pisca { 50% { opacity: 0; } }
+.oculto { display: none !important; }
+.conclusao { border-left: 3px solid var(--coral-deco); padding-left: 14px; font-weight: 500; }
+
+/* ---------- previsão ---------- */
+.frase { font-family: var(--serif); font-size: 1.7rem; line-height: 1.2; color: var(--ink); margin: 6px 0 14px; }
+.frase .lacuna { display: inline-block; min-width: 3.2em; border-bottom: 3px solid var(--coral-deco); color: var(--coral-deco); text-align: center; }
+.rodada + .rodada { margin-top: 30px; padding-top: 24px; border-top: 1px solid var(--line); }
+.barras { display: grid; gap: 8px; margin-top: 14px; }
+.barra-op { display: grid; grid-template-columns: 5.5em 1fr 2.8em; align-items: center; gap: 10px; font-size: .95rem; }
+.barra-op .trilho { height: 12px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.barra-op .enche { height: 100%; width: 0; border-radius: 999px; background: var(--muted); transition: width .8s cubic-bezier(.3,.8,.3,1); }
+.barra-op.top .enche { background: var(--coral-deco); }
+.barra-op.top { font-weight: 600; }
+.barra-op .pct { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.contexto-tag { background: var(--prompt); border-radius: 12px; padding: 12px 14px; font-size: .95rem; margin-bottom: 4px; }
+
+/* ---------- o que o estagiário não sabe ---------- */
+.lista-toque { display: grid; gap: 10px; margin: 20px 0; }
+.item {
+  appearance: none; width: 100%; text-align: left; background: var(--card); border: 1.5px solid var(--line);
+  border-radius: 16px; padding: 16px 18px; cursor: pointer; font-weight: 600; font-size: 1rem;
+  display: grid; gap: 6px; transition: border-color .2s ease;
+}
+.item .consequencia { display: none; font-weight: 400; color: var(--muted); font-size: .95rem; }
+.item[aria-expanded="true"] { border-color: var(--coral-deco); }
+.item[aria-expanded="true"] .consequencia { display: block; animation: entra .25s ease both; }
+.item .toque { font-weight: 400; font-size: .82rem; color: var(--muted); }
+.item .exemplo { display: none; gap: 8px; margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.item[aria-expanded="true"] .exemplo { display: grid; animation: entra .3s ease both; }
+.ex-linha { display: grid; grid-template-columns: 2.4em 1fr; gap: 10px; align-items: baseline; font-weight: 400; font-size: .95rem; line-height: 1.45; }
+.ex-rot { font-size: .75rem; font-weight: 700; color: var(--muted); }
+.ex-rot.com { color: var(--coral-deco); }
+.ex-sem { color: var(--muted); }
+.ex-com { color: var(--ink); font-weight: 500; }
+.item[aria-expanded="true"] .toque { display: none; }
+
+/* ---------- letras CAFÉ ---------- */
+.letras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 22px 0 18px; }
+.letra {
+  appearance: none; aspect-ratio: 1 / 1.1; border-radius: 18px; border: 2px solid var(--line);
+  background: var(--card); color: var(--coral-deco); font-family: var(--serif); font-size: clamp(2.2rem, 11vw, 3.2rem);
+  line-height: 1; cursor: pointer; position: relative; transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+.letra.visto { border-color: var(--coral-deco); }
+.letra[aria-pressed="true"] { background: var(--coral-deco); color: #fff; border-color: var(--coral-deco); }
+.painel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px 18px; min-height: 180px; }
+.painel h3 { font-family: var(--serif); font-weight: 400; font-size: 1.6rem; margin: 0 0 6px; color: var(--teal); }
+.painel .pedido { margin-top: 14px; font-size: .88rem; }
+
+/* ---------- montagem guiada ---------- */
+.ingredientes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+.ingredientes .btn-linha[aria-pressed="true"] { border-color: var(--coral-deco); color: var(--muted); }
+.linha-pedido { display: block; }
+.linha-pedido + .linha-pedido { margin-top: 8px; }
+.linha-pedido.nova { animation: marca 1s ease both; }
+@keyframes marca { from { background: var(--coral-soft); } to { background: transparent; } }
+.pedido-vazio { color: var(--muted); font-style: normal; }
+
+/* ---------- exercício ---------- */
+fieldset { border: 0; padding: 0; margin: 0 0 26px; }
+legend { padding: 0; margin-bottom: 12px; font-weight: 600; font-size: 1.02rem; }
+legend .l { font-family: var(--serif); font-weight: 400; font-size: 1.5rem; color: var(--coral-deco); margin-right: 6px; }
+.campo { margin-bottom: 12px; }
+.campo label { display: block; font-size: .88rem; color: var(--muted); margin-bottom: 5px; }
+.campo input, .campo textarea {
+  width: 100%; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card);
+  padding: 12px 14px; font-size: 1rem; min-height: 48px;
+}
+.campo textarea { min-height: 84px; resize: vertical; }
+.campo input:focus, .campo textarea:focus { outline: none; border-color: var(--coral-deco); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  appearance: none; border: 1.5px solid var(--line); border-radius: 999px; background: var(--card);
+  padding: 10px 15px; font-size: .94rem; cursor: pointer; min-height: 44px;
+}
+.chip[aria-pressed="true"] { background: var(--coral-soft); border-color: var(--coral-deco); font-weight: 600; }
+.chip:disabled { cursor: default; opacity: .5; color: var(--ink); }
+.chip[aria-pressed="true"]:disabled { opacity: 1; }
+.acoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.aviso { font-size: .88rem; color: var(--ph); margin-top: 10px; }
+.previa-titulo { display: flex; justify-content: space-between; align-items: baseline; }
+
+/* ---------- quiz ---------- */
+.quiz-letras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0 14px; }
+.quiz-letras .letra { aspect-ratio: auto; min-height: 64px; font-size: 2rem; }
+.quiz-letras .letra.errou { border-color: var(--line); color: var(--muted); opacity: .45; }
+.quiz-letras .letra.acertou { background: var(--ok); border-color: var(--ok); color: var(--paper); }
+.contador { font-size: .88rem; color: var(--muted); margin-bottom: 10px; }
+.feedback { min-height: 3em; }
+.feedback.bom { color: var(--ok); font-weight: 500; }
+
+/* ---------- final ---------- */
+.final-topo { display: flex; gap: 18px; align-items: flex-end; margin-bottom: 22px; }
+.xicara-final { width: 112px; flex: none; }
+.cuidados { list-style: none; padding: 0; margin: 0; counter-reset: c; }
+.cuidados li { counter-increment: c; display: grid; grid-template-columns: 30px 1fr; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
+.cuidados li::before { content: counter(c); font-family: var(--serif); font-size: 1.5rem; line-height: 1.1; color: var(--coral-deco); }
+.oferta { background: var(--hero); color: var(--on-hero); border-radius: 22px; padding: 24px 22px; margin-top: 28px; }
+.oferta h3 { font-family: var(--serif); font-weight: 400; font-size: 1.7rem; line-height: 1.1; margin: 0 0 10px; }
+.oferta p { color: var(--on-hero-muted); }
+.oferta .preco { font-family: var(--serif); font-size: 2.8rem; line-height: 1; color: var(--on-hero); margin: 8px 0 4px; }
+.oferta .btn { background: var(--coral-deco); color: #fff; width: 100%; margin-top: 16px; }
+
+/* ---------- barra inferior ---------- */
+.barra {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--line);
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+}
+body.is-hero .barra { display: none; }
+.barra-in { max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
+.progresso { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: .84rem; color: var(--muted); }
+.progresso svg { width: 34px; height: 34px; flex: none; }
+.cafe-nivel { transition: transform .7s cubic-bezier(.3,.8,.3,1); }
+.cafe-brilho { opacity: 0; transition: opacity .4s ease .5s; transform-origin: center; }
+.cheia .cafe-brilho { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+<style id="tema-t4p">
+/* ==========================================================
+   Tema T4P: mesmo visual da landing (iadojeitocerto.com)
+   Sobrepõe o tema antigo sem mexer na estrutura nem no JS.
+   ========================================================== */
+:root:root:root {
+  --paper: #0b0b0d; --card: #141419; --card-2: #17171d; --bg-2: #101014;
+  --ink: #f2ede4; --muted: #9b9aa3; --line: #232329; --line-soft: #1c1c22;
+  --hero: #0b0b0d; --on-hero: #f2ede4; --on-hero-muted: #9b9aa3;
+  --teal: #f2ede4;
+  --coral: #ee8148; --coral-deco: #ee8148; --on-coral: #1b0f06; --coral-soft: rgba(238,129,72,.14);
+  --peach: #f6c49a; --cream: #f4efce; --orange-deep: #d96a33;
+  --grad: linear-gradient(96deg, #f6c49a 10%, #ee8148 90%);
+  --prompt: #101014; --ph: #f6c49a; --ok: #4ade80; --erro: #e07b6a;
+  --coffee: #1b0f06; --crema: #f6c49a;
+  --serif: "Instrument Serif", Georgia, serif;
+  --display: "Inter Tight", "Inter", system-ui, sans-serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --topo: 64px;
+  color-scheme: dark;
+}
+html { scroll-padding-top: calc(var(--topo) + 12px); }
+body, body.is-hero { background: var(--paper); color: var(--ink); font-size: 16.5px; line-height: 1.7; overflow-x: hidden; }
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+.app { position: relative; z-index: 2; max-width: 720px; }
+:focus-visible { outline-color: var(--coral); }
+::selection { background: rgba(238,129,72,.35); }
+
+/* ---------- topo (igual ao header da landing) ---------- */
+.topo {
+  position: sticky; top: 0; z-index: 20; height: var(--topo);
+  background: rgba(11,11,13,.75); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.topo-in { max-width: 960px; height: 100%; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.topo .logo { font-family: var(--display); font-weight: 800; font-size: 19px; letter-spacing: -.02em; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.topo .logo > span { color: var(--coral); }
+.topo .logo-product { font-size: 1.15em; margin-left: 7px; font-weight: 400; }
+.topo-link {
+  font-family: var(--display); font-size: 14px; font-weight: 600; color: var(--muted); text-decoration: none;
+  border: 1px solid #3a3a42; border-radius: 999px; padding: 9px 18px; white-space: nowrap;
+  transition: border-color .2s, color .2s;
+}
+.topo-link:hover { border-color: var(--coral); color: var(--peach); }
+@media (max-width: 480px) {
+  .topo-in { padding: 0 16px; }
+  .topo .logo-product { display: none; }
+  .topo-link { font-size: 13.5px; padding: 8px 14px; }
+}
+
+/* ---------- tipografia ---------- */
+.serif {
+  font-family: var(--serif); font-style: italic; font-weight: 400; letter-spacing: 0;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent; padding-right: .06em;
+}
+h1, h2 { font-family: var(--display); font-weight: 700; letter-spacing: -.03em; }
+h2 { font-size: clamp(28px, 5.4vw, 40px); line-height: 1.12; color: var(--ink); }
+h3 { font-family: var(--display); }
+.coluna h3, .painel h3, .oferta h3 { font-family: var(--display); font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
+.coluna h3 { font-size: 1.15rem; }
+.painel h3 { font-size: 1.35rem; }
+.oferta h3 { font-size: 1.45rem; }
+.muted, .rotulo, .contador, .sugestoes-rotulo { color: var(--muted); }
+.rotulo {
+  font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.rotulo::before { content: ""; width: 18px; height: 1px; background: var(--coral); }
+.frase { font-family: var(--serif); font-style: italic; font-size: 2rem; }
+.letra, .diag-letras .letra, legend .l, .cuidados li::before, .passolista li::before, .oferta .preco { font-family: var(--serif); font-style: italic; }
+.contador-caso { color: var(--coral); }
+.conclusao { border-left-color: var(--coral); color: var(--ink); }
+.dica-erro, .aviso { color: var(--erro); }
+.feedback.bom { color: var(--ok); }
+a { color: var(--peach); text-underline-offset: 3px; }
+a:visited { color: var(--peach); }
+
+/* ---------- abertura ---------- */
+.hero {
+  position: relative; text-align: center; align-items: center;
+  min-height: calc(100vh - var(--topo)); min-height: calc(100dvh - var(--topo));
+  padding-top: clamp(48px, 9vh, 96px);
+}
+body.is-hero::after {
+  content: ""; position: fixed; left: 50%; bottom: -240px; transform: translateX(-50%); z-index: 1;
+  width: 1200px; max-width: 220vw; height: 440px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(238,129,72,.28), rgba(246,196,154,.10) 45%, transparent 70%);
+  filter: blur(30px);
+}
+.hero .marca {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--peach); border: 1px solid rgba(238,129,72,.35); border-radius: 999px;
+  padding: 7px 18px; margin-bottom: 34px; background: rgba(238,129,72,.06);
+}
+.hero .marca::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 8px var(--coral); }
+.hero h1 {
+  position: relative; font-size: clamp(38px, 8.6vw, 72px); font-weight: 800; line-height: 1.05; color: var(--ink);
+  border: 1px solid rgba(238,129,72,.30); padding: clamp(22px, 5vw, 44px) clamp(18px, 5vw, 56px);
+  margin-bottom: 30px; max-width: 760px;
+}
+.hero h1::before {
+  content: ""; position: absolute; inset: -5px; pointer-events: none;
+  background:
+    linear-gradient(var(--coral), var(--coral)) top left / 9px 9px no-repeat,
+    linear-gradient(var(--coral), var(--coral)) top right / 9px 9px no-repeat,
+    linear-gradient(var(--coral), var(--coral)) bottom left / 9px 9px no-repeat,
+    linear-gradient(var(--coral), var(--coral)) bottom right / 9px 9px no-repeat;
+  filter: drop-shadow(0 0 6px rgba(238,129,72,.6));
+}
+.hero h1 .serif { font-size: 1.05em; }
+.hero .lead { color: var(--muted); opacity: 1; max-width: 36ch; margin: 0 auto 32px; font-size: clamp(16px, 3.8vw, 18.5px); }
+.hero .btn { align-self: center; min-height: 56px; padding: 0 32px; font-size: 1.05rem; background: var(--grad); color: var(--on-coral); }
+.hero .nota { color: var(--muted); font-size: 13.5px; }
+.xicara-hero {
+  position: relative; z-index: 1; align-self: center; margin: auto 0 0; padding-top: 40px;
+  width: min(68vw, 300px); margin-bottom: -18%;
+  filter: drop-shadow(0 0 40px rgba(238,129,72,.25));
+}
+
+/* ---------- botões (pill da landing) ---------- */
+.btn {
+  font-family: var(--display); font-weight: 700; font-size: 1rem; letter-spacing: -.005em;
+  background: var(--grad); color: var(--on-coral);
+  box-shadow: 0 0 22px rgba(238,129,72,.35);
+  transition: filter .2s, transform .15s, opacity .2s;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.07); transform: translateY(-1px); }
+.btn:disabled { box-shadow: none; }
+.btn-linha {
+  font-family: var(--display); color: var(--ink);
+  border: 1px solid #3a3a42; background: rgba(255,255,255,.02);
+  transition: border-color .2s, background .2s, color .2s;
+}
+.btn-linha:hover:not(:disabled) { border-color: var(--coral); background: rgba(238,129,72,.06); }
+.btn-texto { font-family: var(--display); color: var(--muted); }
+.btn-texto:hover { color: var(--ink); }
+
+/* ---------- blocos ---------- */
+.pense {
+  background: linear-gradient(160deg, var(--card-2), var(--card)); color: var(--ink);
+  border: 1px solid rgba(238,129,72,.40); border-radius: 18px; padding: 20px 22px;
+  box-shadow: 0 0 44px rgba(238,129,72,.08);
+}
+.pense .rotulo-pense {
+  display: inline-flex; align-items: center; gap: 8px; color: var(--peach);
+  font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+}
+.pense .rotulo-pense::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 8px var(--coral); }
+.pense p { color: var(--ink); }
+.coluna, .painel, .cartao, .resposta, .teclado, .item, .conserto {
+  background: var(--card); border-color: var(--line);
+}
+.coluna, .painel, .cartao, .teclado { border-radius: 18px; }
+.pedido {
+  background: var(--bg-2); border: 1px solid var(--line-soft); border-left: 3px solid var(--coral);
+  color: var(--ink); font-size: .9rem;
+}
+.pedido .ph { color: var(--peach); }
+.contexto-tag, .sugestoes { background: var(--bg-2); border: 1px solid var(--line-soft); }
+.onde li, .tag { background: var(--paper); border: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+.foto img { border: 1px solid var(--line); }
+.item[aria-expanded="true"], .conserto, .chip.forte, .letra.visto { border-color: var(--coral); }
+.item[aria-expanded="true"] { box-shadow: 0 0 30px rgba(238,129,72,.08); }
+.chip { background: var(--card); border-color: var(--line); }
+.chip:hover:not(:disabled) { border-color: rgba(238,129,72,.5); }
+.chip[aria-pressed="true"] { background: rgba(238,129,72,.10); border-color: var(--coral); color: var(--peach); }
+.letra { background: var(--card); border-color: var(--line); color: var(--coral); }
+.letra:hover:not(:disabled) { border-color: rgba(238,129,72,.6); }
+.letra[aria-pressed="true"] { background: var(--grad); color: var(--on-coral); border-color: transparent; box-shadow: 0 0 22px rgba(238,129,72,.35); }
+.letra.acertou, .quiz-letras .letra.acertou, .diag-letras .letra.acertou { background: var(--ok); border-color: var(--ok); color: #06210f; }
+.barra-op .trilho { background: var(--line); }
+.barra-op.top .enche { background: var(--grad); }
+.campo input, .campo textarea { background: var(--bg-2); border: 1px solid var(--line); color: var(--ink); }
+.campo input:focus, .campo textarea:focus { border-color: var(--coral); box-shadow: 0 0 0 3px rgba(238,129,72,.15); }
+.oferta {
+  background: linear-gradient(160deg, var(--card-2), var(--card)); color: var(--ink);
+  border: 1px solid rgba(238,129,72,.45); box-shadow: 0 0 60px rgba(238,129,72,.10);
+}
+.oferta p { color: var(--muted); }
+.oferta .btn { background: var(--grad); color: var(--on-coral); }
+.rodada + .rodada, .cuidados li { border-color: var(--line); }
+
+/* ---------- barra inferior ---------- */
+.barra { background: rgba(11,11,13,.8); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid var(--line-soft); }
+.barra-in { max-width: 720px; }
+.progresso { color: var(--muted); font-family: var(--display); white-space: nowrap; }
+.barra .btn { padding: 0 22px; }
+@media (max-width: 380px) { .barra .btn { padding: 0 18px; } .progresso svg { width: 28px; height: 28px; } }
+
+/* ---------- desktop: usa a largura da tela ---------- */
+@media (min-width: 768px) {
+  body { font-size: 17px; }
+  .step { padding: 64px 32px 160px; }
+  .hero { padding-bottom: 0; }
+  .duas-colunas { grid-template-columns: 1fr 1fr; }
+  .lista-toque { grid-template-columns: 1fr 1fr; align-items: start; }
+  .ingredientes { grid-template-columns: repeat(4, 1fr); }
+  .pense p { font-size: 1.1rem; }
+  .barra { padding-left: 32px; padding-right: 32px; }
+  .xicara-hero { width: 320px; margin-bottom: -120px; }
+}
+@media (min-width: 1100px) {
+  .app { max-width: 780px; }
+  .barra-in { max-width: 780px; }
+}
+/* ---------- avaliação do curso ---------- */
+.avaliacao { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 22px; padding: 22px; margin-top: 28px; }
+.avaliacao [hidden] { display: none !important; }
+.avaliacao h3 { font-size: 1.3rem; line-height: 1.2; margin: 0 0 14px; color: var(--ink); }
+.avaliacao .escala { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 16px; }
+.avaliacao .nota { display: block; position: relative; cursor: pointer; padding: 2px; line-height: 0; }
+.avaliacao .nota input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.avaliacao .nota svg { width: 40px; height: 40px; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linejoin: round; border-radius: 8px; transition: fill .12s, stroke .12s; }
+.avaliacao .nota.cheia svg { fill: var(--coral); stroke: var(--coral); }
+.avaliacao .nota input:focus-visible + svg { outline: 2px solid var(--coral); outline-offset: 1px; }
+.avaliacao .av-valor { font-size: .92rem; color: var(--muted); margin-left: 6px; min-height: 1.2em; }
+@media (max-width: 400px) { .avaliacao .nota { padding: 4px 2px; } .avaliacao .nota svg { width: 36px; height: 36px; } }
+@media (prefers-reduced-motion: reduce) { .avaliacao .nota svg { transition: none; } }
+.avaliacao .av-campo { display: block; margin-bottom: 14px; }
+.avaliacao .av-campo span { display: block; font-size: .88rem; color: var(--muted); margin-bottom: 5px; }
+.avaliacao textarea { width: 100%; min-height: 84px; resize: vertical; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); padding: 12px 14px; font-size: 1rem; }
+.avaliacao textarea:focus { outline: none; border-color: var(--coral); }
+.avaliacao .av-check { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; color: var(--muted); margin-bottom: 16px; cursor: pointer; }
+.avaliacao .av-check input { margin-top: 4px; flex: none; width: 18px; height: 18px; accent-color: var(--coral); }
+.avaliacao .av-erro { color: var(--erro, var(--coral)); font-size: .92rem; margin: 0 0 12px; }
+.avaliacao .av-enviar { width: 100%; }
+.avaliacao .av-ok { margin: 0; font-weight: 600; color: var(--ok, var(--ink)); }
+</style>
+<style id="ferramenta">
+/* ---------- página da ferramenta (sem passos nem barra inferior) ---------- */
+.ferramenta { padding: 36px 22px 90px; }
+.ferramenta h1 { font-size: clamp(34px, 7.4vw, 52px); line-height: 1.06; color: var(--ink); margin: 14px 0 16px; }
+.ferramenta .lead { color: var(--muted); max-width: 44ch; margin-bottom: 14px; }
+.restaurado { font-size: .9rem; color: var(--peach); margin: 0 0 26px; }
+.campo-extra { margin-top: 12px; }
+.ferramenta .pense { margin: 30px 0 0; }
+.rodape-ferramenta { margin-top: 30px; }
+@media (min-width: 768px) {
+  .ferramenta { padding: 64px 32px 110px; }
+  .campos-c { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+}
+</style>
+</head>
+<body>
+<header class="topo">
+  <div class="topo-in">
+    <a class="logo" href="/aluno">T4P<span>.</span> <em class="serif logo-product">IA para Negócios</em></a>
+    <a class="topo-link" href="/aluno">Área do aluno</a>
+  </div>
+</header>
+<main class="app">
+  <section class="ferramenta" aria-labelledby="titulo">
+    <span class="rotulo">Ferramenta · método CAFÉ</span>
+    <h1 id="titulo">Gerador de <span class="serif">pedido</span></h1>
+    <p class="lead">Preencha o que souber. O pedido se monta sozinho lá embaixo; é só copiar e colar na IA que você usa.</p>
+    <p class="restaurado oculto" id="msg-restaurado" role="status">Trouxemos o que você preencheu na Aula 1. Ajuste o que quiser.</p>
+
+    <fieldset>
+      <legend><span class="l">C</span>de Contexto</legend>
+      <div class="campos-c">
+        <div class="campo"><label for="f-negocio">Seu negócio</label><input id="f-negocio" placeholder="Ex.: doceria" autocomplete="off"></div>
+        <div class="campo"><label for="f-cidade">Cidade ou bairro</label><input id="f-cidade" placeholder="Ex.: centro de Olímpia" autocomplete="off"></div>
+        <div class="campo"><label for="f-cliente">Quem são seus clientes</label><input id="f-cliente" placeholder="Ex.: famílias e turistas" autocomplete="off"></div>
+        <div class="campo"><label for="f-produto">O que você mais vende</label><input id="f-produto" placeholder="Ex.: bolo de pote" autocomplete="off"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><span class="l">A</span>de Ação</legend>
+      <div class="chips" id="chips-acao" role="group" aria-label="O que você quer que a IA faça">
+        <button class="chip" type="button" data-acao="legendas" aria-pressed="false">Legendas para o Instagram</button>
+        <button class="chip" type="button" data-acao="whatsapp" aria-pressed="false">Resposta no WhatsApp</button>
+        <button class="chip" type="button" data-acao="descricao" aria-pressed="false">Descrição de produto</button>
+        <button class="chip" type="button" data-acao="promocao" aria-pressed="false">Ideia de promoção</button>
+        <button class="chip" type="button" data-acao="outra" aria-pressed="false">Outra coisa</button>
+      </div>
+      <div class="campo campo-extra oculto" id="campo-acao-outra">
+        <label for="f-acao-outra">O que você quer que a IA faça</label>
+        <input id="f-acao-outra" placeholder="Ex.: Escreva um aviso de que vamos fechar no feriado" autocomplete="off">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><span class="l">F</span>de Formato</legend>
+      <div class="chips" id="chips-formato" role="group" aria-label="Como você quer receber">
+        <button class="chip" type="button" data-f="até 4 linhas" aria-pressed="false">Curto</button>
+        <button class="chip" type="button" data-f="tom descontraído" aria-pressed="false">Descontraído</button>
+        <button class="chip" type="button" data-f="tom acolhedor" aria-pressed="false">Acolhedor</button>
+        <button class="chip" type="button" data-f="terminando com um convite para chamar no WhatsApp" aria-pressed="false">Convite para o WhatsApp</button>
+        <button class="chip" type="button" data-f="sem emoji" aria-pressed="false">Sem emoji</button>
+      </div>
+      <div class="campo campo-extra">
+        <label for="f-formato-extra">Mais algum detalhe? (opcional)</label>
+        <input id="f-formato-extra" placeholder="Ex.: em tópicos, com 3 opções" autocomplete="off">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><span class="l">É</span>de Exemplo <span class="muted small" style="font-weight:400">(opcional)</span></legend>
+      <div class="campo"><label for="f-exemplo">Um texto de que você gosta</label><textarea id="f-exemplo" placeholder="Ex.: “Doce de verdade, feito hoje.”"></textarea></div>
+    </fieldset>
+
+    <div class="previa-titulo"><span class="rotulo">Seu pedido pronto</span></div>
+    <p class="pedido" id="previa" aria-live="polite"></p>
+    <p class="aviso oculto" id="aviso-campos">Complete as partes em destaque para um resultado melhor.</p>
+    <div class="acoes">
+      <button class="btn" type="button" id="copiar">Copiar pedido</button>
+      <a class="btn-linha" id="abrir-chatgpt" href="https://chatgpt.com/" target="_blank" rel="noopener">Abrir no ChatGPT</a>
+      <button class="btn-texto" type="button" id="limpar">Limpar tudo</button>
+    </div>
+    <p class="muted small" id="msg-copia" aria-live="polite" style="margin-top:10px">Funciona também no Gemini, no Claude ou na IA que você já usa.</p>
+
+    <div class="pense">
+      <span class="rotulo-pense">Lembrete</span>
+      <p>Não cole dados pessoais de clientes (CPF, telefone, endereço) na IA. E leia a resposta antes de usar: quem assina é você.</p>
+    </div>
+
+    <p class="rodape-ferramenta"><a href="/aluno">← Voltar para a área do aluno</a></p>
+  </section>
+</main>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+
+  var campos = ["f-negocio", "f-cidade", "f-cliente", "f-produto", "f-exemplo", "f-acao-outra", "f-formato-extra"];
+  var acao = null, formatos = [];
+  var ACOES = {
+    legendas: ["Crie 3 legendas para o Instagram divulgando ", "P", "."],
+    whatsapp: ["Escreva uma resposta simpática para clientes que perguntam sobre ", "P", " no WhatsApp."],
+    descricao: ["Escreva uma descrição apetitosa e honesta de ", "P", ", sem inventar características."],
+    promocao: ["Sugira 3 ideias de promoção para ", "P", " que não me deem prejuízo, explicando a conta de cada uma."],
+    outra: null
+  };
+  // a ferramenta guarda o que o aluno preencheu na própria chave; na primeira vez, aproveita o que ele fez na Aula 1
+  var CHAVE = "ia-negocios-gerador";
+  var CHAVE_AULA1 = "ia-negocios-aula1";
+
+  function val(id) { return $(id).value.trim(); }
+  function comPonto(s) { return /[.!?…]$/.test(s) ? s : s + "."; }
+
+  function montarPedido() {
+    var partes = []; // {t: texto} ou {ph: marcador}
+    function txt(s) { partes.push({ t: s }); }
+    function campo(v, ph) { partes.push(v ? { t: v } : { ph: ph }); }
+    var prod = val("f-produto");
+
+    txt("Meu negócio: "); campo(val("f-negocio"), "[tipo de negócio]");
+    txt(", em "); campo(val("f-cidade"), "[cidade ou bairro]");
+    txt(". Meus clientes: "); campo(val("f-cliente"), "[quem são seus clientes]");
+    txt(". O que mais vendo: "); campo(prod, "[seu produto principal]"); txt(".\n");
+
+    if (acao === "outra") {
+      var outra = val("f-acao-outra");
+      campo(outra ? comPonto(outra) : "", "[o que você quer que a IA faça]");
+    } else if (acao) {
+      ACOES[acao].forEach(function (p) { if (p === "P") campo(prod, "[seu produto principal]"); else txt(p); });
+    } else { campo("", "[o que você quer que a IA faça]"); }
+    txt("\n");
+
+    var todos = formatos.slice();
+    var extra = val("f-formato-extra").replace(/[.;,]+$/, "");
+    if (extra) todos.push(extra);
+    txt("Formato: ");
+    if (todos.length) txt(todos.join(", ") + ".");
+    else campo("", "[tamanho e tom que você quer]");
+
+    var ex = val("f-exemplo");
+    if (ex) txt("\nGosto de textos assim: “" + ex.replace(/^[“"]|[”"]$/g, "") + "”");
+
+    var el = $("previa"); el.textContent = "";
+    var plano = "", faltando = false;
+    partes.forEach(function (p) {
+      if (p.ph) {
+        var s = document.createElement("span"); s.className = "ph"; s.textContent = p.ph;
+        el.appendChild(s); plano += p.ph; faltando = true;
+      } else { el.appendChild(document.createTextNode(p.t)); plano += p.t; }
+    });
+    $("aviso-campos").classList.toggle("oculto", !faltando);
+    $("abrir-chatgpt").href = "https://chatgpt.com/?q=" + encodeURIComponent(plano);
+    salvar();
+    return plano;
+  }
+
+  var pronto = false; // só grava depois de uma ação do aluno: abrir a página vazia não pode impedir de trazer a Aula 1 depois
+  function salvar() {
+    if (!pronto) return;
+    try {
+      var dados = { acao: acao, formatos: formatos };
+      campos.forEach(function (id) { dados[id] = $(id).value; });
+      localStorage.setItem(CHAVE, JSON.stringify(dados));
+    } catch (e) { /* armazenamento indisponível: segue sem lembrar */ }
+  }
+
+  function marcarAcao(nova) {
+    acao = nova;
+    chipsAcao.forEach(function (x) { x.setAttribute("aria-pressed", x.dataset.acao === nova ? "true" : "false"); });
+    $("campo-acao-outra").classList.toggle("oculto", nova !== "outra");
+  }
+
+  function restaurar() {
+    var d = null, daAula1 = false;
+    try {
+      d = JSON.parse(localStorage.getItem(CHAVE) || "null");
+      if (!d) { d = JSON.parse(localStorage.getItem(CHAVE_AULA1) || "null"); daAula1 = Boolean(d); }
+    } catch (e) { d = null; }
+    if (!d || typeof d !== "object") return;
+    try {
+      campos.forEach(function (id) { if (typeof d[id] === "string") $(id).value = d[id]; });
+      if (d.acao && Object.prototype.hasOwnProperty.call(ACOES, d.acao)) marcarAcao(d.acao);
+      if (Array.isArray(d.formatos)) {
+        d.formatos.forEach(function (f) {
+          var c = Array.prototype.slice.call(document.querySelectorAll("#chips-formato .chip"))
+            .filter(function (x) { return x.dataset.f === f; })[0];
+          if (c) c.setAttribute("aria-pressed", "true");
+        });
+        lerFormatos();
+      }
+      if (daAula1 && campos.some(function (id) { return val(id); })) $("msg-restaurado").classList.remove("oculto");
+    } catch (e) { /* dados antigos: começa do zero */ }
+  }
+
+  function lerFormatos() {
+    // mantém a ordem dos botões no texto final
+    formatos = Array.prototype.slice.call(document.querySelectorAll('#chips-formato .chip[aria-pressed="true"]'))
+      .map(function (x) { return x.dataset.f; });
+  }
+
+  var chipsAcao = Array.prototype.slice.call(document.querySelectorAll("#chips-acao .chip"));
+  chipsAcao.forEach(function (c) {
+    c.addEventListener("click", function () {
+      var ligado = c.getAttribute("aria-pressed") === "true";
+      marcarAcao(ligado ? null : c.dataset.acao);
+      montarPedido();
+      if (!ligado && c.dataset.acao === "outra") $("f-acao-outra").focus();
+    });
+  });
+
+  Array.prototype.slice.call(document.querySelectorAll("#chips-formato .chip")).forEach(function (c) {
+    c.addEventListener("click", function () {
+      c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") === "true" ? "false" : "true");
+      lerFormatos();
+      montarPedido();
+    });
+  });
+
+  campos.forEach(function (id) { $(id).addEventListener("input", montarPedido); });
+
+  function copiar(texto) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(texto).then(function () { return true; }, function () { return copiaAntiga(texto); });
+    }
+    return Promise.resolve(copiaAntiga(texto));
+  }
+  function copiaAntiga(texto) {
+    var ta = document.createElement("textarea");
+    ta.value = texto; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    var ok = false; try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    ta.remove(); return ok;
+  }
+  $("copiar").addEventListener("click", function () {
+    var b = this, texto = montarPedido();
+    copiar(texto).then(function (ok) {
+      if (ok) {
+        b.textContent = "Pedido copiado";
+        $("msg-copia").textContent = "Agora é só colar na IA que você usa.";
+        setTimeout(function () { b.textContent = "Copiar pedido"; }, 2200);
+      } else {
+        $("msg-copia").textContent = "Não foi possível copiar automaticamente. Toque e segure o texto do pedido para copiar.";
+      }
+    });
+  });
+
+  $("limpar").addEventListener("click", function () {
+    campos.forEach(function (id) { $(id).value = ""; });
+    marcarAcao(null);
+    Array.prototype.slice.call(document.querySelectorAll("#chips-formato .chip")).forEach(function (x) { x.setAttribute("aria-pressed", "false"); });
+    formatos = [];
+    $("msg-restaurado").classList.add("oculto");
+    $("msg-copia").textContent = "Funciona também no Gemini, no Claude ou na IA que você já usa.";
+    montarPedido(); // salva o estado vazio (pronto já é true): não volta a puxar a Aula 1
+    $("f-negocio").focus();
+  });
+
+  restaurar();
+  montarPedido();
+  pronto = true;
+})();
+</script>
+</body>
+</html>

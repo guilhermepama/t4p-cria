@@ -49,6 +49,15 @@
     background:linear-gradient(96deg,#f6c49a 10%,var(--orange) 90%); color:#1a1006;
     font-family:'Inter Tight',sans-serif; font-weight:700; font-size:14.5px; margin-top:auto;
   }
+  .ferramentas{display:grid; gap:14px}
+  .card.ferramenta{border-color:rgba(238,129,72,.40); background:linear-gradient(160deg,#17171d,var(--card))}
+  .descricao-ferramenta{font-size:14.5px; color:var(--muted)}
+  @media(min-width:640px){
+    .card.ferramenta{flex-direction:row; flex-wrap:wrap; align-items:center; column-gap:18px}
+    .card.ferramenta h3{flex-basis:100%}
+    .card.ferramenta .descricao-ferramenta{flex:1}
+    .card.ferramenta .btn{margin-top:0}
+  }
   .downloads{display:flex; flex-direction:column; gap:10px}
   .download{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -141,7 +150,7 @@
           </ol>
         </div>
 
-        <p>Depois, os arquivos abaixo são para o dia a dia: assistentes prontos para colar na sua IA e o kit completo para consulta.</p>
+        <p>Depois, o que fica para o dia a dia está logo abaixo das aulas: o gerador de pedido, os assistentes prontos para colar na sua IA e o kit completo para consulta.</p>
 
         <div>
           <h4>Como as aulas funcionam</h4>
@@ -165,6 +174,11 @@
     <h2>Suas aulas</h2>
     <div class="grid">
       {{{aulasHtml}}}
+    </div>
+
+    <h2>Ferramentas</h2>
+    <div class="ferramentas">
+      {{{ferramentasHtml}}}
     </div>
 
     <h2>Seus arquivos</h2>

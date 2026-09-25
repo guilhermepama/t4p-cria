@@ -97,8 +97,19 @@ const DOWNLOADS = [
   { arquivo: "Manual_de_Integracao_Exemplo_Lanchonete.docx", titulo: "Manual de integração — exemplo (.docx)" },
 ];
 
+// ferramentas de uso contínuo: páginas HTML como as aulas, mas sem progresso nem avaliação
+const FERRAMENTAS = [
+  {
+    arquivo: "Ferramenta_Gerador_de_Pedido.html",
+    titulo: "Gerador de pedido",
+    descricao: "Monte um pedido com o método CAFÉ da Aula 1 e copie para a sua IA. Use sempre que precisar.",
+    rotuloBotao: "Abrir gerador",
+  },
+];
+
 const ARQUIVOS_PERMITIDOS = new Map();
 AULAS.forEach((a) => ARQUIVOS_PERMITIDOS.set(a.arquivo, "html"));
+FERRAMENTAS.forEach((f) => ARQUIVOS_PERMITIDOS.set(f.arquivo, "html"));
 DOWNLOADS.forEach((d) => ARQUIVOS_PERMITIDOS.set(d.arquivo, "download"));
 
 const AULAS_ARQUIVOS = new Set(AULAS.map((a) => a.arquivo));
@@ -669,6 +680,15 @@ function cartaoAulaHtml(a, info) {
       </div>`;
 }
 
+function cartaoFerramentaHtml(f) {
+  return `
+      <div class="card ferramenta" data-ferramenta="${escapeHtml(f.arquivo)}">
+        <h3>${escapeHtml(f.titulo)}</h3>
+        <p class="descricao-ferramenta">${escapeHtml(f.descricao)}</p>
+        <a class="btn" href="/aluno/conteudo/${encodeURIComponent(f.arquivo)}" target="_blank" rel="noopener">${escapeHtml(f.rotuloBotao)}</a>
+      </div>`;
+}
+
 function linhaDownloadHtml(d, baixado) {
   return `
       <div class="download" data-arquivo="${escapeHtml(d.arquivo)}">
@@ -685,6 +705,7 @@ app.get("/aluno", auth.requireAluno, (req, res) => {
   const iniciouAlguma = Object.keys(progresso.aulas).length > 0;
 
   const aulasHtml = AULAS.map((a) => cartaoAulaHtml(a, progresso.aulas[a.arquivo])).join("\n");
+  const ferramentasHtml = FERRAMENTAS.map(cartaoFerramentaHtml).join("\n");
   const downloadsHtml = DOWNLOADS.map((d) => linhaDownloadHtml(d, Boolean(progresso.downloads[d.arquivo]))).join(
     "\n"
   );
@@ -693,6 +714,7 @@ app.get("/aluno", auth.requireAluno, (req, res) => {
     render("aluno.html", {
       nome: req.aluno.nome,
       aulasHtml,
+      ferramentasHtml,
       downloadsHtml,
       cartaoIntermediariaHtml: avaliacaoHtml("intermediaria", progresso.cartaoAvaliacao !== "intermediaria"),
       cartaoFinalHtml: avaliacaoHtml("final", progresso.cartaoAvaliacao !== "final"),
