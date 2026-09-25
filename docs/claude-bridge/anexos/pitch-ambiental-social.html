@@ -228,7 +228,7 @@
         <div class="stat" data-in style="--i:4" id="statNota"><div class="v" data-num="nota" data-suffix=" / 5"></div><div class="l">nota média em <span data-text="avaliacoes"></span> avaliações</div></div>
       </div>
       <div class="proof">
-        <div class="quote" data-in style="--i:5"><p>“<span data-text="depoimento"></span>”</p><small><span data-text="autor"></span>, <span data-text="negocio"></span> · contou pessoalmente</small></div>
+        <div class="quote" data-in style="--i:5"><p>“<span data-text="depoimento"></span>”</p><small><span data-text="autor"></span><span id="negWrap">, <span data-text="negocio"></span></span> · contou pessoalmente</small></div>
       </div>
     </div>
   </section>
@@ -297,9 +297,9 @@ const DATA = {
   nota:        null,        // nota média, ex.: 4.6 — só mostrar com 5+ avaliações
   avaliacoes:  null,        // quantidade de avaliações
   perfil:      "comércio local, prestadores de serviço e autônomos",
-  depoimento:  "",          // só com autorização de divulgação marcada
-  autor:       "",
-  negocio:     "",
+  depoimento:  "Já na primeira aula coloquei em prática e me impressionou a melhora nas respostas. Estou até considerando em assinar o ChatGPT pra potencializar meu trabalho",  // falado pessoalmente
+  autor:       "Rosane",
+  negocio:     "Dentista",  // opcional: se vazio, some da assinatura
   aulas:       null,        // aulas abertas (sistema)
   paginasKit:  25,          // páginas dos PDFs do kit (sistema)
   folhas:      null,        // calculado: compradores × paginasKit
@@ -325,7 +325,7 @@ function montarNotas(){ NOTES = [
   "0:00–0:20 · “Nossa proposta é uma só: colocar a inteligência artificial ao alcance de quem empreende com poucos recursos. A IA não é fraca — ela só não conhece o seu negócio. O kit IA para Negócios ensina o dono de pequeno negócio a pedir do jeito certo: três aulas práticas, 25 pedidos prontos, R$ 49,90, 90 dias de acesso e garantia. Site, checkout e área do aluno construídos por nós.”",
   `0:20–0:45 · “No meio ambiente, vamos ser diretos: o produto é digital. Até agora foram ${v('folhas')} páginas que não viraram papel, ${v('aulas')} aulas abertas sem ninguém se deslocar e ${v('compradores')} kits sem embalagem nem frete. E ensinar a pedir certo na primeira vez reduz o retrabalho da IA: menos processamento, menos energia e água. Pegada pequena por natureza — o impacto que buscamos de verdade é o social.” — Se perguntarem: páginas = kits × ${v('paginasKit')} páginas dos PDFs; deslocamento ≈ ${v('km')} km se cada aula fosse um encontro de ${KM_POR_AULA} km ida e volta (premissa nossa); um pedido típico à IA gasta cerca de 0,24–0,34 Wh e 0,3 mL de água (Google e OpenAI, 2025) — refazer três vezes custa o triplo. Não medimos o uso de IA dos alunos, por isso não damos número de economia.`,
   `0:45–1:10 · “O problema social que atacamos: o pequeno empreendedor fica para trás na IA não por falta de vontade, mas de acesso. Cursos custam caro e falam difícil. Em cinco dias, ${v('compradores')} empreendedores compraram o kit, a R$ 49,90 — donos de comércio local, prestadores de serviço, autônomos.”`,
-  `1:10–1:40 · “Vender não é impacto. Impacto é o conteúdo ser usado: ${v('abriram')}% já abriram o conteúdo, ${v('concluiram')} concluíram a Aula 1, e as avaliações dão nota média ${v('nota')}. E o que ouvimos pessoalmente: ${DATA.autor || '[nome]'}, de ${DATA.negocio || '[negócio]'}, nos disse: ‘${DATA.depoimento || '[depoimento]'}’.” — Nota média só com 5+ avaliações (hoje: ${v('avaliacoes')}); depoimento falado, confirme com a pessoa que pode citar.`,
+  `1:10–1:40 · “Vender não é impacto. Impacto é o conteúdo ser usado: ${v('abriram')}% já abriram o conteúdo, ${v('concluiram')} concluíram a Aula 1, e as avaliações dão nota média ${v('nota')}. E o que ouvimos pessoalmente: ${DATA.autor || '[nome]'}${DATA.negocio ? ', ' + DATA.negocio.toLowerCase() + ',' : ''} nos disse: ‘${DATA.depoimento || '[depoimento]'}’.” — Nota média só com 5+ avaliações (hoje: ${v('avaliacoes')}); depoimento falado, Rosane autorizou citar?`,
   "1:40–2:00 · “A T4P merece o seu voto por três motivos: atacamos um problema real, provamos com evidência e não com promessa, e o impacto continua depois de hoje — a área do aluno fica no ar até dezembro. Tecnologia para pessoas. Vote na T4P. Obrigado.”"
 ]; }
 
@@ -382,6 +382,7 @@ document.querySelectorAll('[data-text]').forEach(el => {
   el.textContent = (v === null || v === undefined || v === "") ? '[' + el.dataset.text + ']' : String(v);
 });
 document.getElementById('statNota').style.display = (DATA.avaliacoes !== null && DATA.avaliacoes < 5) ? 'none' : '';
+document.getElementById('negWrap').style.display = DATA.negocio ? '' : 'none';
 montarNotas();
 }
 
