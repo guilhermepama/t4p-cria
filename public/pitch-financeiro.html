@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>T4P · Balanço financeiro e liquidação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#131110; --bg-2:#1b1816; --cream:#f3eae0; --muted:#a89e93; --line:#2b2623;
+    --accent:#e9a47c; --accent-2:#d9825a; --chip:#f6e9d4;
+    --sans:'Inter',system-ui,-apple-system,sans-serif; --serif:'Instrument Serif',Georgia,'Times New Roman',serif;
+    --ease:cubic-bezier(.2,.8,.2,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--cream);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased}
+  body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  em,i{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--accent)}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+  /* ---------- stage ---------- */
+  #stage{position:relative;height:100%;width:100%}
+  .slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:clamp(24px,5vh,64px) clamp(20px,6vw,96px) clamp(72px,10vh,110px);text-align:center;
+    opacity:0;visibility:hidden;transform:translateY(24px);transition:opacity .55s var(--ease),transform .55s var(--ease),visibility 0s .55s}
+  .slide.active{opacity:1;visibility:visible;transform:none;transition:opacity .55s var(--ease),transform .55s var(--ease),visibility 0s}
+  .slide.leaving{opacity:0;transform:translateY(-24px)}
+  .wrap{max-width:1180px;width:100%;display:flex;flex-direction:column;align-items:center;gap:clamp(18px,3.2vh,36px)}
+
+  /* staged reveal */
+  [data-in]{opacity:0;transform:translateY(18px);transition:opacity .6s var(--ease),transform .6s var(--ease);transition-delay:calc(var(--i,0)*.12s + .15s)}
+  .active [data-in]{opacity:1;transform:none}
+  .sticker[data-in]{transform:translateY(12px) scale(.7) rotate(var(--r,-6deg));transition:transform .7s cubic-bezier(.2,1.4,.4,1),opacity .4s var(--ease);transition-delay:calc(var(--i,0)*.12s + .45s)}
+  .active .sticker[data-in]{transform:rotate(var(--r,-6deg));opacity:1}
+
+  /* ---------- type ---------- */
+  .chip{display:inline-flex;align-items:center;gap:10px;padding:9px 18px;border:1px solid var(--accent);border-radius:999px;
+    font-size:clamp(11px,1.15vw,14px);font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--cream)}
+  .chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  h1{font-weight:900;letter-spacing:-.045em;line-height:.98;font-size:clamp(40px,7.2vw,112px);text-wrap:balance}
+  h1 i,h1 em{letter-spacing:-.01em;font-size:1.06em}
+  .lead{max-width:760px;font-size:clamp(16px,1.75vw,24px);line-height:1.5;color:var(--muted)}
+  .lead b{color:var(--cream);font-weight:600}
+  .sub{font-size:clamp(14px,1.3vw,18px);color:var(--muted);line-height:1.5;max-width:820px}
+  .sub b{color:var(--cream);font-weight:600}
+  .big{font-family:var(--serif);font-style:italic;color:var(--accent);font-size:clamp(28px,3.6vw,52px);line-height:1.15}
+
+  /* corner frame (brand device) */
+  .frame{position:relative;padding:clamp(20px,3.5vw,48px) clamp(20px,4vw,56px)}
+  .frame::before{content:"";position:absolute;inset:0;border:1px solid var(--accent);opacity:.45;pointer-events:none}
+  .frame .c{position:absolute;width:8px;height:8px;background:var(--accent)}
+  .frame .c.tl{top:-4px;left:-4px}.frame .c.tr{top:-4px;right:-4px}.frame .c.bl{bottom:-4px;left:-4px}.frame .c.br{bottom:-4px;right:-4px}
+
+  /* stickers */
+  .sticker{position:absolute;padding:9px 16px;border-radius:999px;font-size:clamp(11px,1.1vw,15px);font-weight:600;white-space:nowrap;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);transform:rotate(var(--r,-6deg))}
+  .sticker.o{background:linear-gradient(135deg,#f0b48a,#e28b5e);color:#2a1a10}
+  .sticker.w{background:#fff;color:#1a1614}
+  .sticker.k{background:var(--chip);color:#1a1614}
+
+  /* tags row */
+  .tags{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;max-width:900px}
+  .tag{padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--bg-2);font-size:clamp(12px,1.2vw,16px);font-weight:600;color:var(--cream)}
+  .tag.hi{background:var(--chip);color:#1a1614;border-color:transparent}
+
+  /* stacked lines (custos) */
+  .zeros{display:flex;flex-direction:column;gap:clamp(6px,1.6vh,18px);text-align:left;width:min(100%,820px)}
+  .zero{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:clamp(12px,2.4vw,32px);padding:clamp(8px,1.4vh,14px) 0;border-bottom:1px solid var(--line)}
+  .zero:last-child{border-bottom:0}
+  .zero .n{font-weight:900;letter-spacing:-.04em;font-size:clamp(34px,5.4vw,84px);line-height:1}
+  .zero .n i{font-size:1.02em}
+  .zero .d{color:var(--muted);font-size:clamp(13px,1.3vw,18px);line-height:1.45}
+  .zero .d b{color:var(--cream);font-weight:700}
+  .zeros.four{gap:clamp(4px,1vh,12px);width:min(100%,960px)}
+  .zeros.four .zero{padding:clamp(6px,1.1vh,12px) 0}
+  .zeros.four .zero .n{font-size:clamp(28px,4.3vw,66px)}
+
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(10px,1.6vw,22px);width:100%;max-width:1040px}
+  .stats.two{grid-template-columns:repeat(2,1fr);max-width:760px}
+  .stat{padding:clamp(16px,2.2vw,30px) clamp(14px,1.8vw,26px);border:1px solid var(--line);border-radius:22px;background:var(--bg-2);text-align:left}
+  .stat .v{font-weight:900;letter-spacing:-.04em;font-size:clamp(34px,4.6vw,72px);line-height:1;color:var(--accent);white-space:nowrap}
+  .stat .v.money{font-size:clamp(28px,3.6vw,56px)}
+  .stat .v.ph{color:var(--muted);font-weight:600;letter-spacing:0}
+  .stat .l{margin-top:10px;color:var(--muted);font-size:clamp(12px,1.2vw,16px);line-height:1.4}
+  .stat .l b{color:var(--cream)}
+  .stat .quem{margin-bottom:10px;font-size:clamp(12px,1.2vw,16px);font-weight:600;color:var(--cream)}
+  .stat .quem small{display:block;font-weight:400;color:var(--muted);font-size:.85em;margin-top:2px}
+
+  /* vendas por dia */
+  .dias{display:flex;gap:clamp(8px,1.2vw,16px);justify-content:center;width:100%;max-width:700px}
+  .dia{flex:1;padding:clamp(10px,1.4vh,16px) 10px;border:1px solid var(--line);border-radius:16px;background:var(--bg-2)}
+  .dia .n{font-weight:900;letter-spacing:-.03em;font-size:clamp(22px,2.6vw,40px);line-height:1;color:var(--cream)}
+  .dia .l{color:var(--muted);font-size:clamp(11px,1vw,14px);margin-top:6px}
+
+  /* closing reasons */
+  .reasons{display:flex;flex-direction:column;gap:clamp(8px,1.6vh,16px);width:min(100%,860px);text-align:left}
+  .reason{display:grid;grid-template-columns:auto 1fr;gap:clamp(12px,2vw,24px);align-items:baseline;padding:clamp(8px,1.4vh,14px) 0;border-bottom:1px solid var(--line)}
+  .reason:last-child{border-bottom:0}
+  .reason b{font-size:clamp(16px,1.7vw,24px);letter-spacing:-.02em;white-space:nowrap}
+  .reason span{color:var(--muted);font-size:clamp(13px,1.3vw,18px);line-height:1.45}
+  .reason span b{color:var(--cream);font-size:inherit;white-space:normal}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;left:0;right:0;bottom:0;padding:14px clamp(16px,3vw,32px) calc(14px + env(safe-area-inset-bottom,0px));
+    display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:12px;color:var(--muted);z-index:5;pointer-events:none}
+  #hud .brand{font-weight:900;letter-spacing:-.03em;color:var(--cream);font-size:15px}
+  #hud .brand i{font-size:15px;margin-left:6px}
+  #hud .mid{display:flex;align-items:center;gap:14px;pointer-events:auto}
+  #clock{font-variant-numeric:tabular-nums;font-weight:600;color:var(--cream);font-size:14px;min-width:44px;text-align:right}
+  #clock.over{color:#ff7a5c}
+  #target{font-variant-numeric:tabular-nums}
+  #fonte{font-size:11px}
+  #fonte.vivo{color:var(--accent)}
+  @media (max-width:700px){#fonte{display:none}}
+  #hud button{padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:11px}
+  #hud button:hover,#hud button:focus-visible{color:var(--cream);border-color:var(--accent);outline:none}
+  #bar{position:fixed;left:0;bottom:0;height:3px;background:var(--accent);width:0;transition:width .5s var(--ease);z-index:6}
+  #nav{position:fixed;inset:0;z-index:4;display:grid;grid-template-columns:1fr 2fr}
+  #nav button{display:block;cursor:pointer}
+  #nav button,#nav button:focus,#nav button:focus-visible{outline:none}
+
+  /* notes overlay */
+  #par{position:fixed;inset:0;z-index:9;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:clamp(12px,2.4vh,24px);text-align:center;padding:24px}
+  #par.on{display:flex}
+  #par .cod{font-weight:900;letter-spacing:.18em;font-size:clamp(56px,11vw,160px);line-height:1;color:var(--cream);font-variant-numeric:tabular-nums}
+  #par .url{font-size:clamp(16px,2vw,28px);color:var(--cream)}
+  #par .url b{color:var(--accent)}
+  #par .st{font-size:clamp(13px,1.4vw,18px);color:var(--muted)}
+  #par .st.ok{color:var(--accent);font-weight:700}
+  #btnCel.ok{color:var(--accent);border-color:var(--accent)}
+  #notes{position:fixed;left:0;right:0;bottom:0;max-height:42vh;overflow:auto;padding:22px clamp(16px,3vw,32px) calc(56px + env(safe-area-inset-bottom,0px));
+    background:rgba(19,17,16,.96);border-top:1px solid var(--line);color:var(--cream);font-size:clamp(14px,1.3vw,18px);line-height:1.55;z-index:7;
+    transform:translateY(100%);transition:transform .35s var(--ease)}
+  #notes.on{transform:none}
+  #notes .t{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;font-weight:600}
+  #notes .k{margin-top:10px;font-size:12px;color:var(--muted)}
+
+  @media (max-width:760px){
+    .stats{grid-template-columns:1fr 1fr}
+    .stats .stat:last-child{grid-column:span 2}
+    .stats.two .stat:last-child{grid-column:auto}
+    .dias{flex-wrap:wrap}
+    .sticker{position:static;transform:rotate(var(--r,-4deg))}
+    .stickers{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .zero,.reason{grid-template-columns:1fr;gap:4px}
+    #hud .mid{gap:8px}
+    #hint{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .slide,[data-in],.sticker[data-in]{transition-duration:.01s!important;transform:none!important}
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+
+  <!-- 0 · Capa -->
+  <section class="slide" data-start="0" data-title="Capa">
+    <div class="wrap">
+      <span class="chip" data-in style="--i:0">Balanço financeiro · Liquidação</span>
+      <div class="frame" data-in style="--i:1">
+        <span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>
+        <h1>T4P.<br><i>Tecnologia para pessoas.</i></h1>
+        <div class="stickers">
+          <span class="sticker o" data-in style="--i:3;--r:-7deg;top:-18px;left:-30px">Guilherme Pama</span>
+          <span class="sticker w" data-in style="--i:4;--r:4deg;right:-40px;top:38%">Felipe Andrade</span>
+          <span class="sticker k" data-in style="--i:5;--r:-3deg;bottom:-16px;right:8%">Fernando Saad</span>
+        </div>
+      </div>
+      <p class="lead" data-in style="--i:2">Empresa CRIA Empretec · Encerramento · 25 de setembro de 2026</p>
+    </div>
+  </section>
+
+  <!-- 1 · Meta e modelo -->
+  <section class="slide" data-start="0" data-title="Meta e modelo">
+    <div class="wrap">
+      <span class="chip" data-in style="--i:0">O plano</span>
+      <h1 data-in style="--i:1;font-size:clamp(32px,5.2vw,80px)">Vender barato só fecha a conta<br>com custo <i>perto de zero.</i></h1>
+      <p class="lead" data-in style="--i:2">A aposta da T4P: um produto <b>100% digital</b>, vendido por um sistema <b>feito por nós</b> — site, checkout PIX e área do aluno próprios, sem intermediário cobrando comissão.</p>
+      <div class="tags" data-in style="--i:3">
+        <span class="tag hi">Preço R$ 49,90</span>
+        <span class="tag">meta: R$ 1.600 = 33 vendas</span>
+        <span class="tag">meta de lucro: R$ 1.250</span>
+        <span class="tag">sem estoque</span>
+        <span class="tag">sem frete</span>
+        <span class="tag">PIX com taxa zero</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · Resultado de vendas -->
+  <section class="slide" data-start="20" data-title="Resultado de vendas">
+    <div class="wrap">
+      <span class="chip" data-in style="--i:0">Resultado</span>
+      <h1 data-in style="--i:1;font-size:clamp(32px,5.4vw,84px)">Meta batida — <i>e ultrapassada.</i></h1>
+      <div class="stats two">
+        <div class="stat" data-in style="--i:2"><div class="v" data-num="vendas"></div><div class="l">vendas pagas em 3 dias · <b><span data-num="pctVendas" data-inline></span>%</b> da meta de 33</div></div>
+        <div class="stat" data-in style="--i:3"><div class="v money" data-num="faturamento" data-prefix="R$ " data-dec="2"></div><div class="l">de faturamento · <b><span data-num="pctFaturamento" data-inline></span>%</b> da meta de R$ 1.600</div></div>
+      </div>
+      <div class="dias" id="dias" data-in style="--i:4"></div>
+      <p class="sub" data-in style="--i:5">Três checkouts expiraram sem pagar — e <b>os três voltaram e concluíram a compra</b> em um novo pedido. Nenhuma desistência.</p>
+    </div>
+  </section>
+
+  <!-- 3 · Custos -->
+  <section class="slide" data-start="50" data-title="Custos">
+    <div class="wrap">
+      <span class="chip" data-in style="--i:0">Custos</span>
+      <h1 data-in style="--i:1;font-size:clamp(32px,5.4vw,84px)">Custo total da operação: <i>dois reais.</i></h1>
+      <div class="zeros four">
+        <div class="zero" data-in style="--i:2"><div class="n">R$ 1,00 <i>domínio</i></div><div class="d"><b>iadojeitocerto.com</b> no Registro.br — desembolso real de R$ 0,01, na promoção de primeiro ano.</div></div>
+        <div class="zero" data-in style="--i:3"><div class="n">R$ 1,00 <i>servidor</i></div><div class="d">Hospedagem para <b>até 20 mil usuários</b>, sem custo adicional durante a operação.</div></div>
+        <div class="zero" data-in style="--i:4"><div class="n">R$ 0 <i>taxas</i></div><div class="d">PIX direto no Mercado Pago com <b>taxa zero</b>. Sem maquininha, sem comissão de plataforma.</div></div>
+        <div class="zero" data-in style="--i:5"><div class="n">R$ 0 <i>entrega</i></div><div class="d">Produto digital: <b>sem estoque, sem frete, sem embalagem</b>.</div></div>
+      </div>
+      <p class="sub" data-in style="--i:6">Margem líquida de <b><span data-num="margem" data-dec="3" data-inline></span>%</b> — na prática, cada real vendido virou lucro.</p>
+    </div>
+  </section>
+
+  <!-- 4 · Lucro -->
+  <section class="slide" data-start="75" data-title="Lucro">
+    <div class="wrap">
+      <span class="chip" data-in style="--i:0">Lucro</span>
+      <h1 data-in style="--i:1;font-size:clamp(32px,5.2vw,80px)">Lucro: o faturamento <i>menos dois reais.</i></h1>
+      <div class="stats two">
+        <div class="stat" data-in style="--i:2"><div class="v money" data-num="lucro" data-prefix="R$ " data-dec="2"></div><div class="l">de lucro líquido: <b>R$ <span data-num="faturamento" data-dec="2" data-inline></span></b> de faturamento − <b>R$ <span data-num="despesas" data-dec="2" data-inline></span></b> de despesas</div></div>
+        <div class="stat" data-in style="--i:3"><div class="v" data-num="pctLucro" data-suffix="%"></div><div class="l">da meta de lucro de <b>R$ 1.250</b></div></div>
+      </div>
+      <p class="big" data-in style="--i:4">A validação do produto se pagou — com folga.</p>
+    </div>
+  </section>
+
+  <!-- 5 · Liquidação -->
+  <section class="slide" data-start="95" data-title="Liquidação">
+    <div class="wrap">
+      <span class="chip" data-in style="--i:0">Liquidação</span>
+      <h1 data-in style="--i:1;font-size:clamp(32px,5.2vw,80px)">Três sócios, partes iguais,<br>caixa <i>em zero.</i></h1>
+      <div class="stats">
+        <div class="stat" data-in style="--i:2"><div class="quem">Guilherme Pama<small>recebeu os PIX na conta da operação</small></div><div class="v money" data-num="quotaGuilherme" data-prefix="R$ " data-dec="2"></div><div class="l">um terço do lucro</div></div>
+        <div class="stat" data-in style="--i:3"><div class="quem">Felipe Andrade<small>recebe por repasse na liquidação</small></div><div class="v money" data-num="quotaSocio" data-prefix="R$ " data-dec="2"></div><div class="l">um terço do lucro</div></div>
+        <div class="stat" data-in style="--i:4"><div class="quem">Fernando Saad<small>recebe por repasse na liquidação</small></div><div class="v money" data-num="quotaSocio" data-prefix="R$ " data-dec="2"></div><div class="l">um terço do lucro</div></div>
+      </div>
+      <p class="sub" data-in style="--i:5">Cada venda tem <b>recibo emitido</b> e a planilha financeira confere com o extrato. Depois dos repasses, a conferência fecha em <b>R$ 0,00</b>.</p>
+    </div>
+  </section>
+
+  <!-- 6 · Fechamento -->
+  <section class="slide" data-start="120" data-title="Fechamento">
+    <div class="wrap">
+      <span class="chip" data-in style="--i:0">Encerramento</span>
+      <h1 data-in style="--i:1;font-size:clamp(32px,5.4vw,84px)">O que a T4P <i>provou.</i></h1>
+      <div class="reasons">
+        <div class="reason" data-in style="--i:2"><b>Meta superada</b><span><b><span data-num="vendas" data-inline></span> vendas</b> contra 33 planejadas · <b>R$ <span data-num="faturamento" data-dec="2" data-inline></span></b> contra R$ 1.600 de meta.</span></div>
+        <div class="reason" data-in style="--i:3"><b>Validação quase de graça</b><span>Produto, preço e canal validados com <b>R$ <span data-num="despesas" data-dec="2" data-inline></span></b> de custo — margem de <span data-num="margem" data-dec="3" data-inline></span>%.</span></div>
+        <div class="reason" data-in style="--i:4"><b>Caixa transparente</b><span>Recibo por venda, planilha conferida e liquidação fechando <b>em zero</b>.</span></div>
+      </div>
+      <p class="big" data-in style="--i:5">Tecnologia para pessoas. Essa é a T4P.</p>
+    </div>
+  </section>
+
+</div>
+
+<div id="nav" aria-hidden="true">
+  <button id="prevZone" tabindex="-1" aria-label="Slide anterior" title="Anterior"></button>
+  <button id="nextZone" tabindex="-1" aria-label="Próximo slide" title="Próximo"></button>
+</div>
+
+<div id="hud">
+  <div class="brand">T4P.<i>IA para Negócios</i></div>
+  <div class="mid">
+    <span id="counter">1 / 7</span>
+    <span id="clock">0:00</span>
+    <span id="target"></span>
+    <span id="fonte" title="Origem dos números">carregando dados…</span>
+    <button id="btnTimer" title="T">▶ cronômetro</button>
+    <button id="btnNotes" title="N">notas</button>
+    <button id="btnCel" title="C">celular</button>
+  </div>
+  <div id="hint">← → · espaço · N notas · R zera · C celular</div>
+</div>
+<div id="bar"></div>
+
+<div id="par" role="dialog" aria-label="Parear celular">
+  <span class="chip">Controle pelo celular</span>
+  <div class="url">No celular, abra <b id="parUrl"></b></div>
+  <div class="cod" id="parCod"></div>
+  <div class="st" id="parSt">aguardando o celular…</div>
+  <div class="st">Toque em qualquer lugar ou tecle C para fechar</div>
+</div>
+
+<div id="notes">
+  <div class="t" id="notesTitle"></div>
+  <div id="notesBody"></div>
+  <div class="k">Roteiro sugerido (~2:20): plano 20 s · resultado 30 s · custos 25 s · lucro 20 s · liquidação 25 s · fechamento 20 s. Sem limite rígido: o cronômetro é só referência.</div>
+</div>
+
+<script>
+/* =====================================================================
+   DADOS DO BALANÇO — vêm do próprio sistema (/pitch-financeiro/dados.json)
+   a cada vez que a página abre. Recarregue (F5) antes de apresentar.
+   Prioridade: parâmetro na URL > sistema > valor escrito aqui (reserva se o
+   sistema não responder — números do CSV de 25/09 12h15).
+   null = mostra "[__]". Números viram contagem animada.
+   ===================================================================== */
+const DATA = {
+  vendas:          38,        // vendas pagas (status "pago"; doações e testes fora)
+  faturamento:     1896.20,   // soma dos PIX pagos
+  despesas:        2.00,      // sistema Empretec: 2 lançamentos de R$ 1,00 (domínio + servidor); desembolso real R$ 0,01
+  metaFaturamento: 1600,      // meta da operação (planejamento 21/09)
+  metaVendas:      33,
+  metaLucro:       1250,
+  preco:           49.90,
+  porDia:          [ { dia:"2026-09-23", vendas:16 }, { dia:"2026-09-24", vendas:12 }, { dia:"2026-09-25", vendas:10 } ],
+  // calculados em calcular():
+  lucro: null, pctVendas: null, pctFaturamento: null, pctLucro: null,
+  margem: null, quotaSocio: null, quotaGuilherme: null
+};
+const NUMERICOS = ['vendas','faturamento','despesas','metaFaturamento','metaVendas','metaLucro','preco'];
+const DO_SISTEMA = ['vendas','faturamento','despesas','metaFaturamento','metaVendas','metaLucro','preco','porDia'];
+
+const cent = (x) => Math.round(x * 100) / 100;
+function calcular(){
+  const f = DATA.faturamento, d = DATA.despesas;
+  if (f == null || d == null) { DATA.lucro = DATA.margem = DATA.quotaSocio = DATA.quotaGuilherme = null; }
+  else {
+    DATA.lucro = cent(f - d);
+    DATA.margem = f > 0 ? Math.round((DATA.lucro / f) * 100000) / 1000 : null;
+    DATA.quotaSocio = Math.floor((DATA.lucro / 3) * 100) / 100;                 // parte de cada sócio
+    DATA.quotaGuilherme = cent(DATA.lucro - 2 * DATA.quotaSocio);               // resto do arredondamento fica com quem repassa
+  }
+  DATA.pctVendas = (DATA.vendas != null && DATA.metaVendas) ? Math.round(DATA.vendas / DATA.metaVendas * 100) : null;
+  DATA.pctFaturamento = (f != null && DATA.metaFaturamento) ? Math.round(f / DATA.metaFaturamento * 100) : null;
+  DATA.pctLucro = (DATA.lucro != null && DATA.metaLucro) ? Math.round(DATA.lucro / DATA.metaLucro * 100) : null;
+}
+
+const v = (k, dec) => { const x = DATA[k]; return (x === null || x === undefined || x === '') ? '[__]' : (typeof x === 'number' ? fmt(x, dec ?? 0) : x); };
+let NOTES = [];
+// Tópicos curtos por slide, para o guia no celular (o roteiro completo são as NOTES).
+function topicos(){ return [
+  ["Boa tarde! Balanço financeiro da T4P", "Guilherme, Felipe e Fernando"],
+  ["Aposta: preço baixo + custo ~zero", "R$ 49,90 · meta R$ 1.600 = 33 vendas", "Sistema próprio, sem comissão"],
+  [`${v('vendas')} vendas em 3 dias (${v('pctVendas')}% da meta)`, `R$ ${v('faturamento',2)} de faturamento`, "3 expiraram e os 3 recompraram"],
+  ["Custo total: R$ 2,00 (domínio + servidor)", "Taxas e entrega: R$ 0 · desembolso real R$ 0,01", `Margem ${v('margem',3)}%`],
+  [`Lucro R$ ${v('lucro',2)}`, `${v('pctLucro')}% da meta de R$ 1.250`],
+  [`R$ ${v('quotaSocio',2)} por sócio`, "PIX na conta da operação → repasses", "Conferência fecha em zero"],
+  ["Meta superada · custo de 1 centavo", "Caixa transparente", "Obrigado!"]
+]; }
+function montarNotas(){ NOTES = [
+  "“Boa tarde! Este é o balanço financeiro da T4P: Guilherme, Felipe e Fernando.”",
+  "0:00–0:20 · “Nosso plano: vender um kit digital a R$ 49,90, com meta de R$ 1.600 — 33 vendas — e lucro de R$ 1.250. Preço baixo assim só fecha a conta se o custo for quase zero. Por isso construímos tudo: site, checkout PIX e área do aluno próprios, sem intermediário cobrando comissão.”",
+  `0:20–0:50 · “Resultado: ${v('vendas')} vendas pagas em três dias — ${v('pctVendas')}% da meta — e R$ ${v('faturamento',2)} de faturamento, ${v('pctFaturamento')}% da meta. Foram ${v('vendasDia1')} vendas no primeiro dia, e o ritmo se manteve até o fechamento. Três checkouts expiraram, e os três clientes voltaram e pagaram: nenhuma desistência.”`,
+  "0:50–1:15 · “Do lado do custo, a operação inteira custou dois reais: um real de domínio e um real de servidor. E tem um detalhe: o desembolso real foi um centavo — a promoção de primeiro ano do Registro.br — mas o sistema não aceita lançamento menor que R$ 1,00. PIX com taxa zero no Mercado Pago e entrega digital — sem estoque, sem frete. Não é retórica: está no extrato.”",
+  `1:15–1:35 · “Logo, o lucro é o faturamento menos dois reais: R$ ${v('lucro',2)} — ${v('pctLucro')}% da meta de lucro. A validação do produto se pagou com folga.”`,
+  `1:35–2:00 · “Na liquidação: todos os PIX caíram na conta da operação, em nome do Guilherme. Ele repassa R$ ${v('quotaSocio',2)} ao Felipe e R$ ${v('quotaSocio',2)} ao Fernando, fica com a parte dele, e a conferência fecha em zero. Cada venda tem recibo emitido.” — Antes de falar, confirmar com os sócios o titular da conta que recebeu os PIX.`,
+  "2:00–2:20 · “Em resumo: meta superada, validação quase de graça e caixa transparente. Tecnologia para pessoas. Essa é a T4P. Obrigado!”"
+]; }
+
+/* Sobrescrever pela URL, sem novo deploy (vale mais que o sistema):
+   /pitch-financeiro?vendas=40&faturamento=1996 */
+const QS = new URLSearchParams(location.search);
+function aplicarURL(){
+  for (const k of NUMERICOS) if (QS.has(k)) {
+    const raw = QS.get(k);
+    DATA[k] = raw === '' ? null : Number(raw.replace(',','.'));
+  }
+}
+const fonteEl = document.getElementById('fonte');
+async function carregarSistema(){
+  try {
+    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch('/pitch-financeiro/dados.json', { cache: 'no-store', signal: ctrl.signal });
+    clearTimeout(to);
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    for (const k of DO_SISTEMA) if (d[k] !== null && d[k] !== undefined) DATA[k] = d[k];
+    const hora = new Date(d.geradoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    fonteEl.textContent = 'dados do sistema · ' + hora; fonteEl.classList.add('vivo');
+  } catch (e) {
+    fonteEl.textContent = 'sem conexão com o sistema · dados manuais';
+  }
+}
+
+/* ---------- preencher dados ---------- */
+const fmt = (v, dec=0) => v === null || v === undefined || v === "" ? null : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+function preencher(){
+document.querySelectorAll('[data-num]').forEach(el => {
+  const key = el.dataset.num, val = DATA[key];
+  if (el.dataset.suf0 === undefined) el.dataset.suf0 = el.dataset.suffix || '';
+  const suf = el.dataset.suf0; el.dataset.suffix = suf;
+  const pre = el.dataset.prefix || '';
+  const dec = Number(el.dataset.dec || 0);
+  const isInline = el.hasAttribute('data-inline');
+  delete el.dataset.target; delete el.dataset.done; el.classList.remove('ph');
+  if (val === null || val === undefined) {
+    el.textContent = pre + '[__]' + (isInline ? '' : suf);
+    if (!isInline) el.classList.add('ph');
+    return;
+  }
+  el.dataset.target = val;
+  el.textContent = pre + fmt(0, dec) + suf;
+});
+renderDias();
+montarNotas();
+}
+
+function renderDias(){
+  const c = document.getElementById('dias');
+  if (!c) return;
+  const arr = Array.isArray(DATA.porDia) ? DATA.porDia : [];
+  DATA.vendasDia1 = arr.length ? arr[0].vendas : null;
+  c.innerHTML = arr.map(d => {
+    const [ano, mes, dia] = String(d.dia).split('-');
+    const rot = (dia && mes) ? `${dia}/${mes}` : String(d.dia);
+    return `<div class="dia"><div class="n">${d.vendas}</div><div class="l">vendas em ${rot}</div></div>`;
+  }).join('');
+}
+
+/* ---------- contagem animada ---------- */
+function countUp(el){
+  if (!el.dataset.target || el.dataset.done) return;
+  el.dataset.done = 1;
+  const target = Number(el.dataset.target), dec = Number(el.dataset.dec||0), suf = el.dataset.suffix || '', pre = el.dataset.prefix || '';
+  const t0 = performance.now(), dur = 900;
+  const step = now => {
+    const p = Math.min(1,(now-t0)/dur), e = 1 - Math.pow(1-p,3);
+    el.textContent = pre + fmt(target*e, dec) + suf;
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- navegação ---------- */
+const slides = [...document.querySelectorAll('.slide')];
+let cur = 0;
+const counter = document.getElementById('counter'), bar = document.getElementById('bar'), target = document.getElementById('target');
+function show(n){
+  n = Math.max(0, Math.min(slides.length-1, n));
+  if (n === cur && slides[cur].classList.contains('active')) return;
+  const old = slides[cur];
+  old.classList.remove('active'); old.classList.add('leaving');
+  setTimeout(() => old.classList.remove('leaving'), 600);
+  cur = n;
+  const s = slides[cur];
+  s.classList.add('active');
+  s.querySelectorAll('[data-num]').forEach(el => setTimeout(() => countUp(el), 500));
+  counter.textContent = (cur+1) + ' / ' + slides.length;
+  bar.style.width = ((cur)/(slides.length-1)*100) + '%';
+  const st = Number(s.dataset.start);
+  target.textContent = cur === 0 ? '' : 'meta ' + mmss(st);
+  document.getElementById('notesTitle').textContent = s.dataset.title;
+  document.getElementById('notesBody').textContent = NOTES[cur] || '';
+  if (cur === 1 && !timer.running && timer.elapsed === 0) timer.start();   // sai da capa → cronômetro começa
+  location.hash = cur ? String(cur) : '';
+  publicar();
+}
+const next = () => show(cur+1), prev = () => show(cur-1);
+document.getElementById('nextZone').addEventListener('click', next);
+document.getElementById('prevZone').addEventListener('click', prev);
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (['ArrowRight','ArrowDown','PageDown',' ','Enter'].includes(e.key)) { e.preventDefault(); next(); }
+  else if (['ArrowLeft','ArrowUp','PageUp','Backspace'].includes(e.key)) { e.preventDefault(); prev(); }
+  else if (e.key === 'Home') show(0); else if (e.key === 'End') show(slides.length-1);
+  else if (e.key.toLowerCase() === 'n') toggleNotes();
+  else if (e.key.toLowerCase() === 't') timer.toggle();
+  else if (e.key.toLowerCase() === 'r') timer.reset();
+  else if (e.key.toLowerCase() === 'c') togglePar();
+  else if (e.key === 'Escape') parEl.classList.remove('on');
+  else if (e.key.toLowerCase() === 'f') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); }
+});
+let tx = null;
+addEventListener('touchstart', e => tx = e.touches[0].clientX, {passive:true});
+addEventListener('touchend', e => { if (tx === null) return; const dx = e.changedTouches[0].clientX - tx; if (Math.abs(dx) > 50) dx < 0 ? next() : prev(); tx = null; });
+
+/* ---------- notas ---------- */
+const notesEl = document.getElementById('notes');
+function toggleNotes(){ notesEl.classList.toggle('on'); }
+document.getElementById('btnNotes').addEventListener('click', toggleNotes);
+
+/* ---------- cronômetro ---------- */
+const mmss = s => Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0');
+const clock = document.getElementById('clock'), btnTimer = document.getElementById('btnTimer');
+const timer = {
+  running:false, elapsed:0, t0:0, id:null,
+  tick(){ const s = this.elapsed + (this.running ? (performance.now()-this.t0)/1000 : 0); clock.textContent = mmss(s); clock.classList.toggle('over', s > 150); },
+  start(){ if (this.running) return; this.running = true; this.t0 = performance.now(); this.id = setInterval(() => this.tick(), 250); btnTimer.textContent = '❚❚ cronômetro'; publicar(); },
+  stop(){ if (!this.running) return; this.elapsed += (performance.now()-this.t0)/1000; this.running = false; clearInterval(this.id); this.tick(); btnTimer.textContent = '▶ cronômetro'; publicar(); },
+  toggle(){ this.running ? this.stop() : this.start(); },
+  reset(){ this.stop(); this.elapsed = 0; this.tick(); publicar(); }
+};
+btnTimer.addEventListener('click', () => timer.toggle());
+
+/* ---------- controle pelo celular ---------- */
+const ALFABETO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+let codigo = null;
+try { codigo = sessionStorage.getItem('pitch-codigo'); } catch (e) {}
+if (!codigo || !/^[A-Z0-9]{6}$/.test(codigo)) {
+  const rnd = new Uint32Array(6); crypto.getRandomValues(rnd);
+  codigo = [...rnd].map(n => ALFABETO[n % ALFABETO.length]).join('');
+  try { sessionStorage.setItem('pitch-codigo', codigo); } catch (e) {}
+}
+const parEl = document.getElementById('par'), btnCel = document.getElementById('btnCel'), parSt = document.getElementById('parSt');
+document.getElementById('parCod').textContent = codigo;
+document.getElementById('parUrl').textContent = location.host + '/pitch-controle';
+function togglePar(){ parEl.classList.toggle('on'); }
+btnCel.addEventListener('click', togglePar);
+parEl.addEventListener('click', () => parEl.classList.remove('on'));
+
+let pubTimer = null;
+function publicar(){
+  if (!location.protocol.startsWith('http')) return;
+  clearTimeout(pubTimer);
+  pubTimer = setTimeout(() => {
+    const elapsed = timer.elapsed + (timer.running ? (performance.now() - timer.t0) / 1000 : 0);
+    const dados = {
+      cur, total: slides.length,
+      titulos: slides.map(s => s.dataset.title),
+      inicios: slides.map(s => Number(s.dataset.start)),
+      notas: NOTES, topicos: topicos(),
+      timer: { running: timer.running, elapsed },
+      fonte: fonteEl.textContent
+    };
+    fetch('/pitch-sala/' + codigo, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: 'estado', dados }) }).catch(() => {});
+  }, 40);
+}
+function conectarControle(){
+  if (!location.protocol.startsWith('http') || !window.EventSource) return;
+  const es = new EventSource('/pitch-sala/' + codigo + '/eventos?papel=tela');
+  es.addEventListener('open', publicar);
+  es.addEventListener('presenca', ev => {
+    const n = JSON.parse(ev.data).controles;
+    btnCel.classList.toggle('ok', n > 0);
+    btnCel.textContent = n > 0 ? 'celular ✓' : 'celular';
+    parSt.textContent = n > 0 ? 'celular conectado ✓' : 'aguardando o celular…';
+    parSt.classList.toggle('ok', n > 0);
+    if (n > 0) { publicar(); setTimeout(() => parEl.classList.remove('on'), 1200); }
+  });
+  es.addEventListener('comando', ev => {
+    const c = JSON.parse(ev.data);
+    if (c.acao === 'proximo') next();
+    else if (c.acao === 'anterior') prev();
+    else if (c.acao === 'ir' && Number.isInteger(c.n)) show(c.n);
+    else if (c.acao === 'cronometro') timer.toggle();
+    else if (c.acao === 'zerar') timer.reset();
+    else if (c.acao === 'sincronizar') publicar();
+  });
+}
+
+/* ---------- início ---------- */
+const h = parseInt(location.hash.slice(1), 10);
+cur = (!isNaN(h) && h > 0 && h < slides.length) ? h : 0;
+aplicarURL(); calcular(); preencher();
+slides[cur].classList.add('active');
+counter.textContent = (cur+1) + ' / ' + slides.length;
+bar.style.width = (cur/(slides.length-1)*100) + '%';
+document.getElementById('notesTitle').textContent = slides[cur].dataset.title;
+document.getElementById('notesBody').textContent = NOTES[cur] || '';
+carregarSistema().then(() => {
+  aplicarURL(); calcular(); preencher();
+  document.getElementById('notesBody').textContent = NOTES[cur] || '';
+  slides[cur].querySelectorAll('[data-num]').forEach(el => setTimeout(() => countUp(el), 300));
+  publicar();
+});
+conectarControle();
+</script>
+</body>
+</html>

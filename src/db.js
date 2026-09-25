@@ -470,6 +470,29 @@ function resumoPitch(arquivoAula1) {
   };
 }
 
+
+// Números agregados para o balanço financeiro (/pitch-financeiro/dados.json).
+// Só dinheiro que entrou de fato: status 'pago'. Ativações manuais (doações) e
+// registros de teste ficam de fora. Nenhum dado pessoal, só contagens e somas.
+function resumoFinanceiro() {
+  const totais = db
+    .prepare(
+      `SELECT COUNT(*) AS vendas, COALESCE(SUM(orders.valor), 0) AS faturamento
+         FROM orders JOIN users ON users.id = orders.user_id
+        WHERE orders.status = 'pago' AND users.is_teste = 0`
+    )
+    .get();
+  const porDia = db
+    .prepare(
+      `SELECT date(orders.pago_em, '-3 hours') AS dia, COUNT(*) AS vendas
+         FROM orders JOIN users ON users.id = orders.user_id
+        WHERE orders.status = 'pago' AND users.is_teste = 0
+        GROUP BY dia ORDER BY dia`
+    )
+    .all();
+  return { vendas: totais.vendas, faturamento: totais.faturamento, porDia };
+}
+
 module.exports = {
   db,
   ping,
@@ -508,4 +531,5 @@ module.exports = {
   listarAvaliacoes,
   contarAlunosAtivos,
   resumoPitch,
+  resumoFinanceiro,
 };
