@@ -80,18 +80,17 @@
 
   /* stats */
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(10px,1.6vw,22px);width:100%;max-width:1040px}
+  .stats.two{grid-template-columns:repeat(2,1fr);max-width:760px}
   .stat{padding:clamp(16px,2.2vw,30px) clamp(14px,1.8vw,26px);border:1px solid var(--line);border-radius:22px;background:var(--bg-2);text-align:left}
   .stat .v{font-weight:900;letter-spacing:-.04em;font-size:clamp(34px,4.6vw,72px);line-height:1;color:var(--accent);white-space:nowrap}
   .stat .v.ph{color:var(--muted);font-weight:600;letter-spacing:0}
   .stat .l{margin-top:10px;color:var(--muted);font-size:clamp(12px,1.2vw,16px);line-height:1.4}
 
   /* quote + image */
-  .proof{display:grid;grid-template-columns:1.5fr 1fr;gap:clamp(10px,1.6vw,22px);width:100%;max-width:1040px;text-align:left}
+  .proof{display:grid;grid-template-columns:1fr;gap:clamp(10px,1.6vw,22px);width:100%;max-width:900px;text-align:left}
   .quote{padding:clamp(18px,2.4vw,34px);border-radius:22px;background:var(--chip);color:#1a1614;display:flex;flex-direction:column;justify-content:center;gap:10px}
   .quote p{font-family:var(--serif);font-style:italic;font-size:clamp(18px,2.1vw,30px);line-height:1.25}
   .quote small{font-size:clamp(12px,1.15vw,15px);font-weight:600;color:#6b5546}
-  .shot{position:relative;border-radius:22px;overflow:hidden;min-height:150px;background:var(--bg-2);border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;padding:16px;text-align:center}
-  .shot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 
   /* closing reasons */
   .reasons{display:flex;flex-direction:column;gap:clamp(8px,1.6vh,16px);width:min(100%,860px);text-align:left}
@@ -138,6 +137,7 @@
   @media (max-width:760px){
     .stats{grid-template-columns:1fr 1fr}
     .stats .stat:last-child{grid-column:span 2}
+    .stats.two .stat:last-child{grid-column:auto}
     .proof{grid-template-columns:1fr}
     .sticker{position:static;transform:rotate(var(--r,-4deg))}
     .stickers{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
@@ -175,7 +175,7 @@
   <section class="slide" data-start="0" data-title="Apresentação da empresa">
     <div class="wrap">
       <span class="chip" data-in style="--i:0">Kit IA para Negócios</span>
-      <h1 data-in style="--i:1">A IA não é fraca.<br>Ela só não conhece <i>o seu negócio.</i></h1>
+      <h1 data-in style="--i:1">A IA não é fraca.<br>Ela só não conhece <i style="white-space:nowrap">o seu negócio.</i></h1>
       <p class="lead" data-in style="--i:2">O kit ensina o dono de pequeno negócio a pedir do jeito certo, para a IA entregar posts, respostas de WhatsApp e orçamentos <b>com a cara da empresa dele</b>.</p>
       <div class="tags" data-in style="--i:3">
         <span class="tag hi">Método CAFÉ</span>
@@ -209,10 +209,9 @@
     <div class="wrap">
       <span class="chip" data-in style="--i:0">Impacto social</span>
       <h1 data-in style="--i:1;font-size:clamp(30px,4.8vw,76px)">Quem fica para trás na IA não é por falta de vontade.<br>É por falta de <i>acesso.</i></h1>
-      <div class="stats">
+      <div class="stats two">
         <div class="stat" data-in style="--i:2"><div class="v" data-num="compradores"></div><div class="l">empreendedores compraram o kit em cinco dias</div></div>
-        <div class="stat" data-in style="--i:3"><div class="v" data-num="amostras"></div><div class="l">pessoas receberam a amostra gratuita</div></div>
-        <div class="stat" data-in style="--i:4"><div class="v">R$ 49,90</div><div class="l">preço para caber no bolso de quem está começando</div></div>
+        <div class="stat" data-in style="--i:3"><div class="v">R$ 49,90</div><div class="l">preço para caber no bolso de quem está começando</div></div>
       </div>
       <p class="sub" data-in style="--i:5">Quem comprou: <b data-text="perfil"></b>.</p>
     </div>
@@ -229,8 +228,7 @@
         <div class="stat" data-in style="--i:4" id="statNota"><div class="v" data-num="nota" data-suffix=" / 5"></div><div class="l">nota média em <span data-text="avaliacoes"></span> avaliações</div></div>
       </div>
       <div class="proof">
-        <div class="quote" data-in style="--i:5"><p>“<span data-text="depoimento"></span>”</p><small><span data-text="autor"></span>, <span data-text="negocio"></span></small></div>
-        <div class="shot" data-in style="--i:6" id="shot">print da avaliação, do WhatsApp ou foto de aluno</div>
+        <div class="quote" data-in style="--i:5"><p>“<span data-text="depoimento"></span>”</p><small><span data-text="autor"></span>, <span data-text="negocio"></span> · contou pessoalmente</small></div>
       </div>
     </div>
   </section>
@@ -294,7 +292,6 @@
    ===================================================================== */
 const DATA = {
   compradores: null,        // vendas reais (sem "teste" e "Guilherme Teste")
-  amostras:    null,        // pessoas que receberam a amostra gratuita
   abriram:     null,        // % dos compradores que abriram o conteúdo
   concluiram:  null,        // quantos concluíram a Aula 1
   nota:        null,        // nota média, ex.: 4.6 — só mostrar com 5+ avaliações
@@ -303,14 +300,13 @@ const DATA = {
   depoimento:  "",          // só com autorização de divulgação marcada
   autor:       "",
   negocio:     "",
-  printSrc:    "",          // caminho da imagem, ex.: "/img/avaliacao.png"
   aulas:       null,        // aulas abertas (sistema)
   paginasKit:  25,          // páginas dos PDFs do kit (sistema)
   folhas:      null,        // calculado: compradores × paginasKit
   km:          null         // estimativa: aulas × KM_POR_AULA (só nas notas)
 };
 const KM_POR_AULA = 10;     // premissa: cada aula seria um encontro presencial de 10 km ida e volta
-const NUMERICOS = ['compradores','amostras','abriram','concluiram','nota','avaliacoes','aulas','paginasKit'];
+const NUMERICOS = ['compradores','abriram','concluiram','nota','avaliacoes','aulas','paginasKit'];
 const DO_SISTEMA = ['compradores','abriram','concluiram','nota','avaliacoes','aulas','paginasKit'];
 
 const v = (k, dec) => { const x = DATA[k]; return (x === null || x === undefined || x === '') ? (k === 'nota' ? '[_,_]' : '[__]') : (typeof x === 'number' ? fmt(x, dec ?? (k === 'nota' ? 1 : 0)) : x); };
@@ -320,7 +316,7 @@ function topicos(){ return [
   ["Bom dia", "Somos a T4P: Guilherme, Felipe e Fernando"],
   ["IA ao alcance de quem tem poucos recursos", "A IA não é fraca: não conhece o seu negócio", "Kit: 3 aulas, 25 pedidos, R$ 49,90, 90 dias, garantia", "Site, checkout e área do aluno feitos por nós"],
   [`${v('folhas')} páginas que não viraram papel`, `${v('aulas')} aulas sem deslocamento`, `${v('compradores')} kits sem embalagem nem frete`, "Pedir certo na 1ª vez = menos energia e água", "Pegada pequena; o foco é o social"],
-  ["Falta de acesso, não de vontade", "Cursos caros e difíceis", `${v('compradores')} compraram · ${v('amostras')} amostras`, "Comércio local, serviços, autônomos"],
+  ["Falta de acesso, não de vontade", "Cursos caros e difíceis", `${v('compradores')} compraram em cinco dias`, "Comércio local, serviços, autônomos"],
   ["Vender não é impacto; ser usado é", `${v('abriram')}% abriram o conteúdo`, `${v('concluiram')} concluíram a Aula 1`, `Nota média ${v('nota')} (${v('avaliacoes')} avaliações)`, "Ler o depoimento"],
   ["Problema real", "Evidência, não promessa", "Continua até 24 de dezembro", "Tecnologia para pessoas. Vote na T4P. Obrigado."]
 ]; }
@@ -328,13 +324,13 @@ function montarNotas(){ NOTES = [
   "“Bom dia. Somos a T4P – Tech for People: Guilherme, Felipe e Fernando.”",
   "0:00–0:20 · “Nossa proposta é uma só: colocar a inteligência artificial ao alcance de quem empreende com poucos recursos. A IA não é fraca — ela só não conhece o seu negócio. O kit IA para Negócios ensina o dono de pequeno negócio a pedir do jeito certo: três aulas práticas, 25 pedidos prontos, R$ 49,90, 90 dias de acesso e garantia. Site, checkout e área do aluno construídos por nós.”",
   `0:20–0:45 · “No meio ambiente, vamos ser diretos: o produto é digital. Até agora foram ${v('folhas')} páginas que não viraram papel, ${v('aulas')} aulas abertas sem ninguém se deslocar e ${v('compradores')} kits sem embalagem nem frete. E ensinar a pedir certo na primeira vez reduz o retrabalho da IA: menos processamento, menos energia e água. Pegada pequena por natureza — o impacto que buscamos de verdade é o social.” — Se perguntarem: páginas = kits × ${v('paginasKit')} páginas dos PDFs; deslocamento ≈ ${v('km')} km se cada aula fosse um encontro de ${KM_POR_AULA} km ida e volta (premissa nossa); um pedido típico à IA gasta cerca de 0,24–0,34 Wh e 0,3 mL de água (Google e OpenAI, 2025) — refazer três vezes custa o triplo. Não medimos o uso de IA dos alunos, por isso não damos número de economia.`,
-  `0:45–1:10 · “O problema social que atacamos: o pequeno empreendedor fica para trás na IA não por falta de vontade, mas de acesso. Cursos custam caro e falam difícil. Em cinco dias, ${v('compradores')} empreendedores compraram o kit e ${v('amostras')} receberam a amostra gratuita — donos de comércio local, prestadores de serviço, autônomos.”`,
-  `1:10–1:40 · “Vender não é impacto. Impacto é o conteúdo ser usado: ${v('abriram')}% já abriram o conteúdo, ${v('concluiram')} concluíram a Aula 1, e as avaliações dão nota média ${v('nota')}. A [nome], dona de [negócio], escreveu: ‘[depoimento]’.” — Nota média só com 5+ avaliações (hoje: ${v('avaliacoes')}); depoimento só com autorização.`,
+  `0:45–1:10 · “O problema social que atacamos: o pequeno empreendedor fica para trás na IA não por falta de vontade, mas de acesso. Cursos custam caro e falam difícil. Em cinco dias, ${v('compradores')} empreendedores compraram o kit, a R$ 49,90 — donos de comércio local, prestadores de serviço, autônomos.”`,
+  `1:10–1:40 · “Vender não é impacto. Impacto é o conteúdo ser usado: ${v('abriram')}% já abriram o conteúdo, ${v('concluiram')} concluíram a Aula 1, e as avaliações dão nota média ${v('nota')}. E o que ouvimos pessoalmente: ${DATA.autor || '[nome]'}, de ${DATA.negocio || '[negócio]'}, nos disse: ‘${DATA.depoimento || '[depoimento]'}’.” — Nota média só com 5+ avaliações (hoje: ${v('avaliacoes')}); depoimento falado, confirme com a pessoa que pode citar.`,
   "1:40–2:00 · “A T4P merece o seu voto por três motivos: atacamos um problema real, provamos com evidência e não com promessa, e o impacto continua depois de hoje — a área do aluno fica no ar até dezembro. Tecnologia para pessoas. Vote na T4P. Obrigado.”"
 ]; }
 
 /* Sobrescrever pela URL, sem novo deploy (vale mais que o sistema):
-   /pitch-ambiental-social?amostras=40&autor=Maria&negocio=Loja%20X&depoimento=...&printSrc=/img/print.png */
+   /pitch-ambiental-social?autor=Maria&negocio=Loja%20X&depoimento=... */
 const QS = new URLSearchParams(location.search);
 function aplicarURL(){
   for (const k of Object.keys(DATA)) if (QS.has(k)) {
@@ -386,8 +382,6 @@ document.querySelectorAll('[data-text]').forEach(el => {
   el.textContent = (v === null || v === undefined || v === "") ? '[' + el.dataset.text + ']' : String(v);
 });
 document.getElementById('statNota').style.display = (DATA.avaliacoes !== null && DATA.avaliacoes < 5) ? 'none' : '';
-const s = document.getElementById('shot');
-if (DATA.printSrc && !s.querySelector('img')) { s.textContent = ''; const im = new Image(); im.src = DATA.printSrc; im.alt = 'Evidência'; s.appendChild(im); }
 montarNotas();
 }
 
