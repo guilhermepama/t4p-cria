@@ -549,6 +549,38 @@ async function main() {
       if (textos.some((t) => t.includes("[__]"))) throw new Error(`placeholder sobrando: ${textos.join(" | ")}`);
     });
 
+    await passo("pitch: celular pareia pelo código e passa o slide; POST sem Origin é barrado", async () => {
+      const ctxTela = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+      const ctxCel = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+      try {
+        const tela = await ctxTela.newPage();
+        await tela.goto(`${baseUrl}/pitch-ambiental-social`);
+        await tela.waitForTimeout(1200);
+        const codigo = (await tela.textContent("#parCod")).trim();
+        if (!/^[A-Z0-9]{6}$/.test(codigo)) throw new Error(`código inválido: ${codigo}`);
+        const cel = await ctxCel.newPage();
+        await cel.goto(`${baseUrl}/pitch-controle`);
+        await cel.fill("#cod", codigo.toLowerCase());
+        await cel.click("#btnConectar");
+        await tela.waitForFunction(() => document.getElementById("btnCel").classList.contains("ok"), null, { timeout: 8000 });
+        await cel.waitForFunction(() => document.getElementById("titulo").textContent === "Capa", null, { timeout: 8000 });
+        await cel.click("#btnProx");
+        await tela.waitForFunction(() => location.hash === "#1", null, { timeout: 5000 });
+        await cel.waitForFunction(() => document.getElementById("pos").textContent.startsWith("2 /"), null, { timeout: 5000 });
+        const sw = await cel.evaluate(() => document.documentElement.scrollWidth);
+        if (sw > 390) throw new Error(`scroll horizontal no celular: ${sw}`);
+        const resp = await fetch(`${baseUrl}/pitch-sala/${codigo}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tipo: "comando", dados: { acao: "proximo" } }),
+        });
+        if (resp.status !== 403) throw new Error(`POST sem Origin deveria ser 403, veio ${resp.status}`);
+      } finally {
+        await ctxTela.close();
+        await ctxCel.close();
+      }
+    });
+
     await passo("landing tem pelo menos 3 links wa.me/5519974139426 e nenhum {{whatsapp sobra", async () => {
       const pagina = await browser.newPage();
       await pagina.goto(`${baseUrl}/`);
