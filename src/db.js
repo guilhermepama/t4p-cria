@@ -293,7 +293,7 @@ function listarAlunosComPedidos({ incluirTestes = false } = {}) {
          orders.id AS order_id, orders.valor, orders.status, orders.criado_em, orders.pago_em,
          orders.expira_em
        FROM users
-       LEFT JOIN orders ON orders.user_id = users.id
+       LEFT JOIN orders ON orders.user_id = users.id AND orders.status != 'expirado'
        WHERE ? OR users.is_teste = 0
        ORDER BY users.id DESC, orders.id DESC`
     )
