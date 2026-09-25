@@ -80,6 +80,14 @@
 
   /* stats */
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(10px,1.6vw,22px);width:100%;max-width:1040px}
+  .alcance{display:grid;grid-template-columns:1.2fr 1fr;gap:clamp(14px,2.4vw,36px);width:100%;max-width:1000px;align-items:center}
+  .stats.col{grid-template-columns:1fr;gap:clamp(8px,1.2vh,14px)}
+  .stats.col .stat{padding:clamp(10px,1.6vh,18px) clamp(14px,1.8vw,24px)}
+  .stats.col .stat .v{font-size:clamp(26px,3.4vw,50px)}
+  .stats.col .stat .l{margin-top:6px}
+  .doc{margin:0;justify-self:center;text-align:center}
+  .doc img{display:block;height:min(46vh,460px);width:auto;max-width:100%;border-radius:6px;background:#fff;transform:rotate(2deg);box-shadow:0 18px 50px rgba(0,0,0,.55)}
+  .doc figcaption{margin-top:14px;font-size:clamp(11px,1vw,14px);color:var(--muted)}
   .stats.two{grid-template-columns:repeat(2,1fr);max-width:760px}
   .stat{padding:clamp(16px,2.2vw,30px) clamp(14px,1.8vw,26px);border:1px solid var(--line);border-radius:22px;background:var(--bg-2);text-align:left}
   .stat .v{font-weight:900;letter-spacing:-.04em;font-size:clamp(34px,4.6vw,72px);line-height:1;color:var(--accent);white-space:nowrap}
@@ -138,6 +146,11 @@
     .stats{grid-template-columns:1fr 1fr}
     .stats .stat:last-child{grid-column:span 2}
     .stats.two .stat:last-child{grid-column:auto}
+    .alcance{grid-template-columns:1fr}
+    .stats.col{grid-template-columns:1fr 1fr}
+    .stats.col .stat:last-child{grid-column:span 2}
+    .doc img{height:22vh;margin:0 auto}
+    .doc figcaption{margin-top:8px}
     .proof{grid-template-columns:1fr}
     .sticker{position:static;transform:rotate(var(--r,-4deg))}
     .stickers{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
@@ -208,12 +221,16 @@
   <section class="slide" data-start="45" data-title="Impacto social · alcance">
     <div class="wrap">
       <span class="chip" data-in style="--i:0">Impacto social</span>
-      <h1 data-in style="--i:1;font-size:clamp(30px,4.8vw,76px)">Quem fica para trás na IA não é por falta de vontade.<br>É por falta de <i>acesso.</i></h1>
-      <div class="stats two">
-        <div class="stat" data-in style="--i:2"><div class="v" data-num="compradores"></div><div class="l">empreendedores compraram o kit em cinco dias</div></div>
-        <div class="stat" data-in style="--i:3"><div class="v">R$ 49,90</div><div class="l">preço para caber no bolso de quem está começando</div></div>
+      <h1 data-in style="--i:1;font-size:clamp(28px,4.2vw,64px)">Quem fica para trás na IA não é por falta de vontade.<br>É por falta de <i>acesso.</i></h1>
+      <div class="alcance">
+        <div class="stats col">
+          <div class="stat" data-in style="--i:2"><div class="v" data-num="compradores"></div><div class="l">empreendedores compraram o kit em cinco dias</div></div>
+          <div class="stat" data-in style="--i:3"><div class="v">10 cursos</div><div class="l">doados à Fatec Olímpia</div></div>
+          <div class="stat" data-in style="--i:4"><div class="v">R$ 49,90</div><div class="l">preço para caber no bolso de quem está começando</div></div>
+        </div>
+        <figure class="doc" data-in style="--i:5"><img src="/declaracao-doacao-fatec.jpg" alt="Declaração de doação de 10 cursos IA para Negócios, emitida pela Fatec Olímpia"><figcaption>Declaração da Fatec Olímpia · 24/09/2026</figcaption></figure>
       </div>
-      <p class="sub" data-in style="--i:5">Quem comprou: <b data-text="perfil"></b>.</p>
+      <p class="sub" data-in style="--i:6">Quem comprou: <b data-text="perfil"></b>.</p>
     </div>
   </section>
 
@@ -316,7 +333,7 @@ function topicos(){ return [
   ["Bom dia", "Somos a T4P: Guilherme, Felipe e Fernando"],
   ["IA ao alcance de quem tem poucos recursos", "A IA não é fraca: não conhece o seu negócio", "Kit: 3 aulas, 25 pedidos, R$ 49,90, 90 dias, garantia", "Site, checkout e área do aluno feitos por nós"],
   [`${v('folhas')} páginas que não viraram papel`, `${v('aulas')} aulas sem deslocamento`, `${v('compradores')} kits sem embalagem nem frete`, "Pedir certo na 1ª vez = menos energia e água", "Pegada pequena; o foco é o social"],
-  ["Falta de acesso, não de vontade", "Cursos caros e difíceis", `${v('compradores')} compraram em cinco dias`, "Comércio local, serviços, autônomos"],
+  ["Falta de acesso, não de vontade", "Cursos caros e difíceis", `${v('compradores')} compraram em cinco dias`, "10 cursos doados à Fatec Olímpia (mostrar a declaração)", "Comércio local, serviços, autônomos"],
   ["Vender não é impacto; ser usado é", `${v('abriram')}% abriram o conteúdo`, `${v('concluiram')} concluíram a Aula 1`, `Nota média ${v('nota')} (${v('avaliacoes')} avaliações)`, "Ler o depoimento"],
   ["Problema real", "Evidência, não promessa", "Continua até 24 de dezembro", "Tecnologia para pessoas. Vote na T4P. Obrigado."]
 ]; }
@@ -324,7 +341,7 @@ function montarNotas(){ NOTES = [
   "“Bom dia. Somos a T4P – Tech for People: Guilherme, Felipe e Fernando.”",
   "0:00–0:20 · “Nossa proposta é uma só: colocar a inteligência artificial ao alcance de quem empreende com poucos recursos. A IA não é fraca — ela só não conhece o seu negócio. O kit IA para Negócios ensina o dono de pequeno negócio a pedir do jeito certo: três aulas práticas, 25 pedidos prontos, R$ 49,90, 90 dias de acesso e garantia. Site, checkout e área do aluno construídos por nós.”",
   `0:20–0:45 · “No meio ambiente, vamos ser diretos: o produto é digital. Até agora foram ${v('folhas')} páginas que não viraram papel, ${v('aulas')} aulas abertas sem ninguém se deslocar e ${v('compradores')} kits sem embalagem nem frete. E ensinar a pedir certo na primeira vez reduz o retrabalho da IA: menos processamento, menos energia e água. Pegada pequena por natureza — o impacto que buscamos de verdade é o social.” — Se perguntarem: páginas = kits × ${v('paginasKit')} páginas dos PDFs; deslocamento ≈ ${v('km')} km se cada aula fosse um encontro de ${KM_POR_AULA} km ida e volta (premissa nossa); um pedido típico à IA gasta cerca de 0,24–0,34 Wh e 0,3 mL de água (Google e OpenAI, 2025) — refazer três vezes custa o triplo. Não medimos o uso de IA dos alunos, por isso não damos número de economia.`,
-  `0:45–1:10 · “O problema social que atacamos: o pequeno empreendedor fica para trás na IA não por falta de vontade, mas de acesso. Cursos custam caro e falam difícil. Em cinco dias, ${v('compradores')} empreendedores compraram o kit, a R$ 49,90 — donos de comércio local, prestadores de serviço, autônomos.”`,
+  `0:45–1:10 · “O problema social que atacamos: o pequeno empreendedor fica para trás na IA não por falta de vontade, mas de acesso. Cursos custam caro e falam difícil. Em cinco dias, ${v('compradores')} empreendedores compraram o kit, a R$ 49,90 — donos de comércio local, prestadores de serviço, autônomos. E doamos 10 cursos à Fatec Olímpia: a declaração está aqui.”`,
   `1:10–1:40 · “Vender não é impacto. Impacto é o conteúdo ser usado: ${v('abriram')}% já abriram o conteúdo, ${v('concluiram')} concluíram a Aula 1, e as avaliações dão nota média ${v('nota')}. E o que ouvimos pessoalmente: ${DATA.autor || '[nome]'}${DATA.negocio ? ', ' + DATA.negocio.toLowerCase() + ',' : ''} nos disse: ‘${DATA.depoimento || '[depoimento]'}’.” — Nota média só com 5+ avaliações (hoje: ${v('avaliacoes')}); depoimento falado, Rosane autorizou citar?`,
   "1:40–2:00 · “A T4P merece o seu voto por três motivos: atacamos um problema real, provamos com evidência e não com promessa, e o impacto continua depois de hoje — a área do aluno fica no ar até dezembro. Tecnologia para pessoas. Vote na T4P. Obrigado.”"
 ]; }
