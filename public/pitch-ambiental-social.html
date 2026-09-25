@@ -110,7 +110,7 @@
   #bar{position:fixed;left:0;bottom:0;height:3px;background:var(--accent);width:0;transition:width .5s var(--ease);z-index:6}
   #nav{position:fixed;inset:0;z-index:4;display:grid;grid-template-columns:1fr 2fr}
   #nav button{display:block;cursor:pointer}
-  #nav button:focus-visible{outline:2px solid var(--accent);outline-offset:-8px}
+  #nav button,#nav button:focus,#nav button:focus-visible{outline:none}
 
   /* notes overlay */
   #notes{position:fixed;left:0;right:0;bottom:0;max-height:42vh;overflow:auto;padding:22px clamp(16px,3vw,32px) calc(56px + env(safe-area-inset-bottom,0px));
@@ -236,8 +236,8 @@
 </div>
 
 <div id="nav" aria-hidden="true">
-  <button id="prevZone" aria-label="Slide anterior" title="Anterior"></button>
-  <button id="nextZone" aria-label="Próximo slide" title="Próximo"></button>
+  <button id="prevZone" tabindex="-1" aria-label="Slide anterior" title="Anterior"></button>
+  <button id="nextZone" tabindex="-1" aria-label="Próximo slide" title="Próximo"></button>
 </div>
 
 <div id="hud">
