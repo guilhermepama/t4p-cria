@@ -81,6 +81,102 @@ app.get("/pitch-ambiental-social/dados.json", (req, res) => {
   });
 });
 
+// ---------- controle remoto do pitch (celular → tela) ----------
+// Sem banco: salas em memória, identificadas por um código de 6 caracteres gerado pela tela.
+// A tela (papel "tela") recebe comandos; o celular (papel "controle") recebe o estado da tela.
+// Transporte: Server-Sent Events para receber, POST JSON para enviar.
+const PITCH_CODIGO = /^[A-Z0-9]{6}$/;
+const PITCH_MAX_SALAS = 50;
+const PITCH_SALA_TTL_MS = 6 * 60 * 60 * 1000;
+const salasPitch = new Map();
+
+function salaPitch(codigo) {
+  let sala = salasPitch.get(codigo);
+  if (!sala) {
+    const agora = Date.now();
+    for (const [c, s] of salasPitch) {
+      if (agora - s.tocadaEm > PITCH_SALA_TTL_MS && s.tela.size + s.controle.size === 0) salasPitch.delete(c);
+    }
+    if (salasPitch.size >= PITCH_MAX_SALAS) return null;
+    sala = { tela: new Set(), controle: new Set(), estado: null, tocadaEm: agora };
+    salasPitch.set(codigo, sala);
+  }
+  sala.tocadaEm = Date.now();
+  return sala;
+}
+
+function enviarSSE(conexoes, evento, dados) {
+  const msg = `event: ${evento}\ndata: ${JSON.stringify(dados)}\n\n`;
+  for (const r of conexoes) r.write(msg);
+}
+
+function avisarPresenca(sala) {
+  enviarSSE(sala.tela, "presenca", { controles: sala.controle.size });
+  enviarSSE(sala.controle, "presenca", { tela: sala.tela.size > 0 });
+}
+
+const limitePitch = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 240,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.get("/pitch-controle", (req, res) => {
+  res.set({ "X-Robots-Tag": "noindex", "Cache-Control": "no-cache" });
+  res.type("text/html; charset=utf-8");
+  res.sendFile(path.join(__dirname, "..", "public", "pitch-controle.html"), { cacheControl: false });
+});
+
+app.get("/pitch-sala/:codigo/eventos", limitePitch, (req, res) => {
+  const codigo = String(req.params.codigo || "").toUpperCase();
+  const papel = req.query.papel === "tela" ? "tela" : req.query.papel === "controle" ? "controle" : null;
+  if (!PITCH_CODIGO.test(codigo) || !papel) return res.status(400).end();
+  const sala = salaPitch(codigo);
+  if (!sala) return res.status(503).end();
+  res.set({
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-store, no-transform",
+    "X-Accel-Buffering": "no",
+    "X-Robots-Tag": "noindex",
+    Connection: "keep-alive",
+  });
+  res.flushHeaders();
+  res.write("retry: 1500\n\n");
+  sala[papel].add(res);
+  if (papel === "controle" && sala.estado) res.write(`event: estado\ndata: ${JSON.stringify(sala.estado)}\n\n`);
+  avisarPresenca(sala);
+  const batida = setInterval(() => res.write(": ping\n\n"), 20000);
+  req.on("close", () => {
+    clearInterval(batida);
+    sala[papel].delete(res);
+    avisarPresenca(sala);
+  });
+});
+
+app.post("/pitch-sala/:codigo", limitePitch, auth.checarOrigem, (req, res) => {
+  const codigo = String(req.params.codigo || "").toUpperCase();
+  if (!PITCH_CODIGO.test(codigo)) return res.status(400).json({ erro: "código inválido" });
+  const corpo = req.body || {};
+  const sala = salaPitch(codigo);
+  if (!sala) return res.status(503).json({ erro: "muitas salas abertas" });
+  if (corpo.tipo === "estado") {
+    if (JSON.stringify(corpo.dados || {}).length > 20000) return res.status(413).end();
+    sala.estado = corpo.dados || null;
+    enviarSSE(sala.controle, "estado", sala.estado);
+    return res.json({ ok: true, controles: sala.controle.size });
+  }
+  if (corpo.tipo === "comando") {
+    const acoes = ["proximo", "anterior", "ir", "cronometro", "zerar", "sincronizar"];
+    const acao = corpo.dados && corpo.dados.acao;
+    if (!acoes.includes(acao)) return res.status(400).json({ erro: "ação inválida" });
+    if (sala.tela.size === 0) return res.status(409).json({ erro: "tela desconectada" });
+    enviarSSE(sala.tela, "comando", { acao, n: Number.isInteger(corpo.dados.n) ? corpo.dados.n : undefined });
+    return res.json({ ok: true });
+  }
+  return res.status(400).json({ erro: "tipo inválido" });
+});
+
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.get("/health", (req, res) => {
