@@ -516,6 +516,15 @@ async function main() {
     });
 
     // ---------- 0b) a landing tem os links de WhatsApp (fonte única, sem WHATSAPP na env → padrão) ----------
+    await passo("GET /pitch-ambiental-social (com query) responde 200 html, noindex, no-cache e traz o texto do pitch", async () => {
+      const resp = await fetch(`${baseUrl}/pitch-ambiental-social?compradores=12&abriram=75`);
+      if (resp.status !== 200) throw new Error(`status ${resp.status}`);
+      if (!/text\/html; charset=utf-8/i.test(resp.headers.get("content-type") || "")) throw new Error(`content-type ${resp.headers.get("content-type")}`);
+      if (!/noindex/i.test(resp.headers.get("x-robots-tag") || "")) throw new Error("sem X-Robots-Tag noindex");
+      if (!/no-cache/i.test(resp.headers.get("cache-control") || "")) throw new Error(`cache-control ${resp.headers.get("cache-control")}`);
+      if (!(await resp.text()).includes("Tecnologia para pessoas")) throw new Error("corpo sem o texto do pitch");
+    });
+
     await passo("landing tem pelo menos 3 links wa.me/5519974139426 e nenhum {{whatsapp sobra", async () => {
       const pagina = await browser.newPage();
       await pagina.goto(`${baseUrl}/`);

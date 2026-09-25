@@ -55,6 +55,13 @@ app.get(["/", "/index.html"], (req, res) => {
   res.type("html").send(html);
 });
 
+// Pitch interno (sem autenticação, fora da lógica de VENDAS_ATE). Sem cache: o arquivo pode ser trocado até a hora da apresentação.
+app.get("/pitch-ambiental-social", (req, res) => {
+  res.set({ "X-Robots-Tag": "noindex", "Cache-Control": "no-cache" });
+  res.type("text/html; charset=utf-8");
+  res.sendFile(path.join(__dirname, "..", "public", "pitch-ambiental-social.html"), { cacheControl: false });
+});
+
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.get("/health", (req, res) => {
