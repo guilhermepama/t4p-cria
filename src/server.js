@@ -81,6 +81,29 @@ app.get("/pitch-ambiental-social/dados.json", (req, res) => {
   });
 });
 
+// Balanço financeiro da liquidação (/pitch-financeiro). Mesmo esquema do pitch
+// ambiental: interno, noindex, sem cache, sem autenticação. Só agregados (contagens
+// e somas) — nenhum nome, e-mail ou pedido individual. Metas e despesa vêm do
+// planejamento da operação (21/09) e a despesa única é o domínio (D001, R$ 0,01).
+const FIN_METAS = { metaFaturamento: 1600, metaVendas: 33, metaLucro: 1250, preco: 49.9, despesas: 0.01 };
+app.get("/pitch-financeiro", (req, res) => {
+  res.set({ "X-Robots-Tag": "noindex", "Cache-Control": "no-cache" });
+  res.type("text/html; charset=utf-8");
+  res.sendFile(path.join(__dirname, "..", "public", "pitch-financeiro.html"), { cacheControl: false });
+});
+
+app.get("/pitch-financeiro/dados.json", (req, res) => {
+  res.set({ "X-Robots-Tag": "noindex", "Cache-Control": "no-store" });
+  const r = db.resumoFinanceiro();
+  res.json({
+    geradoEm: new Date().toISOString(),
+    vendas: r.vendas,
+    faturamento: Math.round(r.faturamento * 100) / 100,
+    porDia: r.porDia,
+    ...FIN_METAS,
+  });
+});
+
 // ---------- controle remoto do pitch (celular → tela) ----------
 // Sem banco: salas em memória, identificadas por um código de 6 caracteres gerado pela tela.
 // A tela (papel "tela") recebe comandos; o celular (papel "controle") recebe o estado da tela.
