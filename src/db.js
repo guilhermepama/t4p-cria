@@ -434,6 +434,42 @@ function resumoVendas({ incluirTestes = false } = {}) {
     .get(incluirTestes ? 1 : 0);
 }
 
+// Números agregados para o pitch público (/pitch-ambiental-social/dados.json).
+// Só contagens: nenhum nome, e-mail ou valor em dinheiro. Registros de teste ficam de fora.
+function resumoPitch(arquivoAula1) {
+  const vendas = resumoVendas();
+  const alunosAtivos = contarAlunosAtivos();
+  const uso = db
+    .prepare(
+      `SELECT
+         COUNT(DISTINCT CASE WHEN users.ativo = 1 THEN progresso.user_id END) AS alunos_que_abriram,
+         COUNT(CASE WHEN progresso.tipo = 'aula' THEN 1 END) AS aulas_abertas,
+         COUNT(CASE WHEN progresso.tipo = 'aula' AND progresso.concluido = 1 THEN 1 END) AS aulas_concluidas,
+         COUNT(CASE WHEN progresso.item = ? AND progresso.concluido = 1 THEN 1 END) AS concluiram_aula1
+       FROM progresso
+       JOIN users ON users.id = progresso.user_id
+       WHERE users.is_teste = 0`
+    )
+    .get(arquivoAula1);
+  const aval = resumoAvaliacoes();
+  let respostas = 0;
+  let soma = 0;
+  for (const etapa of Object.keys(aval)) {
+    respostas += aval[etapa].respostas;
+    if (aval[etapa].media != null) soma += aval[etapa].media * aval[etapa].respostas;
+  }
+  return {
+    compradores: vendas.total_pagos,
+    alunosAtivos,
+    alunosQueAbriram: uso.alunos_que_abriram,
+    aulasAbertas: uso.aulas_abertas,
+    aulasConcluidas: uso.aulas_concluidas,
+    concluiramAula1: uso.concluiram_aula1,
+    avaliacoes: respostas,
+    notaMedia: respostas ? soma / respostas : null,
+  };
+}
+
 module.exports = {
   db,
   ping,
@@ -471,4 +507,5 @@ module.exports = {
   resumoAvaliacoes,
   listarAvaliacoes,
   contarAlunosAtivos,
+  resumoPitch,
 };

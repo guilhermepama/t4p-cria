@@ -62,6 +62,25 @@ app.get("/pitch-ambiental-social", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "pitch-ambiental-social.html"), { cacheControl: false });
 });
 
+// Dados do pitch, lidos do próprio banco a cada abertura. Só agregados (contagens e nota média), sem dados pessoais.
+// PITCH_PAGINAS_KIT: páginas dos PDFs entregues (Kit completo 21 + Assistentes prontos 4), contadas com pdfinfo em 25/09/2026.
+const PITCH_PAGINAS_KIT = 25;
+app.get("/pitch-ambiental-social/dados.json", (req, res) => {
+  res.set({ "X-Robots-Tag": "noindex", "Cache-Control": "no-store" });
+  const r = db.resumoPitch(AULAS[0].arquivo);
+  res.json({
+    geradoEm: new Date().toISOString(),
+    compradores: r.compradores,
+    abriram: r.alunosAtivos > 0 ? Math.round((r.alunosQueAbriram / r.alunosAtivos) * 100) : null,
+    concluiram: r.concluiramAula1,
+    nota: r.notaMedia == null ? null : Math.round(r.notaMedia * 10) / 10,
+    avaliacoes: r.avaliacoes,
+    aulas: r.aulasAbertas,
+    aulasConcluidas: r.aulasConcluidas,
+    paginasKit: PITCH_PAGINAS_KIT,
+  });
+});
+
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.get("/health", (req, res) => {
