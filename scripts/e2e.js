@@ -525,6 +525,30 @@ async function main() {
       if (!(await resp.text()).includes("Tecnologia para pessoas")) throw new Error("corpo sem o texto do pitch");
     });
 
+    await passo("pitch: /pitch-ambiental-social/dados.json traz só agregados (sem dados pessoais), noindex e no-store", async () => {
+      const resp = await fetch(`${baseUrl}/pitch-ambiental-social/dados.json`);
+      if (resp.status !== 200) throw new Error(`status ${resp.status}`);
+      if (!/noindex/i.test(resp.headers.get("x-robots-tag") || "")) throw new Error("sem X-Robots-Tag noindex");
+      if (!/no-store/i.test(resp.headers.get("cache-control") || "")) throw new Error(`cache-control ${resp.headers.get("cache-control")}`);
+      const d = await resp.json();
+      for (const k of ["compradores", "concluiram", "avaliacoes", "aulas", "aulasConcluidas", "paginasKit"]) {
+        if (typeof d[k] !== "number") throw new Error(`${k} não é número: ${JSON.stringify(d[k])}`);
+      }
+      const texto = JSON.stringify(d);
+      if (/@|nome|email|whatsapp|valor|soma/i.test(texto)) throw new Error(`dado sensível no JSON: ${texto}`);
+    });
+
+    await passo("pitch: slide ambiental mostra números do sistema (sem [__]) e o rótulo 'dados do sistema'", async () => {
+      const pagina = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+      await pagina.goto(`${baseUrl}/pitch-ambiental-social#2`);
+      await pagina.waitForFunction(() => document.getElementById("fonte").classList.contains("vivo"), null, { timeout: 8000 });
+      await pagina.waitForTimeout(1500);
+      const textos = await pagina.$$eval(".slide.active .zero .d", (els) => els.map((e) => e.textContent));
+      await pagina.close();
+      if (textos.length !== 4) throw new Error(`esperava 4 linhas, veio ${textos.length}`);
+      if (textos.some((t) => t.includes("[__]"))) throw new Error(`placeholder sobrando: ${textos.join(" | ")}`);
+    });
+
     await passo("landing tem pelo menos 3 links wa.me/5519974139426 e nenhum {{whatsapp sobra", async () => {
       const pagina = await browser.newPage();
       await pagina.goto(`${baseUrl}/`);

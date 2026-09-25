@@ -73,6 +73,10 @@
   .zero .n{font-weight:900;letter-spacing:-.04em;font-size:clamp(34px,5.4vw,84px);line-height:1}
   .zero .n i{font-size:1.02em}
   .zero .d{color:var(--muted);font-size:clamp(13px,1.3vw,18px);line-height:1.45}
+  .zero .d b{color:var(--cream);font-weight:700}
+  .zeros.four{gap:clamp(4px,1vh,12px);width:min(100%,960px)}
+  .zeros.four .zero{padding:clamp(6px,1.1vh,12px) 0}
+  .zeros.four .zero .n{font-size:clamp(28px,4.3vw,66px)}
 
   /* stats */
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(10px,1.6vw,22px);width:100%;max-width:1040px}
@@ -105,6 +109,9 @@
   #clock{font-variant-numeric:tabular-nums;font-weight:600;color:var(--cream);font-size:14px;min-width:44px;text-align:right}
   #clock.over{color:#ff7a5c}
   #target{font-variant-numeric:tabular-nums}
+  #fonte{font-size:11px}
+  #fonte.vivo{color:var(--accent)}
+  @media (max-width:700px){#fonte{display:none}}
   #hud button{padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:11px}
   #hud button:hover,#hud button:focus-visible{color:var(--cream);border-color:var(--accent);outline:none}
   #bar{position:fixed;left:0;bottom:0;height:3px;background:var(--accent);width:0;transition:width .5s var(--ease);z-index:6}
@@ -179,12 +186,13 @@
     <div class="wrap">
       <span class="chip" data-in style="--i:0">Impacto ambiental</span>
       <h1 data-in style="--i:1;font-size:clamp(32px,5.4vw,84px)">Um produto <i>100% digital.</i></h1>
-      <div class="zeros">
-        <div class="zero" data-in style="--i:2"><div class="n">Zero <i>impressão</i></div><div class="d">Amostra, aulas e materiais existem só em formato digital.</div></div>
-        <div class="zero" data-in style="--i:3"><div class="n">Zero <i>deslocamento</i></div><div class="d">O aluno aprende de onde está, no horário que tem.</div></div>
-        <div class="zero" data-in style="--i:4"><div class="n">Zero <i>logística</i></div><div class="d">Nada é embalado, transportado ou descartado.</div></div>
+      <div class="zeros four">
+        <div class="zero" data-in style="--i:2"><div class="n">Zero <i>impressão</i></div><div class="d"><b><span data-num="folhas" data-inline></span> páginas</b> que não foram impressas: <span data-num="compradores" data-inline></span> kits × <span data-num="paginasKit" data-inline></span> páginas de material.</div></div>
+        <div class="zero" data-in style="--i:3"><div class="n">Zero <i>deslocamento</i></div><div class="d"><b><span data-num="aulas" data-inline></span> aulas</b> abertas de onde o aluno estava, sem sala e sem trajeto.</div></div>
+        <div class="zero" data-in style="--i:4"><div class="n">Zero <i>logística</i></div><div class="d"><b><span data-num="compradores" data-inline></span> kits</b> entregues sem embalagem, frete ou descarte.</div></div>
+        <div class="zero" data-in style="--i:5"><div class="n">Menos <i>retrabalho</i></div><div class="d">Pedido certo na primeira vez: menos processamento, <b>energia e água</b> nos data centers.</div></div>
       </div>
-      <p class="sub" data-in style="--i:5"><b>Uma pegada pequena por natureza.</b> O impacto que buscamos de verdade é o social.</p>
+      <p class="sub" data-in style="--i:6"><b>Uma pegada pequena por natureza.</b> O impacto que buscamos de verdade é o social.</p>
     </div>
   </section>
 
@@ -246,6 +254,7 @@
     <span id="counter">1 / 6</span>
     <span id="clock">0:00</span>
     <span id="target"></span>
+    <span id="fonte" title="Origem dos números">carregando dados…</span>
     <button id="btnTimer" title="T">▶ cronômetro</button>
     <button id="btnNotes" title="N">notas</button>
   </div>
@@ -261,8 +270,10 @@
 
 <script>
 /* =====================================================================
-   DADOS DO PITCH — preencher na sexta de manhã com o /admin.
-   null = mostra "[__]". Números viram contagem animada.
+   DADOS DO PITCH — vêm do próprio sistema (/pitch-ambiental-social/dados.json)
+   a cada vez que a página abre. Recarregue (F5) antes de apresentar.
+   Prioridade: parâmetro na URL > sistema > valor escrito aqui (reserva se o
+   sistema não responder). null = mostra "[__]". Números viram contagem animada.
    ===================================================================== */
 const DATA = {
   compradores: null,        // vendas reais (sem "teste" e "Guilherme Teste")
@@ -275,32 +286,66 @@ const DATA = {
   depoimento:  "",          // só com autorização de divulgação marcada
   autor:       "",
   negocio:     "",
-  printSrc:    ""           // caminho da imagem, ex.: "/img/avaliacao.png"
+  printSrc:    "",          // caminho da imagem, ex.: "/img/avaliacao.png"
+  aulas:       null,        // aulas abertas (sistema)
+  paginasKit:  25,          // páginas dos PDFs do kit (sistema)
+  folhas:      null,        // calculado: compradores × paginasKit
+  km:          null         // estimativa: aulas × KM_POR_AULA (só nas notas)
 };
+const KM_POR_AULA = 10;     // premissa: cada aula seria um encontro presencial de 10 km ida e volta
+const NUMERICOS = ['compradores','amostras','abriram','concluiram','nota','avaliacoes','aulas','paginasKit'];
+const DO_SISTEMA = ['compradores','abriram','concluiram','nota','avaliacoes','aulas','paginasKit'];
 
-const NOTES = [
+const v = (k, dec) => { const x = DATA[k]; return (x === null || x === undefined || x === '') ? (k === 'nota' ? '[_,_]' : '[__]') : (typeof x === 'number' ? fmt(x, dec ?? (k === 'nota' ? 1 : 0)) : x); };
+let NOTES = [];
+function montarNotas(){ NOTES = [
   "“Bom dia. Somos a T4P – Tech for People: Guilherme, Felipe e Fernando.”",
   "0:00–0:20 · “Nossa proposta é uma só: colocar a inteligência artificial ao alcance de quem empreende com poucos recursos. A IA não é fraca — ela só não conhece o seu negócio. O kit IA para Negócios ensina o dono de pequeno negócio a pedir do jeito certo: três aulas práticas, 25 pedidos prontos, R$ 49,90, 90 dias de acesso e garantia. Site, checkout e área do aluno construídos por nós.”",
-  "0:20–0:45 · “Sobre o meio ambiente, vamos ser diretos: o produto é digital. Não imprimimos nada, ninguém se desloca para aula, nada é embalado nem transportado. É uma pegada pequena por natureza, e não vamos inflar isso. O impacto que buscamos de verdade é o social.”",
-  "0:45–1:10 · “O problema social que atacamos: o pequeno empreendedor fica para trás na IA não por falta de vontade, mas de acesso. Cursos custam caro e falam difícil. Em cinco dias, [__] empreendedores compraram o kit e [__] receberam a amostra gratuita — donos de comércio local, prestadores de serviço, autônomos.”",
-  "1:10–1:40 · “Vender não é impacto. Impacto é o conteúdo ser usado: [__]% já abriram as aulas, [__] concluíram a Aula 1, e as avaliações dão nota média [_,_]. A [nome], dona de [negócio], escreveu: ‘[depoimento]’.” — Nota média só com 5+ avaliações; depoimento só com autorização.",
+  `0:20–0:45 · “No meio ambiente, vamos ser diretos: o produto é digital. Até agora foram ${v('folhas')} páginas que não viraram papel, ${v('aulas')} aulas abertas sem ninguém se deslocar e ${v('compradores')} kits sem embalagem nem frete. E ensinar a pedir certo na primeira vez reduz o retrabalho da IA: menos processamento, menos energia e água. Pegada pequena por natureza — o impacto que buscamos de verdade é o social.” — Se perguntarem: páginas = kits × ${v('paginasKit')} páginas dos PDFs; deslocamento ≈ ${v('km')} km se cada aula fosse um encontro de ${KM_POR_AULA} km ida e volta (premissa nossa); um pedido típico à IA gasta cerca de 0,24–0,34 Wh e 0,3 mL de água (Google e OpenAI, 2025) — refazer três vezes custa o triplo. Não medimos o uso de IA dos alunos, por isso não damos número de economia.`,
+  `0:45–1:10 · “O problema social que atacamos: o pequeno empreendedor fica para trás na IA não por falta de vontade, mas de acesso. Cursos custam caro e falam difícil. Em cinco dias, ${v('compradores')} empreendedores compraram o kit e ${v('amostras')} receberam a amostra gratuita — donos de comércio local, prestadores de serviço, autônomos.”`,
+  `1:10–1:40 · “Vender não é impacto. Impacto é o conteúdo ser usado: ${v('abriram')}% já abriram o conteúdo, ${v('concluiram')} concluíram a Aula 1, e as avaliações dão nota média ${v('nota')}. A [nome], dona de [negócio], escreveu: ‘[depoimento]’.” — Nota média só com 5+ avaliações (hoje: ${v('avaliacoes')}); depoimento só com autorização.`,
   "1:40–2:00 · “A T4P merece o seu voto por três motivos: atacamos um problema real, provamos com evidência e não com promessa, e o impacto continua depois de hoje — a área do aluno fica no ar até dezembro. Tecnologia para pessoas. Vote na T4P. Obrigado.”"
-];
+]; }
 
-/* Sobrescrever pela URL, sem novo deploy:
-   /pitch-ambiental-social?compradores=12&amostras=40&abriram=75&concluiram=6&nota=4.6&avaliacoes=7&autor=Maria&negocio=Loja%20X&depoimento=...&printSrc=/img/print.png */
+/* Sobrescrever pela URL, sem novo deploy (vale mais que o sistema):
+   /pitch-ambiental-social?amostras=40&autor=Maria&negocio=Loja%20X&depoimento=...&printSrc=/img/print.png */
 const QS = new URLSearchParams(location.search);
-for (const k of Object.keys(DATA)) if (QS.has(k)) {
-  const raw = QS.get(k);
-  DATA[k] = ['compradores','amostras','abriram','concluiram','nota','avaliacoes'].includes(k) ? (raw === '' ? null : Number(raw.replace(',','.'))) : raw;
+function aplicarURL(){
+  for (const k of Object.keys(DATA)) if (QS.has(k)) {
+    const raw = QS.get(k);
+    DATA[k] = NUMERICOS.includes(k) ? (raw === '' ? null : Number(raw.replace(',','.'))) : raw;
+  }
+}
+const fonteEl = document.getElementById('fonte');
+async function carregarSistema(){
+  try {
+    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch('/pitch-ambiental-social/dados.json', { cache: 'no-store', signal: ctrl.signal });
+    clearTimeout(to);
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    for (const k of DO_SISTEMA) if (d[k] !== null && d[k] !== undefined) DATA[k] = d[k];
+    const hora = new Date(d.geradoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    fonteEl.textContent = 'dados do sistema · ' + hora; fonteEl.classList.add('vivo');
+  } catch (e) {
+    fonteEl.textContent = 'sem conexão com o sistema · dados manuais';
+  }
+}
+function calcular(){
+  DATA.folhas = (DATA.compradores != null && DATA.paginasKit != null) ? DATA.compradores * DATA.paginasKit : null;
+  DATA.km = DATA.aulas != null ? DATA.aulas * KM_POR_AULA : null;
 }
 
 /* ---------- preencher dados ---------- */
 const fmt = (v, dec=0) => v === null || v === undefined || v === "" ? null : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+function preencher(){
 document.querySelectorAll('[data-num]').forEach(el => {
-  const key = el.dataset.num, v = DATA[key], suf = el.dataset.suffix || '';
+  const key = el.dataset.num, v = DATA[key];
+  if (el.dataset.suf0 === undefined) el.dataset.suf0 = el.dataset.suffix || '';
+  const suf = el.dataset.suf0; el.dataset.suffix = suf;
   const dec = key === 'nota' ? 1 : 0;
   const isInline = el.hasAttribute('data-inline');
+  delete el.dataset.target; delete el.dataset.done; el.classList.remove('ph');
   if (v === null || v === undefined) {
     el.textContent = (key === 'nota' ? '[_,_]' : '[__]') + (isInline ? '' : suf);
     if (!isInline) el.classList.add('ph');
@@ -314,8 +359,11 @@ document.querySelectorAll('[data-text]').forEach(el => {
   const v = DATA[el.dataset.text];
   el.textContent = (v === null || v === undefined || v === "") ? '[' + el.dataset.text + ']' : String(v);
 });
-if (DATA.avaliacoes !== null && DATA.avaliacoes < 5) document.getElementById('statNota').style.display = 'none';
-if (DATA.printSrc) { const s = document.getElementById('shot'); s.textContent = ''; const im = new Image(); im.src = DATA.printSrc; im.alt = 'Evidência'; s.appendChild(im); }
+document.getElementById('statNota').style.display = (DATA.avaliacoes !== null && DATA.avaliacoes < 5) ? 'none' : '';
+const s = document.getElementById('shot');
+if (DATA.printSrc && !s.querySelector('img')) { s.textContent = ''; const im = new Image(); im.src = DATA.printSrc; im.alt = 'Evidência'; s.appendChild(im); }
+montarNotas();
+}
 
 /* ---------- contagem animada ---------- */
 function countUp(el){
@@ -392,12 +440,17 @@ btnTimer.addEventListener('click', () => timer.toggle());
 /* ---------- início ---------- */
 const h = parseInt(location.hash.slice(1), 10);
 cur = (!isNaN(h) && h > 0 && h < slides.length) ? h : 0;
+aplicarURL(); calcular(); preencher();
 slides[cur].classList.add('active');
 counter.textContent = (cur+1) + ' / ' + slides.length;
 bar.style.width = (cur/(slides.length-1)*100) + '%';
 document.getElementById('notesTitle').textContent = slides[cur].dataset.title;
 document.getElementById('notesBody').textContent = NOTES[cur] || '';
-slides[cur].querySelectorAll('[data-num]').forEach(el => setTimeout(() => countUp(el), 500));
+carregarSistema().then(() => {
+  aplicarURL(); calcular(); preencher();
+  document.getElementById('notesBody').textContent = NOTES[cur] || '';
+  slides[cur].querySelectorAll('[data-num]').forEach(el => setTimeout(() => countUp(el), 300));
+});
 </script>
 </body>
 </html>
