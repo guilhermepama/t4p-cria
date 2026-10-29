@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS orders (
   user_id INTEGER NOT NULL REFERENCES users(id),
   mp_payment_id TEXT UNIQUE,
   valor REAL NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pendente',  -- pendente | pago | expirado | manual | estornado
+  status TEXT NOT NULL DEFAULT 'pendente',  -- pendente | pago | expirado | manual | estornado | voucher (valor 0, fora das vendas)
   pix_copia_cola TEXT,
   pix_qr_base64 TEXT,
   expira_em TEXT,
@@ -53,6 +53,14 @@ CREATE TABLE IF NOT EXISTS eventos (   -- log de webhook e ações do admin
   tipo TEXT NOT NULL,
   detalhe TEXT,
   criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS vouchers (  -- acesso gratuito por código (premiações, doações)
+  codigo TEXT PRIMARY KEY,             -- PREFIXO-XXXX-XXXX, alfabeto sem 0/O 1/I/L 5/S 8/B 2/Z
+  lote TEXT NOT NULL,
+  valido_ate TEXT NOT NULL,            -- UTC; fim do dia em Brasília da data impressa
+  criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+  usado_em TEXT,
+  user_id INTEGER REFERENCES users(id)
 );
 ```
 
@@ -74,7 +82,11 @@ Datas em UTC. Na tela, converter para America/Sao_Paulo.
 | GET | `/aluno` | aluno ativo | página com as 3 aulas + downloads |
 | GET | `/aluno/conteudo/:arquivo` | aluno ativo | entrega de arquivo de `conteudo/` com lista branca de nomes (aulas, ferramentas e downloads) |
 | GET/POST | `/aluno/senha` | aluno ativo | troca de senha: exige a atual, valida a nova (8–200 caracteres, confirmação igual, diferente da atual), encerra as sessões dos outros dispositivos e mantém a atual |
-| GET | `/admin` | admin (Basic Auth) | vendas, total bruto, pendentes |
+| GET/POST | `/resgatar` | público (rate limit 10/min, Origin) | resgate de voucher: `?c=CODIGO` pré-preenche (QR impresso). Cria/ativa o aluno, grava pedido `voucher` (R$ 0) e marca o código como usado, tudo numa transação; cria a sessão e manda para `/aluno`. Erros: 404 código inexistente, 409 já usado / e-mail já ativo, 410 expirado. Não obedece a `VENDAS_ATE` |
+| GET | `/admin` | admin (Basic Auth) | vendas, total bruto, pendentes, bloco de vouchers |
+| POST | `/admin/vouchers/gerar` | admin | gera N códigos (1–200) com lote, prefixo e validade |
+| POST | `/admin/vouchers/importar` | admin | importa códigos já impressos (gerados pelo script `gerar-vouchers` em outro banco) |
+| GET | `/admin/vouchers.csv` | admin | export: código, lote, validade, situação, resgatado_em, nome, e-mail |
 | POST | `/admin/alunos` | admin | cria aluno já ativo + pedido `manual` (fallback PIX direto): nome, e-mail, WhatsApp, senha temporária, valor |
 | POST | `/admin/ativar/:userId` | admin | ativação manual (fallback PIX direto) → pedido `manual` |
 | POST | `/admin/senha/:userId` | admin | define nova senha temporária |

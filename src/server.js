@@ -10,6 +10,7 @@ const rateLimit = require("express-rate-limit");
 const db = require("./db");
 const auth = require("./auth");
 const mp = require("./mp");
+const vouchers = require("./vouchers");
 const { render, escapeHtml } = require("./views/render");
 
 const app = express();
@@ -501,6 +502,101 @@ app.post("/entrar", limiteEntrar, auth.checarOrigem, (req, res) => {
 app.post("/sair", auth.checarOrigem, (req, res) => {
   auth.destruirSessaoCookie(req, res);
   res.redirect("/entrar");
+});
+
+// ---------- /resgatar (voucher de acesso gratuito: premiações e doações) ----------
+// Fora da regra de VENDAS_ATE: não é venda. O código vale até vouchers.valido_ate.
+
+const limiteResgatar = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+function renderResgatar(res, { statusCode = 200, mensagemErro = "", codigo = "", nome = "", email = "", whatsapp = "" } = {}) {
+  res.status(statusCode).send(
+    render("resgatar.html", {
+      codigo,
+      nome,
+      email,
+      whatsapp,
+      mensagemErro: mensagemErro ? `<p class="erro">${mensagemErro}</p>` : "",
+    })
+  );
+}
+
+app.get("/resgatar", (req, res) => {
+  renderResgatar(res, { codigo: vouchers.normalizarCodigo(req.query.c).slice(0, 24) });
+});
+
+app.post("/resgatar", limiteResgatar, auth.checarOrigem, (req, res) => {
+  const dadosForm = {
+    codigo: vouchers.normalizarCodigo(req.body.codigo).slice(0, 24),
+    nome: String(req.body.nome || "").trim().slice(0, 120),
+    email: String(req.body.email || "").trim().slice(0, 160),
+    whatsapp: String(req.body.whatsapp || "").trim(),
+    senha: String(req.body.senha || ""),
+    aceite: req.body.aceite,
+  };
+  const reexibir = (statusCode, mensagemErro) =>
+    renderResgatar(res, { statusCode, mensagemErro, ...dadosForm });
+
+  const digitosWhatsapp = limparWhatsapp(dadosForm.whatsapp);
+
+  if (!dadosForm.codigo) return reexibir(400, "Digite o código do voucher.");
+  if (!dadosForm.nome || !dadosForm.email || !dadosForm.email.includes("@")) {
+    return reexibir(400, "Preencha nome e um e-mail válido.");
+  }
+  if (digitosWhatsapp && digitosWhatsapp.length !== 10 && digitosWhatsapp.length !== 11) {
+    return reexibir(400, "Informe um WhatsApp válido, com DDD, ou deixe em branco.");
+  }
+  if (dadosForm.senha.length < 8) return reexibir(400, "A senha precisa ter ao menos 8 caracteres.");
+  if (!dadosForm.aceite) {
+    return reexibir(400, 'É preciso aceitar a <a href="/privacidade">política de privacidade</a>.');
+  }
+
+  let userId;
+  try {
+    userId = db.resgatarVoucher({
+      codigo: dadosForm.codigo,
+      nome: dadosForm.nome,
+      email: dadosForm.email,
+      whatsapp: digitosWhatsapp || null,
+      senhaHash: auth.hashSenha(dadosForm.senha),
+    });
+  } catch (erro) {
+    const motivo = erro.motivo;
+    if (motivo === "invalido") {
+      db.registrarEvento("voucher_invalido", `codigo=${dadosForm.codigo} ip=${req.ip}`);
+      return reexibir(404, "Código não encontrado. Confira o voucher impresso e tente de novo.");
+    }
+    if (motivo === "usado") {
+      db.registrarEvento("voucher_repetido", `codigo=${dadosForm.codigo}`);
+      return reexibir(
+        409,
+        `Este voucher já foi utilizado. Se foi você, <a href="/entrar">entre com seu e-mail</a>. Se não, <a href="${linkWhatsapp(
+          `Oi! Meu voucher ${dadosForm.codigo} consta como usado e não fui eu.`
+        )}" target="_blank" rel="noopener">fale com a gente</a>.`
+      );
+    }
+    if (motivo === "expirado") {
+      return reexibir(
+        410,
+        `Este voucher expirou. <a href="${linkWhatsapp(
+          `Oi! Meu voucher ${dadosForm.codigo} expirou. Ainda consigo resgatar?`
+        )}" target="_blank" rel="noopener">Fale com a gente</a>.`
+      );
+    }
+    if (motivo === "ja_tem_acesso") {
+      return reexibir(409, 'Este e-mail já tem acesso ao kit. <a href="/entrar">Entrar</a>.');
+    }
+    throw erro;
+  }
+
+  db.registrarEvento("voucher_resgatado", `codigo=${dadosForm.codigo} user_id=${userId}`);
+  auth.criarSessaoCookie(res, userId);
+  res.redirect(303, "/aluno");
 });
 
 // ---------- /comprar, /pagamento, /webhooks/mp ----------
@@ -1046,6 +1142,71 @@ function blocoAvaliacoesAdmin(opcoes) {
     <p style="margin-top:14px"><a class="csv" href="/admin/avaliacoes.csv">Baixar avaliações (CSV)</a></p>`;
 }
 
+function blocoVouchersAdmin() {
+  const resumo = db.resumoVouchers();
+  const lista = db.listarVouchers();
+  const hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const linhas = lista.length
+    ? lista
+        .map(
+          (v) => `<tr>
+            <td style="font-family:ui-monospace,Consolas,monospace">${escapeHtml(v.codigo)}</td>
+            <td>${escapeHtml(v.lote)}</td>
+            <td>${escapeHtml(formatarBRT(v.valido_ate))}</td>
+            <td class="situacao-${escapeHtml(v.situacao)}">${escapeHtml(v.situacao)}</td>
+            <td>${v.usado_em ? escapeHtml(formatarBRT(v.usado_em)) : "—"}</td>
+            <td>${v.nome ? `${escapeHtml(v.nome)}<br><span style="color:var(--muted)">${escapeHtml(v.email)}</span>` : "—"}</td>
+          </tr>`
+        )
+        .join("\n")
+    : '<tr><td colspan="6">Nenhum voucher cadastrado ainda.</td></tr>';
+
+  return `
+    <h2>Vouchers (acesso gratuito)</h2>
+    <div class="resumo">
+      <div class="stat"><div class="valor">${resumo.disponiveis}</div><div class="rotulo">Disponíveis</div></div>
+      <div class="stat"><div class="valor">${resumo.usados}</div><div class="rotulo">Resgatados</div></div>
+      <div class="stat"><div class="valor">${resumo.expirados}</div><div class="rotulo">Expirados</div></div>
+      <div class="stat"><div class="valor">${resumo.total}</div><div class="rotulo">Total</div></div>
+    </div>
+    <p style="color:var(--muted);font-size:13.5px;margin:6px 0 14px">O aluno resgata em <strong>/resgatar</strong> (ou pelo QR do voucher, que já preenche o código). Pedido fica com status <code>voucher</code> e valor R$ 0, fora do total de vendas.</p>
+    <table>
+      <thead>
+        <tr><th>Código</th><th>Lote</th><th>Válido até (BRT)</th><th>Situação</th><th>Resgatado em</th><th>Aluno</th></tr>
+      </thead>
+      <tbody>
+        ${linhas}
+      </tbody>
+    </table>
+    <p style="margin-top:14px"><a class="csv" href="/admin/vouchers.csv">Baixar vouchers (CSV)</a></p>
+
+    <div class="paineis" style="margin-top:18px">
+      <form class="painel" method="POST" action="/admin/vouchers/gerar">
+        <strong>Gerar novos códigos</strong>
+        <label for="g-lote">Lote (ex.: Conexão Fatec 2026)</label>
+        <input type="text" id="g-lote" name="lote" required maxlength="60">
+        <label for="g-prefixo">Prefixo do código</label>
+        <input type="text" id="g-prefixo" name="prefixo" value="FATEC" maxlength="8">
+        <label for="g-quantidade">Quantidade (1 a 200)</label>
+        <input type="number" id="g-quantidade" name="quantidade" min="1" max="200" value="30" required>
+        <label for="g-validade">Válido até (inclusive, horário de Brasília)</label>
+        <input type="date" id="g-validade" name="valido_ate" min="${hoje}" required>
+        <button class="btn" type="submit">Gerar códigos</button>
+      </form>
+
+      <form class="painel" method="POST" action="/admin/vouchers/importar">
+        <strong>Importar códigos já impressos</strong>
+        <label for="i-lote">Lote</label>
+        <input type="text" id="i-lote" name="lote" required maxlength="60">
+        <label for="i-validade">Válido até (inclusive, horário de Brasília)</label>
+        <input type="date" id="i-validade" name="valido_ate" required>
+        <label for="i-codigos">Códigos (um por linha; vindos do CSV do script <code>gerar-vouchers</code>)</label>
+        <textarea id="i-codigos" name="codigos" required placeholder="FATEC-XXXX-XXXX"></textarea>
+        <button class="btn" type="submit">Importar códigos</button>
+      </form>
+    </div>`;
+}
+
 function renderAdmin(res, { statusCode = 200, mensagemErro = "", incluirTestes = false } = {}) {
   const opcoes = { incluirTestes };
   const resumo = db.resumoVendas(opcoes);
@@ -1117,6 +1278,7 @@ function renderAdmin(res, { statusCode = 200, mensagemErro = "", incluirTestes =
   res.status(statusCode).send(
     render("admin.html", {
       blocoAvaliacoes: blocoAvaliacoesAdmin(opcoes),
+      blocoVouchers: blocoVouchersAdmin(),
       mensagemErro: mensagemErro ? `<p class="erro">${escapeHtml(mensagemErro)}</p>` : "",
       totalPagos: String(resumo.total_pagos),
       somaFormatada: formatarBRL(resumo.soma),
@@ -1181,6 +1343,78 @@ app.post("/admin/senha/:userId", auth.requireAdmin, auth.checarOrigem, (req, res
   db.trocarSenha(usuario.id, auth.hashSenha(senha));
   db.registrarEvento("admin_nova_senha", `user_id=${usuario.id}`);
   res.redirect("/admin");
+});
+
+app.post("/admin/vouchers/gerar", auth.requireAdmin, auth.checarOrigem, (req, res) => {
+  const lote = String(req.body.lote || "").trim().slice(0, 60);
+  const prefixo = vouchers.normalizarPrefixo(req.body.prefixo);
+  const quantidade = Number.parseInt(String(req.body.quantidade || ""), 10);
+  const validoAte = vouchers.fimDoDiaBrtParaUtc(String(req.body.valido_ate || "").trim());
+
+  if (!lote || !Number.isInteger(quantidade) || quantidade < 1 || quantidade > 200 || !validoAte) {
+    return renderAdmin(res, { statusCode: 400, mensagemErro: "Dados inválidos para gerar vouchers." });
+  }
+
+  const codigos = new Set();
+  while (codigos.size < quantidade) {
+    const codigo = vouchers.gerarCodigo(prefixo);
+    if (!db.buscarVoucher(codigo)) codigos.add(codigo);
+  }
+  db.criarVouchers([...codigos], lote, validoAte);
+  db.registrarEvento("vouchers_gerados", `lote=${lote} quantidade=${quantidade} valido_ate=${validoAte}`);
+  res.redirect("/admin");
+});
+
+app.post("/admin/vouchers/importar", auth.requireAdmin, auth.checarOrigem, (req, res) => {
+  const lote = String(req.body.lote || "").trim().slice(0, 60);
+  const validoAte = vouchers.fimDoDiaBrtParaUtc(String(req.body.valido_ate || "").trim());
+  const codigos = [
+    ...new Set(
+      String(req.body.codigos || "")
+        .split(/[\s,;]+/)
+        .map((c) => vouchers.normalizarCodigo(c))
+        .filter((c) => c.length >= 10 && c.length <= 24)
+    ),
+  ];
+
+  if (!lote || !validoAte || codigos.length === 0 || codigos.length > 500) {
+    return renderAdmin(res, { statusCode: 400, mensagemErro: "Dados inválidos para importar vouchers." });
+  }
+  const repetidos = codigos.filter((c) => db.buscarVoucher(c));
+  if (repetidos.length) {
+    return renderAdmin(res, {
+      statusCode: 409,
+      mensagemErro: `Códigos já cadastrados: ${repetidos.slice(0, 5).join(", ")}${repetidos.length > 5 ? "…" : ""}`,
+    });
+  }
+  db.criarVouchers(codigos, lote, validoAte);
+  db.registrarEvento("vouchers_importados", `lote=${lote} quantidade=${codigos.length} valido_ate=${validoAte}`);
+  res.redirect("/admin");
+});
+
+app.get("/admin/vouchers.csv", auth.requireAdmin, (req, res) => {
+  const cabecalho = "codigo;lote;valido_ate;situacao;resgatado_em;nome;email";
+  const corpo = db
+    .listarVouchers()
+    .map((v) =>
+      [
+        v.codigo,
+        protegerCsv(v.lote),
+        formatarBRT(v.valido_ate),
+        v.situacao,
+        v.usado_em ? formatarBRT(v.usado_em) : "",
+        protegerCsv(v.nome || ""),
+        protegerCsv(v.email || ""),
+      ]
+        .map((campo) => `"${String(campo).replace(/"/g, '""')}"`)
+        .join(";")
+    )
+    .join("\r\n");
+
+  const csv = "﻿" + cabecalho + "\r\n" + (corpo ? corpo + "\r\n" : "");
+  res.set("Content-Type", "text/csv; charset=utf-8");
+  res.set("Content-Disposition", 'attachment; filename="vouchers.csv"');
+  res.send(csv);
 });
 
 app.get("/admin/vendas.csv", auth.requireAdmin, (req, res) => {
