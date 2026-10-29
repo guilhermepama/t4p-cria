@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resgatar voucher | IA para Negócios — T4P</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b0d; --card:#141419; --border:#232329; --text:#f2ede4;
+    --muted:#9b9aa3; --orange:#ee8148; --orange-deep:#d96a33; --red:#e07b6a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--text); min-height:100vh;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+    font-family:'Inter',system-ui,-apple-system,sans-serif; line-height:1.6;
+  }
+  h1{font-family:'Inter Tight',sans-serif; font-weight:800; font-size:28px; margin-bottom:4px}
+  .card{
+    width:100%; max-width:420px; background:var(--card); border:1px solid var(--border);
+    border-radius:18px; padding:32px 28px;
+  }
+  p.sub{color:var(--muted); font-size:14.5px; margin-bottom:20px}
+  .ja-tem{color:var(--muted); font-size:13.5px; margin-bottom:8px}
+  .ja-tem a{color:var(--orange)}
+  .selo{display:inline-block; font-size:12.5px; font-weight:600; color:var(--orange);
+    border:1px solid rgba(238,129,72,.4); border-radius:999px; padding:3px 10px; margin-bottom:18px}
+  label{display:block; font-size:14px; font-weight:600; margin-bottom:6px; margin-top:16px}
+  input{
+    width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border);
+    background:#0f0f12; color:var(--text); font-size:15px;
+  }
+  input:focus{outline:2px solid var(--orange)}
+  input.codigo{font-family:'Inter Tight',sans-serif; font-weight:700; font-size:18px; letter-spacing:.08em; text-transform:uppercase}
+  .dica{font-size:12.5px; color:var(--muted); margin-top:5px}
+  .aceite{display:flex; align-items:flex-start; gap:10px; margin-top:20px; font-size:13.5px; color:var(--muted)}
+  .aceite input{width:auto; margin-top:3px}
+  .aceite a{color:var(--orange)}
+  .btn{
+    display:inline-flex; width:100%; align-items:center; justify-content:center;
+    border-radius:999px; padding:13px 26px; margin-top:24px; border:none; cursor:pointer;
+    background:linear-gradient(96deg,#f6c49a 10%,var(--orange) 90%); color:#1a1006;
+    font-family:'Inter Tight',sans-serif; font-weight:700; font-size:16px;
+  }
+  .erro{
+    background:rgba(224,123,106,.12); border:1px solid var(--red); color:var(--red);
+    border-radius:10px; padding:10px 14px; font-size:14px; margin-top:16px;
+  }
+  .erro a{color:var(--red); font-weight:700}
+  footer{margin-top:22px; text-align:center; font-size:12.5px; color:var(--muted)}
+  footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Resgatar voucher</h1>
+    <p class="ja-tem">Já tem acesso? <a href="/entrar">Entrar</a>.</p>
+    <span class="selo">Kit IA para Negócios · acesso completo</span>
+    <p class="sub">Digite o código do seu voucher e crie sua conta. O acesso é liberado na hora.</p>
+    {{{mensagemErro}}}
+    <form method="POST" action="/resgatar">
+      <label for="codigo">Código do voucher</label>
+      <input class="codigo" type="text" id="codigo" name="codigo" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="FATEC-XXXX-XXXX" value="{{codigo}}">
+      <p class="dica">Está impresso no voucher. Pode digitar com ou sem os hífens.</p>
+      <label for="nome">Nome</label>
+      <input type="text" id="nome" name="nome" required autocomplete="name" value="{{nome}}">
+      <label for="email">E-mail</label>
+      <input type="email" id="email" name="email" required autocomplete="email" value="{{email}}">
+      <p class="dica">Será seu login. Use um e-mail que você acessa.</p>
+      <label for="whatsapp">WhatsApp <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+      <input type="text" id="whatsapp" name="whatsapp" inputmode="numeric" placeholder="(17) 91234-5678" value="{{whatsapp}}">
+      <label for="senha">Crie uma senha</label>
+      <input type="password" id="senha" name="senha" required minlength="8" autocomplete="new-password">
+      <p class="dica">Mínimo de 8 caracteres.</p>
+      <label class="aceite">
+        <input type="checkbox" name="aceite" value="1" required>
+        <span>Li e aceito a <a href="/privacidade">política de privacidade</a>.</span>
+      </label>
+      <button class="btn" type="submit">Liberar meu acesso</button>
+    </form>
+    <footer><a href="/privacidade">Privacidade</a></footer>
+  </div>
+</body>
+</html>

@@ -35,7 +35,11 @@
   th,td{text-align:left; padding:10px 8px; border-bottom:1px solid var(--border); vertical-align:top}
   td:nth-child(1), td:nth-child(2), td:nth-child(3){overflow-wrap:anywhere}
   th{color:var(--muted); font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em}
-  .status-pago, .status-manual{color:var(--green)}
+  .status-pago, .status-manual, .status-voucher, .situacao-disponivel{color:var(--green)}
+  .situacao-usado{color:var(--muted)}
+  .situacao-expirado{color:var(--red)}
+  textarea{width:100%; min-height:120px; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:#0f0f12; color:var(--text); font-size:13.5px; font-family:ui-monospace,Consolas,monospace}
+  .paineis{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start}
   .status-pendente{color:var(--muted)}
   .status-expirado, .status-estornado{color:var(--red)}
   form.acao{display:inline; margin-right:6px}
@@ -99,6 +103,8 @@
     </table>
 
     {{{blocoAvaliacoes}}}
+
+    {{{blocoVouchers}}}
 
     <h2>Cadastrar aluno (PIX direto)</h2>
     <form class="painel" method="POST" action="/admin/alunos">

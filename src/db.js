@@ -70,6 +70,14 @@ CREATE TABLE IF NOT EXISTS avaliacoes (
   atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (user_id, etapa)
 );
+CREATE TABLE IF NOT EXISTS vouchers (
+  codigo TEXT PRIMARY KEY,
+  lote TEXT NOT NULL,
+  valido_ate TEXT NOT NULL,
+  criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+  usado_em TEXT,
+  user_id INTEGER REFERENCES users(id)
+);
 `);
 
 function migrar() {
@@ -493,6 +501,100 @@ function resumoFinanceiro() {
   return { vendas: totais.vendas, faturamento: totais.faturamento, porDia };
 }
 
+// ---------- vouchers (acesso gratuito por código; premiações e doações) ----------
+
+const inserirVoucherStmt = db.prepare(
+  "INSERT INTO vouchers (codigo, lote, valido_ate) VALUES (?, ?, ?)"
+);
+
+const criarVouchersTx = db.transaction((codigos, lote, validoAte) => {
+  for (const codigo of codigos) inserirVoucherStmt.run(codigo, lote, validoAte);
+  return codigos.length;
+});
+
+function criarVouchers(codigos, lote, validoAte) {
+  return criarVouchersTx(codigos, lote, validoAte);
+}
+
+function buscarVoucher(codigo) {
+  return db
+    .prepare(
+      `SELECT *, (usado_em IS NULL AND valido_ate >= datetime('now')) AS disponivel,
+              (usado_em IS NULL AND valido_ate < datetime('now')) AS expirado
+         FROM vouchers WHERE codigo = ?`
+    )
+    .get(codigo);
+}
+
+// Tudo numa transação: reconfere o voucher, cria/ativa o aluno, grava o pedido 'voucher' (valor 0)
+// e marca o código como usado. Lança Error com .motivo em: invalido | usado | expirado | ja_tem_acesso.
+const resgatarVoucherTx = db.transaction(({ codigo, nome, email, whatsapp, senhaHash }) => {
+  const voucher = buscarVoucher(codigo);
+  const falhar = (motivo) => {
+    const erro = new Error(`voucher ${motivo}`);
+    erro.motivo = motivo;
+    throw erro;
+  };
+  if (!voucher) falhar("invalido");
+  if (voucher.usado_em) falhar("usado");
+  if (voucher.expirado) falhar("expirado");
+
+  const existente = buscarUsuarioPorEmail(email);
+  if (existente && existente.ativo) falhar("ja_tem_acesso");
+
+  let userId;
+  if (existente) {
+    db.prepare("UPDATE users SET nome = ?, whatsapp = ?, senha_hash = ?, ativo = 1 WHERE id = ?").run(
+      nome,
+      whatsapp || null,
+      senhaHash,
+      existente.id
+    );
+    userId = existente.id;
+  } else {
+    userId = db
+      .prepare("INSERT INTO users (nome, email, whatsapp, senha_hash, ativo) VALUES (?, ?, ?, ?, 1)")
+      .run(nome, email, whatsapp || null, senhaHash).lastInsertRowid;
+  }
+  db.prepare(
+    "INSERT INTO orders (user_id, valor, status, pago_em) VALUES (?, 0, 'voucher', datetime('now'))"
+  ).run(userId);
+  db.prepare("UPDATE vouchers SET usado_em = datetime('now'), user_id = ? WHERE codigo = ?").run(
+    userId,
+    codigo
+  );
+  return userId;
+});
+
+function resgatarVoucher(dados) {
+  return resgatarVoucherTx(dados);
+}
+
+function listarVouchers() {
+  return db
+    .prepare(
+      `SELECT vouchers.*, users.nome, users.email,
+              CASE WHEN vouchers.usado_em IS NOT NULL THEN 'usado'
+                   WHEN vouchers.valido_ate < datetime('now') THEN 'expirado'
+                   ELSE 'disponivel' END AS situacao
+         FROM vouchers LEFT JOIN users ON users.id = vouchers.user_id
+        ORDER BY vouchers.lote, vouchers.criado_em, vouchers.codigo`
+    )
+    .all();
+}
+
+function resumoVouchers() {
+  return db
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              COUNT(usado_em) AS usados,
+              COUNT(CASE WHEN usado_em IS NULL AND valido_ate >= datetime('now') THEN 1 END) AS disponiveis,
+              COUNT(CASE WHEN usado_em IS NULL AND valido_ate < datetime('now') THEN 1 END) AS expirados
+         FROM vouchers`
+    )
+    .get();
+}
+
 module.exports = {
   db,
   ping,
@@ -532,4 +634,9 @@ module.exports = {
   contarAlunosAtivos,
   resumoPitch,
   resumoFinanceiro,
+  criarVouchers,
+  buscarVoucher,
+  resgatarVoucher,
+  listarVouchers,
+  resumoVouchers,
 };

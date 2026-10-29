@@ -2,7 +2,7 @@
 
 Fonte da verdade para **fatos do produto**. Sobre "o que fazer agora", quem manda é `claude-bridge/`.
 
-Atualizado em 23/09/2026.
+Atualizado em 29/10/2026.
 
 ## Contexto
 
@@ -21,6 +21,7 @@ Atualizado em 23/09/2026.
 | 22/09 | Mesma conta MP do Orbinote, com **aplicação separada "T4P"** | Isola o webhook e o token; `external_reference` com prefixo `T4P-` |
 | 22/09 | Sem e-mail transacional: senha redefinida pelo /admin | ~17 clientes; um ponto de falha a menos |
 | 22/09 | Balanço do Empretec usa o CSV do /admin, não o extrato do MP | O extrato mistura as vendas com as do Orbinote |
+| 29/10 | **Vouchers de acesso gratuito** (`/resgatar`): premiação dos vencedores da mostra de projetos da Fatec Olímpia (evento Conexão Fatec 2026), 30 códigos `FATEC-XXXX-XXXX`, lote "Conexão Fatec 2026", válidos até 30/11/2026, impressos em A4 (2 por folha, com QR). Pedido fica `voucher` com valor 0, fora do total de vendas | Self-service evita cadastro manual no /admin e deixa rastro de quem resgatou. Área do aluno segue até 24/12/2026 |
 | 22/09 | Fallback: se o PIX automático não passar no teste real até **qua 23/09 às 22h**, vender com PIX direto + ativação manual no /admin | Não perder os dias de venda |
 
 | 23/09 | Não há aula grátis: a amostra é o e-book (PDF). As 3 aulas são exclusivas de quem pagou | Decisão do Guilherme |

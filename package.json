@@ -11,6 +11,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "criar-aluno": "node scripts/criar-aluno.js",
+    "gerar-vouchers": "node scripts/gerar-vouchers.js",
     "e2e": "node scripts/e2e.js"
   },
   "dependencies": {
